@@ -38,6 +38,11 @@ details.
 | `extras.JobResult` | `Scan.job_result` (FK) | Trace any Scan back to the Nautobot Job run that started it |
 | `auth.User` (Nautobot's swapped `users.User`) | `ScannerAgent.user` (OneToOne) | DRF Token on this user authenticates remote agents |
 
+<figure markdown>
+![Scanner panel embedded on an IPAM Prefix detail page](../images/prefix-scanner-panel.png)
+<figcaption>The **Scan Coverage** panel injects directly into the IPAM `Prefix` detail page via a `TemplateExtension` — coverage percentage, IPs scanned, hosts up, and recent scan history all in one glance. Same pattern works for `dcim.Device` and `ipam.IPAddress` detail pages.</figcaption>
+</figure>
+
 ## Scan lifecycle
 
 ```

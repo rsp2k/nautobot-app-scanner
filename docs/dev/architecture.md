@@ -125,6 +125,11 @@ auto-sync from scans to `ipam.IPAddress`. An authorized user
 explicitly clicks **Promote to IPAddress** on a discovered host to
 create the IPAddress.
 
+<figure markdown>
+![Scanner panel on a Prefix detail page](../images/prefix-scanner-panel.png)
+<figcaption>Enrichment in action: scan data surfaces on the IPAM Prefix detail page via a `TemplateExtension`. The underlying IPAM record is untouched — the panel is a read-only join, not an inline edit.</figcaption>
+</figure>
+
 **Why:**
 
 - A transient NAT or container that responded once shouldn't become a
