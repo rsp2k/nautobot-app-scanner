@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% load form_helpers %}
+
+{% block title %}Promote {{ object.ip_address }} to IPAddress{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-md-8 col-md-offset-2">
+    <div class="panel panel-default">
+      <div class="panel-heading">
+        <strong>Promote {{ object.ip_address }} to ipam.IPAddress</strong>
+      </div>
+      <div class="panel-body">
+        <p class="text-muted" style="margin-bottom:1rem">
+          This will create a new <code>ipam.IPAddress</code> record for
+          <code>{{ object.ip_address }}</code> and link this DiscoveredHost
+          to it. Scan history stays attached to the DiscoveredHost; the new
+          IPAddress is fully editable from IPAM going forward.
+        </p>
+
+        <dl style="display:grid; grid-template-columns: max-content 1fr; gap: 0.3rem 1rem; margin-bottom: 1.5rem; padding: 0.6rem 0.9rem; background: rgba(255,255,255,0.04); border-radius:4px">
+          <dt style="opacity:0.6">Discovered IP</dt>
+          <dd><code>{{ object.ip_address }}</code></dd>
+          <dt style="opacity:0.6">Hostname</dt>
+          <dd>{{ object.hostname|default:"—" }}</dd>
+          <dt style="opacity:0.6">State</dt>
+          <dd>{{ object.get_host_state_display }}</dd>
+          <dt style="opacity:0.6">Scan</dt>
+          <dd><a href="{{ object.scan.get_absolute_url }}">{{ object.scan }}</a></dd>
+        </dl>
+
+        <form method="post">
+          {% csrf_token %}
+          {% for field in form %}
+            {% render_field field %}
+          {% endfor %}
+          <div style="margin-top:1rem; display:flex; gap:0.5rem">
+            <button type="submit" class="btn btn-primary">
+              <i class="mdi mdi-rocket-launch"></i> Promote
+            </button>
+            <a href="{{ object.get_absolute_url }}" class="btn btn-default">
+              <i class="mdi mdi-close"></i> Cancel
+            </a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

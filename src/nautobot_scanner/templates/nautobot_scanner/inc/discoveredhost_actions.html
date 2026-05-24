@@ -1,0 +1,34 @@
+{# Actions panel for DiscoveredHost detail — shows Promote button when unlinked, IPAM link when linked. #}
+<div style="padding: 0.5rem 0">
+  {% if object.linked_ipaddress %}
+    <div style="padding: 0.6rem 0.9rem; background: rgba(30, 107, 58, 0.15); border-left: 3px solid #1e6b3a; border-radius: 4px;">
+      <strong style="display:block; margin-bottom:0.2rem">Linked to IPAM</strong>
+      <div>
+        This discovered host is linked to
+        <a href="{{ object.linked_ipaddress.get_absolute_url }}">
+          <code>{{ object.linked_ipaddress.address }}</code>
+        </a>
+        in namespace <a href="{{ object.linked_ipaddress.namespace.get_absolute_url }}">{{ object.linked_ipaddress.namespace.name }}</a>.
+      </div>
+    </div>
+  {% else %}
+    <div style="padding: 0.6rem 0.9rem; background: rgba(106, 85, 0, 0.15); border-left: 3px solid #6a5500; border-radius: 4px; margin-bottom: 0.6rem">
+      <strong style="display:block; margin-bottom:0.2rem">Not yet in IPAM</strong>
+      <div style="opacity:0.8">
+        Discovered hosts are stored in the scanner namespace only. Promote to create
+        a real <code>ipam.IPAddress</code> record that can be tied to Devices, VLANs,
+        and the rest of Nautobot.
+      </div>
+    </div>
+    {% if perms.ipam.add_ipaddress %}
+      <a href="{% url 'plugins:nautobot_scanner:discoveredhost_promote' pk=object.pk %}"
+         class="btn btn-primary">
+        <i class="mdi mdi-rocket-launch"></i> Promote to IPAddress
+      </a>
+    {% else %}
+      <button class="btn btn-default" disabled title="Requires the ipam.add_ipaddress permission">
+        <i class="mdi mdi-lock"></i> Promote (no permission)
+      </button>
+    {% endif %}
+  {% endif %}
+</div>

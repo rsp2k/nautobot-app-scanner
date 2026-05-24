@@ -4,10 +4,18 @@ Each PrimaryModel gets two forms: a `XForm` (NautobotModelForm) for
 create/edit and a `XFilterForm` (NautobotFilterForm) for the list-view
 filter sidebar. ChoiceSet-backed fields explicitly declare MultipleChoiceField
 in the filter form so users can multi-select states like host_state=up,down.
+
+Also defines `PromoteDiscoveredHostForm` — Phase 9's promote-to-IPAddress
+workflow form. Not a ModelForm because the source model (DiscoveredHost)
+isn't the target model (IPAddress); we collect just the fields IPAM needs
+to materialize a new IPAddress and the view does the cross-model write.
 """
 
 from django import forms
 from nautobot.apps.forms import DynamicModelChoiceField, NautobotFilterForm, NautobotModelForm
+from nautobot.extras.models import Status
+from nautobot.ipam.models import Namespace, Prefix
+from nautobot.tenancy.models import Tenant
 
 from nautobot_scanner import models
 from nautobot_scanner.choices import (
@@ -144,3 +152,48 @@ class DiscoveredHostFilterForm(NautobotFilterForm):
     port_state = forms.MultipleChoiceField(choices=PortStateChoices, required=False)
     protocol = forms.MultipleChoiceField(choices=ProtocolChoices, required=False)
     severity = forms.MultipleChoiceField(choices=SeverityChoices, required=False)
+
+
+# -----------------------------------------------------------------------------
+# DiscoveredHost → IPAddress promotion
+# -----------------------------------------------------------------------------
+class PromoteDiscoveredHostForm(forms.Form):
+    """Form for promoting a DiscoveredHost into a real ipam.IPAddress.
+
+    Pre-populated from the discovered host (IP, hostname → dns_name). The
+    view enforces `ipam.add_ipaddress` permission separately — this form
+    only validates the payload.
+    """
+
+    namespace = DynamicModelChoiceField(
+        queryset=Namespace.objects.all(),
+        help_text="The IPAM namespace this IPAddress will live in.",
+    )
+    parent_prefix = DynamicModelChoiceField(
+        queryset=Prefix.objects.all(),
+        required=False,
+        query_params={"namespace_id": "$namespace"},
+        help_text=(
+            "Optional. The parent prefix is normally inferred automatically; "
+            "set this only if the discovered IP fits multiple candidate parents."
+        ),
+    )
+    status = forms.ModelChoiceField(
+        queryset=Status.objects.all(),
+        help_text="Status of the new IPAddress record (e.g. Active, Reserved).",
+    )
+    dns_name = forms.CharField(
+        required=False,
+        max_length=255,
+        help_text="DNS / PTR name. Pre-filled from the discovered hostname.",
+    )
+    tenant = DynamicModelChoiceField(
+        queryset=Tenant.objects.all(),
+        required=False,
+        help_text="Optional. Assigning a tenant scopes this address for billing/segmentation.",
+    )
+    description = forms.CharField(
+        required=False,
+        max_length=200,
+        help_text="Free-form note; pre-filled with the discovering scan reference.",
+    )
