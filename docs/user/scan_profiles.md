@@ -4,6 +4,11 @@ A `ScanProfile` is a reusable nmap argument template — name, scan type,
 raw nmap flags, timing template, and an optional list of NSE scripts.
 The same profile can be re-used by any agent for any target.
 
+<figure markdown>
+![Scan profiles list view](../images/profiles-list.png)
+<figcaption>Scan profiles list — each row links to a detail/edit page; the **Add Scan Profile** button creates a new one.</figcaption>
+</figure>
+
 ## Why profiles exist
 
 You probably don't want operators typing nmap arguments into the Run

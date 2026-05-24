@@ -1,0 +1,55 @@
+{% include "nautobot_scanner/inc/_scanner_panel_styles.html" %}
+{% load helpers %}
+
+<div class="panel panel-default scanner-inject">
+  <div class="panel-heading">
+    <strong>Scanner Activity</strong>
+    {% if discovered_hosts %}
+      <span class="badge">{{ discovered_hosts|length }}</span>
+    {% endif %}
+  </div>
+  <div class="panel-body">
+    {% if not discovered_hosts %}
+      <div class="scanner-empty">No scans against this IP yet.</div>
+    {% else %}
+      <div class="scanner-inject-stats">
+        <div class="scanner-inject-stat">
+          <span class="num{% if not discovered_hosts|length %} muted{% endif %}">{{ discovered_hosts|length }}</span>
+          <div class="lbl">Scans</div>
+        </div>
+        <div class="scanner-inject-stat">
+          <span class="num{% if not open_port_count %} muted{% endif %}">{{ open_port_count }}</span>
+          <div class="lbl">Open ports</div>
+        </div>
+        <div class="scanner-inject-stat">
+          <span class="num{% if vuln_count %}warn{% else %} muted{% endif %}">{{ vuln_count }}</span>
+          <div class="lbl">Vulnerabilities</div>
+        </div>
+      </div>
+      <table class="scanner-mini">
+        <thead>
+          <tr>
+            <th>State</th>
+            <th>Hostname</th>
+            <th>Scan</th>
+            <th style="text-align:right">When</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for host in discovered_hosts %}
+            <tr>
+              <td>
+                <span class="scanner-mini-pill {{ host.host_state }}">{{ host.get_host_state_display }}</span>
+              </td>
+              <td>{{ host.hostname|default:"—" }}</td>
+              <td>
+                <a href="{{ host.scan.get_absolute_url }}" title="{{ host.scan.profile.nmap_arguments }}">{{ host.scan.profile.name }}</a>
+              </td>
+              <td style="text-align:right; opacity:0.7">{{ host.scan.started_at|timesince }} ago</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% endif %}
+  </div>
+</div>

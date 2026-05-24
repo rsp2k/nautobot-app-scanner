@@ -4,6 +4,11 @@ A scan executor — either in-process inside the Nautobot worker
 (`agent_type=local`) or a registered remote process authenticated by
 DRF Token.
 
+<figure markdown>
+![ScannerAgent detail page](../images/agent-detail.png)
+<figcaption>ScannerAgent detail page — fields on the left, Recent Scans table on the right (via the reverse `agent.scans` FK).</figcaption>
+</figure>
+
 | Field | Description |
 |-------|-------------|
 | `name` | Unique identifier (operator-chosen, e.g. `dc1-local`, `branch-fra-agent01`) |

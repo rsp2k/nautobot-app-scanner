@@ -3,6 +3,11 @@
 One scan execution. Named `Scan` rather than `ScanJob` to avoid
 colliding with Nautobot's `extras.jobs.Job` namespace.
 
+<figure markdown>
+![Scan detail page with stat cards, profile, targets, raw XML, and discovered hosts](../images/scan-detail-completed.png)
+<figcaption>Scan detail view — the custom template in `templates/inc/scan_overview.html` renders stat cards, agent/profile/target metadata, and the discovered-hosts table.</figcaption>
+</figure>
+
 | Field | Description |
 |-------|-------------|
 | `agent` | FK to `ScannerAgent` (PROTECT) — which agent ran / will run the scan |

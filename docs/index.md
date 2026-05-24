@@ -11,6 +11,11 @@ Prefix detail pages.
     Use the calendar-versioned releases (`YYYY.MM.DD`) to pin a known-good
     snapshot in production.
 
+<figure markdown>
+![Completed scan detail with stat cards and discovered-host table](images/scan-detail-completed.png)
+<figcaption>Scan detail view — agent + profile + targets + lifecycle + raw XML + per-host results, all on one page. Click to zoom.</figcaption>
+</figure>
+
 ## Why this app
 
 Network teams already have an IPAM (Nautobot) and a scanner (nmap). The

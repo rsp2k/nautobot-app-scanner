@@ -4,6 +4,11 @@ One host nmap reported during a scan. Identity is `(scan, ip_address)`
 — the same IP discovered across multiple scans yields multiple rows so
 historical per-scan state is preserved.
 
+<figure markdown>
+![DiscoveredHost detail with nested Open Ports and Traceroute Hops tables](../images/discoveredhost-detail.png)
+<figcaption>DiscoveredHost detail — the BaseModel child records (Open Ports, Traceroute Hops) render as nested tables on the host's own page.</figcaption>
+</figure>
+
 | Field | Description |
 |-------|-------------|
 | `scan` | FK to `Scan` (CASCADE) |

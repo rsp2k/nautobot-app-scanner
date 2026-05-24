@@ -1,5 +1,10 @@
 # App Overview
 
+<figure markdown>
+![Scan detail page showing 4 hosts discovered](../images/scan-detail-completed.png)
+<figcaption>A completed scan's detail page — stat cards summarize results, the right panel lists each `DiscoveredHost`.</figcaption>
+</figure>
+
 ## What gets stored
 
 The app turns nmap XML output into Nautobot ORM records. Each `Scan`

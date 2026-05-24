@@ -1,0 +1,49 @@
+{% include "nautobot_scanner/inc/_scanner_panel_styles.html" %}
+{% load helpers %}
+
+<div class="panel panel-default scanner-inject">
+  <div class="panel-heading">
+    <strong>Scanner Activity</strong>
+    {% if discovered_hosts %}
+      <span class="badge">{{ discovered_hosts|length }}</span>
+    {% endif %}
+  </div>
+  <div class="panel-body">
+    {% if not device_ips %}
+      <div class="scanner-empty">No primary IPv4/IPv6 set on this device — scanner can't match by IP.</div>
+    {% elif not discovered_hosts %}
+      <div class="scanner-empty">No scan results for
+        {% for ip in device_ips %}<code>{{ ip }}</code>{% if not forloop.last %} or {% endif %}{% endfor %}
+        yet.</div>
+    {% else %}
+      <table class="scanner-mini">
+        <thead>
+          <tr>
+            <th>IP</th>
+            <th>State</th>
+            <th>Hostname</th>
+            <th>Scan</th>
+            <th style="text-align:right">When</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for host in discovered_hosts %}
+            <tr>
+              <td>
+                <a href="{{ host.get_absolute_url }}">{{ host.ip_address }}</a>
+              </td>
+              <td>
+                <span class="scanner-mini-pill {{ host.host_state }}">{{ host.get_host_state_display }}</span>
+              </td>
+              <td>{{ host.hostname|default:"—" }}</td>
+              <td>
+                <a href="{{ host.scan.get_absolute_url }}" title="{{ host.scan.profile.nmap_arguments }}">{{ host.scan.profile.name }}</a>
+              </td>
+              <td style="text-align:right; opacity:0.7">{{ host.scan.started_at|timesince }} ago</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% endif %}
+  </div>
+</div>

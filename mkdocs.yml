@@ -77,6 +77,19 @@ markdown_extensions:
 plugins:
   - "search"
   - "include-markdown"
+  # Click-to-zoom lightbox on embedded screenshots. The 1440px UI shots
+  # get scaled hard in the docs column, so the lightbox is necessary for
+  # them to be legible. Drop the alt-class `no-lightbox` on an image to
+  # opt out for a specific embed.
+  - "glightbox":
+      touchNavigation: true
+      loop: false
+      effect: "zoom"
+      slide_effect: "slide"
+      width: "100%"
+      height: "auto"
+      zoomable: true
+      draggable: true
   # Auto-generated API reference from docstrings. AST-parses our source
   # via griffe; doesn't need nautobot/django installed on the build host.
   - "mkdocstrings":

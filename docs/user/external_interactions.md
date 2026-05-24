@@ -25,6 +25,16 @@ make sure the worker container/host has `nmap` in PATH.
 See [Agent Protocol](../dev/agent_protocol.md) for the full REST
 contract.
 
+<figure markdown>
+![DRF browsable API root for scanner](../images/api-root.png)
+<figcaption>DRF browsable API at `/api/plugins/scanner/` — the seven CRUD viewsets plus the agent-specific endpoints.</figcaption>
+</figure>
+
+<figure markdown>
+![Scan JSON serialization showing summary, ingestion_token, and raw_xml URL](../images/api-scan-json.png)
+<figcaption>A scan's serialized JSON. Note `ingestion_token: null` — the one-shot token is cleared after a successful ingest (see [ADR-005](../dev/architecture.md#adr-005-ingest-race-protection-one-shot-token-select_for_update)).</figcaption>
+</figure>
+
 ## Outbound network from the agent host
 
 A remote agent host needs:

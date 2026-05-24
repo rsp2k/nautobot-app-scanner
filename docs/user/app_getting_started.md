@@ -4,6 +4,11 @@ A first-scan walkthrough. Assumes you've already installed the app
 (see [Install](../admin/install.md)) and the dev stack or a Nautobot
 instance is reachable.
 
+<figure markdown>
+![Nautobot home with Scanner entry in the left navigation](../images/home-scanner-nav.png)
+<figcaption>The Scanner nav entry appears in Nautobot's left rail once the app is installed.</figcaption>
+</figure>
+
 ## 1. Create a local scanner agent
 
 Most installs start with a single local agent — nmap runs inside the
@@ -21,6 +26,11 @@ Nautobot worker. (For scans of isolated segments, see
 
 Local agents don't need a bound `User` — that's only for remote agents
 authenticating to the REST API.
+
+<figure markdown>
+![Agents list showing the local-dev agent](../images/agents-list.png)
+<figcaption>The new agent appears in the **Scanner Agents** list.</figcaption>
+</figure>
 
 ## 2. Create a scan profile
 
@@ -49,6 +59,11 @@ For a real port scan, try:
 | Timing template | `T4 — Aggressive` |
 
 See [Scan Profiles](scan_profiles.md) for a reference of common combos.
+
+<figure markdown>
+![Scan profiles list](../images/profiles-list.png)
+<figcaption>Profiles list view — each profile is reusable across any agent.</figcaption>
+</figure>
 
 ## 3. Pick a target prefix
 
@@ -85,6 +100,11 @@ local agent — remote agents pick up at their next poll interval).
 - Linked `JobResult` (full execution log)
 - Summary counts
 - Linked `DiscoveredHost` rows (click into any host for ports / fingerprints / vulns)
+
+<figure markdown>
+![Completed scan detail — stat cards + discovered hosts](../images/scan-detail-completed.png)
+<figcaption>The Scan detail page bundles everything you need to triage a completed run.</figcaption>
+</figure>
 
 If you scanned a prefix that contains an IPAddress already in IPAM, the
 matching `DiscoveredHost` should have `linked_ipaddress` populated —

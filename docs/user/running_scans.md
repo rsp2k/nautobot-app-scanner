@@ -4,6 +4,11 @@ Scans are dispatched via Nautobot **Jobs**. This means they integrate
 with Nautobot's built-in job machinery: scheduling, audit trail, log
 streaming, retry, and the `JobResult` page.
 
+<figure markdown>
+![Scans list with the completed smoke-discovery run](../images/scans-list.png)
+<figcaption>The **Scans** list view groups every run with its lifecycle state, agent, profile, and timestamps.</figcaption>
+</figure>
+
 ## The two scan jobs
 
 | Job | Inputs | Notes |

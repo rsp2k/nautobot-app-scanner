@@ -1,0 +1,61 @@
+{% include "nautobot_scanner/inc/_scanner_panel_styles.html" %}
+{% load helpers %}
+
+<div class="panel panel-default scanner-inject">
+  <div class="panel-heading">
+    <strong>Scan Coverage</strong>
+  </div>
+  <div class="panel-body">
+    <div class="scanner-inject-stats">
+      <div class="scanner-inject-stat">
+        <span class="num{% if coverage_pct == 0 %} muted{% endif %}">{{ coverage_pct }}%</span>
+        <div class="lbl">Coverage</div>
+      </div>
+      <div class="scanner-inject-stat">
+        <span class="num{% if not ips_scanned %} muted{% endif %}">{{ ips_scanned }}</span>
+        <div class="lbl">IPs Scanned</div>
+      </div>
+      <div class="scanner-inject-stat">
+        <span class="num{% if not hosts_up %} muted{% endif %}">{{ hosts_up }}</span>
+        <div class="lbl">Hosts Up</div>
+      </div>
+      <div class="scanner-inject-stat">
+        <span class="num muted">{{ ips_in_prefix }}</span>
+        <div class="lbl">Total IPs</div>
+      </div>
+    </div>
+
+    {% if recent_scans %}
+      <table class="scanner-mini">
+        <thead>
+          <tr>
+            <th>Profile</th>
+            <th>Agent</th>
+            <th>Status</th>
+            <th style="text-align:right">When</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for scan in recent_scans %}
+            <tr>
+              <td>
+                <a href="{{ scan.get_absolute_url }}" title="{{ scan.profile.nmap_arguments }}">{{ scan.profile.name }}</a>
+              </td>
+              <td>
+                <a href="{{ scan.agent.get_absolute_url }}">{{ scan.agent.name }}</a>
+              </td>
+              <td>
+                <span class="scanner-mini-pill {{ scan.status }}">{{ scan.get_status_display }}</span>
+              </td>
+              <td style="text-align:right; opacity:0.7">
+                {% if scan.started_at %}{{ scan.started_at|timesince }} ago{% else %}—{% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <div class="scanner-empty">No scans have targeted this prefix yet.</div>
+    {% endif %}
+  </div>
+</div>

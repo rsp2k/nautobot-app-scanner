@@ -4,6 +4,11 @@ A **ScannerAgent** is the identity of a scan executor. The `agent_type`
 field selects between two execution models with very different
 deployment characteristics.
 
+<figure markdown>
+![Scanner Agent detail page showing recent scans](../images/agent-detail.png)
+<figcaption>An agent's detail page — fields on the left, recent scans on the right.</figcaption>
+</figure>
+
 ## Local agents
 
 `agent_type = local` means nmap runs inside the Nautobot Celery worker

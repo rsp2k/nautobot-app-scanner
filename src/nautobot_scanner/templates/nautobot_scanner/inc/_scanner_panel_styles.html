@@ -1,0 +1,82 @@
+{# Shared CSS for the three template-content panels. Inlined per-render is fine — Nautobot strips duplicates server-side. #}
+<style>
+  .scanner-inject {
+    font-size: 0.92em;
+  }
+  .scanner-inject .scanner-inject-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+  .scanner-inject .scanner-inject-stats {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.6rem;
+  }
+  .scanner-inject .scanner-inject-stat {
+    flex: 1 1 0;
+    min-width: 80px;
+    padding: 0.4rem 0.6rem;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 4px;
+    text-align: center;
+  }
+  .scanner-inject .scanner-inject-stat .num {
+    display: block;
+    font-size: 1.25rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+  .scanner-inject .scanner-inject-stat .num.muted { color: rgba(255,255,255,0.4); }
+  .scanner-inject .scanner-inject-stat .num.warn  { color: #ffb84d; }
+  .scanner-inject .scanner-inject-stat .num.crit  { color: #ff5c5c; }
+  .scanner-inject .scanner-inject-stat .lbl {
+    font-size: 0.65em;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: rgba(255, 255, 255, 0.55);
+    margin-top: 0.15rem;
+  }
+  .scanner-inject table.scanner-mini {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .scanner-inject table.scanner-mini th,
+  .scanner-inject table.scanner-mini td {
+    padding: 0.25rem 0.4rem;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    font-size: 0.85em;
+    text-align: left;
+  }
+  .scanner-inject table.scanner-mini th {
+    font-size: 0.7em;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: rgba(255, 255, 255, 0.55);
+  }
+  .scanner-inject .scanner-empty {
+    color: rgba(255, 255, 255, 0.4);
+    font-style: italic;
+    padding: 0.5rem 0;
+  }
+  .scanner-inject .scanner-mini-pill {
+    display: inline-block;
+    padding: 0.1em 0.45em;
+    border-radius: 999px;
+    font-size: 0.75em;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  .scanner-inject .scanner-mini-pill.up        { background: #1e6b3a; color: #d8f3dc; }
+  .scanner-inject .scanner-mini-pill.down      { background: #7a1e1e; color: #ffd7d7; }
+  .scanner-inject .scanner-mini-pill.unknown   { background: #4a4a4a; color: #d8d8d8; }
+  .scanner-inject .scanner-mini-pill.completed { background: #1e6b3a; color: #d8f3dc; }
+  .scanner-inject .scanner-mini-pill.failed    { background: #7a1e1e; color: #ffd7d7; }
+  .scanner-inject .scanner-mini-pill.running   { background: #1e4a7a; color: #d6e8ff; }
+  .scanner-inject .scanner-mini-pill.pending   { background: #6a5500; color: #fff5b8; }
+</style>
