@@ -108,5 +108,14 @@ class Scan(PrimaryModel):
         ]
 
     def __str__(self) -> str:
-        """Display string."""
-        return f"{self.agent.name} / {self.profile.name} @ {self.started_at or 'pending'}"
+        """Short, scannable label — agent + profile + relative time."""
+        short = str(self.pk)[:8]
+        when = self.started_at.strftime("%b %-d %H:%M") if self.started_at else "queued"
+        return f"{self.agent.name} · {self.profile.name} · {when} ({short})"
+
+    @property
+    def duration_seconds(self) -> float | None:
+        """Wall-clock scan duration, or None if not finished."""
+        if not self.started_at or not self.completed_at:
+            return None
+        return (self.completed_at - self.started_at).total_seconds()

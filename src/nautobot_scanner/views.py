@@ -13,10 +13,27 @@ the API serializers and viewsets in `api/`. Until then list/detail UI
 works without REST access.
 """
 
-from nautobot.apps.ui import ObjectDetailContent, ObjectFieldsPanel, ObjectsTablePanel, SectionChoices
+from nautobot.apps.ui import ObjectDetailContent, ObjectFieldsPanel, ObjectsTablePanel, Panel, SectionChoices
 from nautobot.apps.views import NautobotUIViewSet
 
 from nautobot_scanner import filters, forms, models, tables
+from nautobot_scanner.api import serializers
+
+
+class ScanOverviewPanel(Panel):
+    """Custom hero panel for Scan detail pages.
+
+    Renders the status pill, big-stat tiles (hosts up/down, ports open,
+    vulns, hops), agent/profile/timing metadata, and target chips. Replaces
+    the generic ObjectFieldsPanel which can't render M2M relationships
+    (the manager's repr leaks through as `ipam.Prefix.None`) and can't
+    style the status enum as a colored badge.
+
+    Template: templates/nautobot_scanner/inc/scan_overview.html
+    """
+
+    label = "Scan Overview"
+    body_content_template_path = "nautobot_scanner/inc/scan_overview.html"
 
 
 class ScannerAgentUIViewSet(NautobotUIViewSet):
@@ -27,7 +44,7 @@ class ScannerAgentUIViewSet(NautobotUIViewSet):
     filterset_class = filters.ScannerAgentFilterSet
     filterset_form_class = forms.ScannerAgentFilterForm
     form_class = forms.ScannerAgentForm
-    serializer_class = None
+    serializer_class = serializers.ScannerAgentSerializer
     lookup_field = "pk"
 
     object_detail_content = ObjectDetailContent(
@@ -60,7 +77,7 @@ class ScanProfileUIViewSet(NautobotUIViewSet):
     filterset_class = filters.ScanProfileFilterSet
     filterset_form_class = forms.ScanProfileFilterForm
     form_class = forms.ScanProfileForm
-    serializer_class = None
+    serializer_class = serializers.ScanProfileSerializer
     lookup_field = "pk"
 
     object_detail_content = ObjectDetailContent(
@@ -99,21 +116,19 @@ class ScanUIViewSet(NautobotUIViewSet):
     filterset_class = filters.ScanFilterSet
     filterset_form_class = forms.ScanFilterForm
     form_class = forms.ScanForm
-    serializer_class = None
+    serializer_class = serializers.ScanSerializer
     lookup_field = "pk"
 
     object_detail_content = ObjectDetailContent(
         panels=(
-            ObjectFieldsPanel(
+            # Hero overview — replaces ObjectFieldsPanel since M2M fields and
+            # the status-enum badge both need custom rendering.
+            ScanOverviewPanel(
                 section=SectionChoices.LEFT_HALF,
                 weight=100,
-                fields=[
-                    "agent", "profile", "status", "started_at", "completed_at",
-                    "target_prefixes", "target_ipaddresses",
-                    "summary", "error_message", "raw_xml", "raw_xml_size",
-                    "cancel_requested", "job_result",
-                ],
             ),
+            # Discovered hosts is the most-interacted-with table, so it gets
+            # the full right column.
             ObjectsTablePanel(
                 section=SectionChoices.RIGHT_HALF,
                 weight=100,
@@ -139,7 +154,7 @@ class DiscoveredHostUIViewSet(NautobotUIViewSet):
     filterset_class = filters.DiscoveredHostFilterSet
     filterset_form_class = forms.DiscoveredHostFilterForm
     form_class = forms.DiscoveredHostForm
-    serializer_class = None
+    serializer_class = serializers.DiscoveredHostSerializer
     lookup_field = "pk"
 
     object_detail_content = ObjectDetailContent(

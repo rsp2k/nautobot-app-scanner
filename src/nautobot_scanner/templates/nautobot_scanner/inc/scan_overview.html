@@ -1,0 +1,187 @@
+{% load helpers %}
+{% load humanize %}
+{# Scan overview panel — visual hero for the scan detail page. #}
+{# Renders: status pill, big stats tiles, target chips, timing.   #}
+
+<style>
+  /* Scoped to .scanner-overview so we don't leak globally. */
+  .scanner-overview .scanner-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4em;
+    padding: 0.25em 0.7em;
+    border-radius: 999px;
+    font-size: 0.85em;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+  }
+  .scanner-overview .scanner-pill.completed { background: #1e6b3a; color: #d8f3dc; }
+  .scanner-overview .scanner-pill.failed    { background: #7a1e1e; color: #ffd7d7; }
+  .scanner-overview .scanner-pill.running   { background: #1e4a7a; color: #d6e8ff; }
+  .scanner-overview .scanner-pill.pending   { background: #6a5500; color: #fff5b8; }
+  .scanner-overview .scanner-pill.cancelled { background: #4a4a4a; color: #d8d8d8; }
+
+  .scanner-overview .scanner-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 0.75rem;
+    margin: 1rem 0;
+  }
+  .scanner-overview .scanner-stat {
+    padding: 0.9rem 1rem;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+  }
+  .scanner-overview .scanner-stat .num {
+    display: block;
+    font-size: 1.7rem;
+    font-weight: 700;
+    line-height: 1.1;
+    margin-bottom: 0.15rem;
+  }
+  .scanner-overview .scanner-stat .num.muted { color: rgba(255, 255, 255, 0.45); }
+  .scanner-overview .scanner-stat .num.warn  { color: #ffb84d; }
+  .scanner-overview .scanner-stat .num.crit  { color: #ff5c5c; }
+  .scanner-overview .scanner-stat .label {
+    font-size: 0.75em;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: rgba(255, 255, 255, 0.6);
+  }
+
+  .scanner-overview .scanner-meta {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    column-gap: 1.2rem;
+    row-gap: 0.4rem;
+    align-items: baseline;
+  }
+  .scanner-overview .scanner-meta dt {
+    font-size: 0.8em;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: rgba(255, 255, 255, 0.5);
+    font-weight: 500;
+  }
+  .scanner-overview .scanner-meta dd { margin: 0; }
+
+  .scanner-overview .scanner-targets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+  .scanner-overview .scanner-target {
+    padding: 0.18rem 0.55rem;
+    background: rgba(120, 180, 255, 0.12);
+    border: 1px solid rgba(120, 180, 255, 0.25);
+    border-radius: 4px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.85em;
+    text-decoration: none;
+  }
+  .scanner-overview .scanner-target:hover {
+    background: rgba(120, 180, 255, 0.22);
+  }
+  .scanner-overview .scanner-targets-empty {
+    color: rgba(255, 255, 255, 0.4);
+    font-style: italic;
+  }
+
+  .scanner-overview .scanner-error {
+    margin-top: 0.5rem;
+    padding: 0.6rem 0.9rem;
+    background: rgba(180, 30, 30, 0.18);
+    border-left: 3px solid #ff5c5c;
+    border-radius: 4px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.85em;
+    white-space: pre-wrap;
+  }
+</style>
+
+<div class="scanner-overview">
+  {# Status pill #}
+  <div style="margin-bottom: 0.6rem">
+    <span class="scanner-pill {{ object.status }}">
+      {{ object.get_status_display }}
+    </span>
+    {% if object.cancel_requested %}
+      <span class="scanner-pill cancelled" style="margin-left: 0.3rem">cancel requested</span>
+    {% endif %}
+  </div>
+
+  {# Big-number stats #}
+  <div class="scanner-stats">
+    <div class="scanner-stat">
+      <span class="num{% if not object.summary.hosts_up %} muted{% endif %}">{{ object.summary.hosts_up|default:0 }}</span>
+      <span class="label">Hosts up</span>
+    </div>
+    <div class="scanner-stat">
+      <span class="num{% if not object.summary.hosts_down %} muted{% endif %}">{{ object.summary.hosts_down|default:0 }}</span>
+      <span class="label">Hosts down</span>
+    </div>
+    <div class="scanner-stat">
+      <span class="num{% if not object.summary.ports_open %} muted{% endif %}">{{ object.summary.ports_open|default:0 }}</span>
+      <span class="label">Open ports</span>
+    </div>
+    <div class="scanner-stat">
+      <span class="num{% if object.summary.vulnerabilities %}warn{% else %} muted{% endif %}">{{ object.summary.vulnerabilities|default:0 }}</span>
+      <span class="label">Vulnerabilities</span>
+    </div>
+    <div class="scanner-stat">
+      <span class="num{% if not object.summary.traceroute_hops %} muted{% endif %}">{{ object.summary.traceroute_hops|default:0 }}</span>
+      <span class="label">Traceroute hops</span>
+    </div>
+  </div>
+
+  {# Agent / profile / timing meta #}
+  <dl class="scanner-meta">
+    <dt>Agent</dt>
+    <dd><a href="{{ object.agent.get_absolute_url }}">{{ object.agent.name }}</a> <span style="opacity:0.6">({{ object.agent.get_agent_type_display }})</span></dd>
+
+    <dt>Profile</dt>
+    <dd><a href="{{ object.profile.get_absolute_url }}">{{ object.profile.name }}</a> <span style="opacity:0.6">— <code>{{ object.profile.nmap_arguments }}</code></span></dd>
+
+    <dt>Started</dt>
+    <dd>{% if object.started_at %}{{ object.started_at|date:"Y-m-d H:i:s" }} <span style="opacity:0.6">({{ object.started_at|naturaltime }})</span>{% else %}—{% endif %}</dd>
+
+    <dt>Completed</dt>
+    <dd>
+      {% if object.completed_at %}
+        {{ object.completed_at|date:"Y-m-d H:i:s" }}
+        {% if object.duration_seconds %}
+          <span style="opacity:0.6">— took {{ object.duration_seconds|floatformat:2 }}s</span>
+        {% endif %}
+      {% else %}—{% endif %}
+    </dd>
+
+    <dt>Targets</dt>
+    <dd>
+      <div class="scanner-targets">
+        {% for prefix in object.target_prefixes.all %}
+          <a class="scanner-target" href="{{ prefix.get_absolute_url }}">{{ prefix.prefix }}</a>
+        {% endfor %}
+        {% for ip in object.target_ipaddresses.all %}
+          <a class="scanner-target" href="{{ ip.get_absolute_url }}">{{ ip.address }}</a>
+        {% endfor %}
+        {% if not object.target_prefixes.all and not object.target_ipaddresses.all %}
+          <span class="scanner-targets-empty">— no targets —</span>
+        {% endif %}
+      </div>
+    </dd>
+
+    <dt>Raw XML</dt>
+    <dd>
+      {% if object.raw_xml %}
+        <a href="{{ object.raw_xml.url }}" download>{{ object.raw_xml.name|cut:"scanner/xml/" }}</a>
+        <span style="opacity:0.6">— {{ object.raw_xml_size|filesizeformat }} uncompressed</span>
+      {% else %}—{% endif %}
+    </dd>
+  </dl>
+
+  {% if object.error_message %}
+    <div class="scanner-error"><strong>Error:</strong> {{ object.error_message }}</div>
+  {% endif %}
+</div>
