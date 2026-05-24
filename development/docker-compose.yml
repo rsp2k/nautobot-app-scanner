@@ -110,8 +110,9 @@ services:
     container_name: ${COMPOSE_PROJECT_NAME}-web
     # Loopback-only port mapping for direct curl/Playwright access.
     # Caddy reverse-proxies normal browser traffic via the labels below.
+    # 8086 was taken by another project at scaffold time; 8087 is the next free.
     ports:
-      - "127.0.0.1:8086:8080"
+      - "127.0.0.1:8087:8080"
     healthcheck:
       # Use the in-process /health/ endpoint (cheap) instead of the upstream
       # `nautobot-server health_check` (which cold-boots Django every probe).

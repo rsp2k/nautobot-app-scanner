@@ -20,12 +20,16 @@ the existing Device, IPAddress, and Prefix pages.
 ## Quick start
 
 ```bash
-cp .env.example .env
-# edit .env: set DOMAIN and rotate the changeme- secrets
+cp development/.env.example development/.env
+# edit development/.env: set DOMAIN and rotate the changeme- secrets
 make build
 make up
 make migrate
 ```
+
+`.env` lives in `development/` because that's where `docker compose`
+auto-discovers it from. The root `Makefile` proxies to
+`development/Makefile`, so `make <target>` works from either location.
 
 Browse to `https://${DOMAIN}/` (Caddy reverse-proxy handles TLS) and log in
 with the superuser credentials from `.env`.
