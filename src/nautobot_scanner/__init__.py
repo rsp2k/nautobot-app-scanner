@@ -42,5 +42,12 @@ class NautobotScannerConfig(NautobotAppConfig):
     }
     caching_config: dict = {}
 
+    def ready(self):
+        """Wire signal handlers after the app registry is fully loaded."""
+        super().ready()
+        from nautobot_scanner.signals import register_signals
+
+        register_signals()
+
 
 config = NautobotScannerConfig

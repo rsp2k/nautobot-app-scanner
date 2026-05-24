@@ -1,0 +1,146 @@
+"""Django forms for nautobot_scanner create/edit views and filter UIs.
+
+Each PrimaryModel gets two forms: a `XForm` (NautobotModelForm) for
+create/edit and a `XFilterForm` (NautobotFilterForm) for the list-view
+filter sidebar. ChoiceSet-backed fields explicitly declare MultipleChoiceField
+in the filter form so users can multi-select states like host_state=up,down.
+"""
+
+from django import forms
+from nautobot.apps.forms import DynamicModelChoiceField, NautobotFilterForm, NautobotModelForm
+
+from nautobot_scanner import models
+from nautobot_scanner.choices import (
+    AgentTypeChoices,
+    HostStateChoices,
+    PortStateChoices,
+    ProtocolChoices,
+    ScanStateChoices,
+    ScanTypeChoices,
+    SeverityChoices,
+    TimingTemplateChoices,
+)
+
+
+# -----------------------------------------------------------------------------
+# ScannerAgent
+# -----------------------------------------------------------------------------
+class ScannerAgentForm(NautobotModelForm):
+    """Create/edit form for ScannerAgent."""
+
+    class Meta:
+        model = models.ScannerAgent
+        fields = (
+            "name", "agent_type", "status", "location",
+            "user", "version", "capabilities", "description", "tags",
+        )
+
+
+class ScannerAgentFilterForm(NautobotFilterForm):
+    """Filter sidebar form for ScannerAgent list view."""
+
+    model = models.ScannerAgent
+    field_order = ("q", "name", "agent_type", "status", "location")
+
+    q = forms.CharField(required=False, label="Search")
+    agent_type = forms.MultipleChoiceField(choices=AgentTypeChoices, required=False)
+
+
+# -----------------------------------------------------------------------------
+# ScanProfile
+# -----------------------------------------------------------------------------
+class ScanProfileForm(NautobotModelForm):
+    """Create/edit form for ScanProfile."""
+
+    class Meta:
+        model = models.ScanProfile
+        fields = (
+            "name", "scan_type", "nmap_arguments", "timing_template",
+            "enabled_scripts", "description", "tags",
+        )
+
+
+class ScanProfileFilterForm(NautobotFilterForm):
+    """Filter sidebar form for ScanProfile list view."""
+
+    model = models.ScanProfile
+    field_order = ("q", "name", "scan_type", "timing_template")
+
+    q = forms.CharField(required=False, label="Search")
+    scan_type = forms.MultipleChoiceField(choices=ScanTypeChoices, required=False)
+    timing_template = forms.MultipleChoiceField(choices=TimingTemplateChoices, required=False)
+
+
+# -----------------------------------------------------------------------------
+# Scan
+# -----------------------------------------------------------------------------
+class ScanForm(NautobotModelForm):
+    """Create/edit form for Scan.
+
+    Scans are typically created by the RunScan Job (Phase 6), but the manual
+    create form is useful for admin imports and debugging — operators can
+    pre-create a pending Scan row and dispatch it manually.
+    """
+
+    agent = DynamicModelChoiceField(queryset=models.ScannerAgent.objects.all())
+    profile = DynamicModelChoiceField(queryset=models.ScanProfile.objects.all())
+
+    class Meta:
+        model = models.Scan
+        fields = (
+            "agent", "profile", "target_prefixes", "target_ipaddresses",
+            "status", "error_message", "tags",
+        )
+
+
+class ScanFilterForm(NautobotFilterForm):
+    """Filter sidebar form for Scan list view."""
+
+    model = models.Scan
+    field_order = ("q", "agent", "profile", "status")
+
+    q = forms.CharField(required=False, label="Search")
+    agent = DynamicModelChoiceField(queryset=models.ScannerAgent.objects.all(), required=False)
+    profile = DynamicModelChoiceField(queryset=models.ScanProfile.objects.all(), required=False)
+    status = forms.MultipleChoiceField(choices=ScanStateChoices, required=False)
+
+
+# -----------------------------------------------------------------------------
+# DiscoveredHost
+# -----------------------------------------------------------------------------
+class DiscoveredHostForm(NautobotModelForm):
+    """Edit-only form for DiscoveredHost.
+
+    Hosts are created by parser.persist() during scan ingest, so the form
+    is restricted to admin-correctable fields: host_state overrides and
+    manual link assignments to existing IPAM / DCIM records. Identity
+    fields (scan, ip_address) and nmap-derived metadata (hostname, os_*,
+    mac) are intentionally omitted — overwriting them would diverge from
+    the underlying scan and create audit ambiguity.
+    """
+
+    class Meta:
+        model = models.DiscoveredHost
+        # ip_address is a VarbinaryIPField (non-editable, stored as bytes) so
+        # it cannot appear in a ModelForm directly. scan is identity-locked
+        # at ingest time. Both are intentionally excluded.
+        fields = (
+            "host_state",
+            "linked_ipaddress", "linked_device",
+            "tags",
+        )
+
+
+class DiscoveredHostFilterForm(NautobotFilterForm):
+    """Filter sidebar form for DiscoveredHost list view."""
+
+    model = models.DiscoveredHost
+    field_order = ("q", "host_state", "scan", "linked_device", "linked_ipaddress")
+
+    q = forms.CharField(required=False, label="Search")
+    host_state = forms.MultipleChoiceField(choices=HostStateChoices, required=False)
+    # Re-declare ChoiceSet filters so DiscoveredPort/VulnerabilityFinding/etc.
+    # multi-select work on the standalone host list filter sidebar.
+    port_state = forms.MultipleChoiceField(choices=PortStateChoices, required=False)
+    protocol = forms.MultipleChoiceField(choices=ProtocolChoices, required=False)
+    severity = forms.MultipleChoiceField(choices=SeverityChoices, required=False)
