@@ -1,0 +1,16 @@
+<div class="md-copyright">
+    {% if config.copyright %}
+    <div class="md-copyright__highlight">
+        {{ config.copyright }}
+    </div>
+    <a href="{{ config.repo_url }}/src/branch/main/LICENSE">Apache-2.0 LICENSE</a>
+    {% endif %}
+</div>
+
+<div class="md-copyright">
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">Made with Material for MkDocs</a>
+    | <a href="https://docs.nautobot.com" target="_blank" rel="noopener">Nautobot Documentation</a>
+    | <a href="https://supported.systems" target="_blank" rel="noopener" class="copyright-sponsor">A
+        <img src="{{ 'assets/supported_systems_wordmark.svg' | url }}" class="copyright-logo" alt="Supported Systems" width="auto" height="auto">
+        project</a>
+</div>

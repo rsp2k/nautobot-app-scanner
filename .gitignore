@@ -28,8 +28,12 @@ htmlcov/
 *.swp
 *~
 
-# Docs build
+# Docs build outputs
 site/
+# mkdocs writes built HTML here per `site_dir` in mkdocs.yml — generated,
+# don't track. The app-bundled `static/nautobot_scanner/img/` next to it
+# IS tracked (that's where our SVG nav icon lives).
+src/nautobot_scanner/static/nautobot_scanner/docs/
 
 # Local-only artifacts
 /local/

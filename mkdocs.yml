@@ -1,0 +1,133 @@
+---
+dev_addr: "127.0.0.1:8001"
+edit_uri: "edit/main/docs"
+site_dir: "src/nautobot_scanner/static/nautobot_scanner/docs"
+site_name: "Nautobot Scanner Documentation"
+# `repo_url` powers the "Edit this page" + "View source" links on every
+# page (rendered via `edit_uri` above).
+repo_url: "https://git.supported.systems/nautobot-app-scanner"
+copyright: "Copyright &copy; Ryan Malloy"
+
+theme:
+  name: "material"
+  navigation_depth: 4
+  custom_dir: "docs/assets/overrides"
+  hljs_languages:
+    - "django"
+    - "yaml"
+    - "python"
+  features:
+    - "content.action.edit"
+    - "content.action.view"
+    - "content.code.copy"
+    - "navigation.footer"
+    - "navigation.indexes"
+    - "navigation.tabs"
+    - "navigation.tabs.sticky"
+    - "navigation.tracking"
+    - "search.highlight"
+    - "search.share"
+    - "search.suggest"
+  favicon: "assets/favicon.ico"
+  logo: "assets/nautobot_logo.svg"
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: "default"
+      primary: "black"
+      toggle:
+        icon: "material/weather-sunny"
+        name: "Switch to dark mode"
+    - media: "(prefers-color-scheme: dark)"
+      scheme: "slate"
+      primary: "black"
+      toggle:
+        icon: "material/weather-night"
+        name: "Switch to light mode"
+
+extra_css:
+  - "assets/extra.css"
+
+extra:
+  generator: false
+
+markdown_extensions:
+  - "admonition"
+  - "toc":
+      permalink: true
+  - "attr_list"
+  - "md_in_html"
+  - "meta"
+  - "pymdownx.details"
+  - "pymdownx.highlight":
+      anchor_linenums: true
+  - "pymdownx.inlinehilite"
+  - "pymdownx.snippets"
+  - "pymdownx.superfences":
+      custom_fences:
+        - name: "mermaid"
+          class: "mermaid"
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - "footnotes"
+  - "tables"
+  # `+++ "X.Y" New in version` callout blocks — Nautobot docs convention.
+  - "markdown_version_annotations":
+      admonition_tag: "???"
+  - "pymdownx.blocks.caption"
+
+plugins:
+  - "search"
+  - "include-markdown"
+  # Auto-generated API reference from docstrings. AST-parses our source
+  # via griffe; doesn't need nautobot/django installed on the build host.
+  - "mkdocstrings":
+      default_handler: "python"
+      handlers:
+        python:
+          paths: ["src"]
+          options:
+            show_root_heading: true
+            show_source: false
+            heading_level: 3
+            members_order: "source"
+            docstring_style: "google"
+            separate_signature: true
+            line_length: 100
+
+nav:
+  - "Overview": "index.md"
+  - "User Guide":
+    - "App Overview": "user/app_overview.md"
+    - "Getting Started": "user/app_getting_started.md"
+    - "Scanner Agents": "user/agents.md"
+    - "Scan Profiles": "user/scan_profiles.md"
+    - "Running Scans": "user/running_scans.md"
+    - "Promote to IPAddress": "user/promotion.md"
+    - "Use Cases": "user/use_cases.md"
+    - "Models": "user/models.md"
+    - "External Interactions": "user/external_interactions.md"
+    - "FAQ": "user/faq.md"
+  - "Data Models":
+    - "Index": "models/index.md"
+    - "Identity":
+      - "ScannerAgent": "models/scanneragent.md"
+      - "ScanProfile": "models/scanprofile.md"
+    - "Execution":
+      - "Scan": "models/scan.md"
+    - "Results":
+      - "DiscoveredHost": "models/discoveredhost.md"
+      - "DiscoveredPort": "models/discoveredport.md"
+      - "VulnerabilityFinding": "models/vulnerabilityfinding.md"
+      - "TraceRouteHop": "models/traceroutehop.md"
+  - "Administrator Guide":
+    - "Install": "admin/install.md"
+    - "Compatibility Matrix": "admin/compatibility_matrix.md"
+    - "Upgrade": "admin/upgrade.md"
+    - "Uninstall": "admin/uninstall.md"
+    - "Publishing Docs": "admin/install_docs_site.md"
+  - "Developer Guide":
+    - "Contributing": "dev/contributing.md"
+    - "Development Environment": "dev/dev_environment.md"
+    - "Architecture Decisions": "dev/architecture.md"
+    - "Agent Protocol": "dev/agent_protocol.md"
+    - "Extending": "dev/extending.md"
+  - "Nautobot Docs Home ↗︎": "https://docs.nautobot.com"

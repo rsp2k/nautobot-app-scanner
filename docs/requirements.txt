@@ -1,0 +1,14 @@
+# Read the Docs build dependencies — kept docs-only (no nautobot/django)
+# so the RTD build host doesn't pay the 100MB+ install cost. mkdocstrings
+# uses griffe to AST-parse our `src/nautobot_scanner/` source tree without
+# importing it, so the heavy framework isn't needed.
+#
+# Sync this with pyproject.toml's [project.optional-dependencies] docs
+# extras when you bump versions; the two are duplicated by design — RTD
+# wants requirements.txt, local devs reading pyproject.toml want extras.
+
+mkdocs-material>=9.5,<10
+mkdocs-include-markdown-plugin>=6.2,<8
+mkdocstrings[python]>=0.26,<1
+mkdocs-glightbox>=0.4,<1
+markdown-version-annotations>=1.0,<2

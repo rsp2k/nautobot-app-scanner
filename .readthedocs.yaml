@@ -1,0 +1,23 @@
+# Read the Docs build configuration. v2 schema.
+# https://docs.readthedocs.io/en/stable/config-file/v2.html
+#
+# Builds the mkdocs-material site under docs/ with strict validation
+# enabled (fail_on_warning matches our local `mkdocs build --strict`).
+# The mkdocstrings plugin reads docstrings via AST parsing — no need to
+# install nautobot or django on the build host, which keeps us well
+# under RTD's 15-minute build budget.
+
+version: 2
+
+build:
+  os: "ubuntu-24.04"
+  tools:
+    python: "3.12"
+
+mkdocs:
+  configuration: "mkdocs.yml"
+  fail_on_warning: true
+
+python:
+  install:
+    - requirements: "docs/requirements.txt"

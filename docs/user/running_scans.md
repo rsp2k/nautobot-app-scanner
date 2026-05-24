@@ -1,0 +1,91 @@
+# Running Scans
+
+Scans are dispatched via Nautobot **Jobs**. This means they integrate
+with Nautobot's built-in job machinery: scheduling, audit trail, log
+streaming, retry, and the `JobResult` page.
+
+## The two scan jobs
+
+| Job | Inputs | Notes |
+|-----|--------|-------|
+| `RunScan` | agent, profile, target_prefixes, target_ipaddresses, allow_overlap | The general-purpose scan dispatcher |
+| `ScanPrefix` | prefix, (agent / profile auto-picked if not specified) | Convenience wrapper — point at a Prefix, go |
+
+Both jobs are registered via `register_jobs()` and appear under
+**Apps > Jobs** in the Nautobot navigation.
+
+## Lifecycle in the dispatching Job
+
+```
+RunScan.run()
+    ↓
+1. Validate inputs (agent active? targets non-empty?)
+2. Create Scan record (status=running, ingestion_token=<uuid>, job_result=<self>)
+3. get_backend(agent).dispatch(scan)
+       ↓
+       LocalBackend:  subprocess.run(nmap)  → parse_xml → persist → status=completed
+       RemoteBackend: just flip status=pending and return
+    ↓
+4. Job result reflects: created Scan UUID + status at return time
+```
+
+For local backends the Job blocks until the scan completes (or fails or
+times out). For remote backends the Job returns immediately and the
+`Scan` row moves to `completed` later, when the agent posts back.
+
+## Scheduling
+
+Use Nautobot's built-in job scheduler — there is no custom
+`ScanSchedule` model in this app. From the Jobs page:
+
+1. Click into `RunScan`
+2. Fill the form as you would for an immediate run
+3. Switch the **Schedule** dropdown from "Run Now" to **Hourly /
+   Daily / Custom (cron)**
+4. Save
+
+Nautobot will fire the job on the schedule you set; each fire creates
+a new `Scan` row.
+
+## Overlap policy
+
+By default, dispatching a second scan against the same agent when an
+earlier scan with overlapping targets is still `running` raises
+`JobError`. This prevents:
+
+- Two scans racing to update the same `DiscoveredHost` rows
+- The UI showing a misleading status while the agent is actually
+  serializing scans
+- Operators firing 5 scans in a panic and waiting hours
+
+Check **Allow overlap** in the Run Scan form to bypass the guard when
+you know what you're doing (e.g., a discovery scan and a port scan can
+safely overlap).
+
+## Cancellation
+
+Set `Scan.cancel_requested = True` on a running scan to request a
+clean halt. The behavior depends on the backend:
+
+- **Local backend**: the in-process nmap subprocess gets a SIGTERM after
+  the current host finishes (TODO: confirm subprocess signal handling
+  in the Phase 6 implementation)
+- **Remote agent**: the agent polls `cancel_requested` between hosts
+  during its scan; honoring it is implementation-defined per agent. The
+  reference agent honors it within ~10 seconds.
+
+Cancelled scans transition to `status=cancelled` — they keep whatever
+partial results were already ingested.
+
+## Reading the JobResult
+
+Every Scan's `job_result` FK points to the `extras.JobResult` record
+for the dispatching Job. That's where you'll find:
+
+- Per-host stdout/stderr from nmap (info-level log lines)
+- Parser warnings (info / warning)
+- Persist errors (error / failure)
+- Final exit status (success / failure)
+
+Click the **Job Result** link on a Scan detail page to see the full
+log stream.
