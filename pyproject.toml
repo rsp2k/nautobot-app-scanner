@@ -1,0 +1,100 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "nautobot-app-scanner"
+version = "2026.5.24"
+description = "nmap-based network scanner integration for Nautobot — discovers hosts, ports, services, and vulnerabilities against IPAM-defined targets, surfaces results on Device/IPAddress/Prefix pages."
+requires-python = ">=3.10"
+authors = [{ name = "Ryan Malloy", email = "ryan@supported.systems" }]
+keywords = [
+    "nautobot",
+    "nautobot-app",
+    "nautobot-plugin",
+    "nmap",
+    "scanner",
+    "network-discovery",
+    "port-scan",
+    "vulnerability",
+    "ipam",
+]
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: System Administrators",
+    "Intended Audience :: Information Technology",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Framework :: Django",
+    "Topic :: System :: Networking :: Monitoring",
+    "Topic :: Security",
+]
+dependencies = [
+    "nautobot>=3.0,<4",
+    "python-libnmap>=0.7,<1",
+    "defusedxml>=0.7,<1",
+]
+
+[project.optional-dependencies]
+docs = [
+    "mkdocs-material>=9.5,<10",
+    "mkdocs-include-markdown-plugin>=6.2,<8",
+    "mkdocstrings[python]>=0.26,<1",
+    "mkdocs-glightbox>=0.4,<1",
+]
+dev = [
+    "pytest>=8.0",
+    "pytest-django>=4.8",
+    "factory-boy>=3.3",
+    "ruff>=0.6",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/nautobot_scanner"]
+
+[tool.hatch.build.targets.sdist]
+exclude = [
+    "CLAUDE.md",
+    ".env",
+    ".env.local",
+    ".mcp.json",
+    "/local/",
+    "audits/",
+    "tests/",
+    ".pytest_cache/",
+    ".ruff_cache/",
+    "dist/",
+    "build/",
+    "development/",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "UP",  # pyupgrade
+    "D",   # pydocstyle
+]
+ignore = [
+    "D203",  # one-blank-line-before-class (conflicts with D211)
+    "D213",  # multi-line-summary-second-line (conflicts with D212)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["D"]
+"src/nautobot_scanner/migrations/*" = ["D"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"

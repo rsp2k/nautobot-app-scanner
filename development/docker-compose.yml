@@ -1,0 +1,161 @@
+# Dev stack for nautobot-app-scanner.
+#
+# 4 containers: postgres + redis + nautobot-web + nautobot-worker, plus a
+# one-shot init container that fixes named-volume ownership.
+#
+# COMPOSE_PROJECT_NAME (set in .env) provides the project namespace — Docker
+# Compose picks it up automatically; no `name:` directive needed.
+#
+# Reverse-proxied via caddy-docker-proxy on the external `caddy` network.
+# Plugin source bind-mounted from ../src for hot-reload (restart web to apply).
+
+x-nautobot-common: &nautobot-common
+  build:
+    context: ..
+    dockerfile: development/Dockerfile
+  image: nautobot-app-scanner-dev:latest
+  restart: unless-stopped
+  environment:
+    NAUTOBOT_ALLOWED_HOSTS: "${DOMAIN} nautobot-web localhost 127.0.0.1"
+    # Use the fully-qualified container name (not the short service alias)
+    # because nautobot-web is on the shared caddy network where foreign
+    # containers can shadow generic names like `postgres`/`redis`. The
+    # unique service names below (scanner-postgres/scanner-redis) make
+    # cross-stack collision impossible.
+    NAUTOBOT_DB_HOST: scanner-postgres
+    NAUTOBOT_DB_PORT: "5432"
+    NAUTOBOT_DB_NAME: ${NAUTOBOT_DB_NAME}
+    NAUTOBOT_DB_USER: ${NAUTOBOT_DB_USER}
+    NAUTOBOT_DB_PASSWORD: ${NAUTOBOT_DB_PASSWORD}
+    NAUTOBOT_REDIS_HOST: scanner-redis
+    NAUTOBOT_REDIS_PORT: "6379"
+    NAUTOBOT_REDIS_PASSWORD: ${NAUTOBOT_REDIS_PASSWORD}
+    NAUTOBOT_SECRET_KEY: ${NAUTOBOT_SECRET_KEY}
+    NAUTOBOT_SUPERUSER_NAME: ${NAUTOBOT_SUPERUSER_NAME}
+    NAUTOBOT_SUPERUSER_EMAIL: ${NAUTOBOT_SUPERUSER_EMAIL}
+    NAUTOBOT_SUPERUSER_PASSWORD: ${NAUTOBOT_SUPERUSER_PASSWORD}
+    NAUTOBOT_SUPERUSER_API_TOKEN: ${NAUTOBOT_SUPERUSER_API_TOKEN}
+    NAUTOBOT_CREATE_SUPERUSER: "true"
+    PYTHONUNBUFFERED: "1"
+  volumes:
+    - ./nautobot_config/nautobot_config.py:/opt/nautobot/nautobot_config.py:ro
+    - ../src:/opt/plugin/src
+    - nautobot-static:/opt/nautobot/static
+    - nautobot-media:/opt/nautobot/media
+    - nautobot-git-repos:/opt/nautobot/git
+  depends_on:
+    scanner-postgres:
+      condition: service_healthy
+    scanner-redis:
+      condition: service_healthy
+    nautobot-init:
+      condition: service_completed_successfully
+
+services:
+  # One-shot: chown named volumes to UID 999 (nautobot) before app containers
+  # start. Docker creates volume roots as root:root; the non-root nautobot
+  # user can't write to them otherwise. Idempotent.
+  nautobot-init:
+    image: nautobot-app-scanner-dev:latest
+    build:
+      context: ..
+      dockerfile: development/Dockerfile
+    container_name: ${COMPOSE_PROJECT_NAME}-init
+    user: "0"
+    restart: "no"
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["chown -R 999:999 /opt/nautobot/media /opt/nautobot/static /opt/nautobot/git && echo 'volumes chowned'"]
+    volumes:
+      - nautobot-static:/opt/nautobot/static
+      - nautobot-media:/opt/nautobot/media
+      - nautobot-git-repos:/opt/nautobot/git
+    networks:
+      - internal
+
+  scanner-postgres:
+    image: postgres:16-alpine
+    container_name: ${COMPOSE_PROJECT_NAME}-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${NAUTOBOT_DB_NAME}
+      POSTGRES_USER: ${NAUTOBOT_DB_USER}
+      POSTGRES_PASSWORD: ${NAUTOBOT_DB_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal
+
+  scanner-redis:
+    image: redis:7-alpine
+    container_name: ${COMPOSE_PROJECT_NAME}-redis
+    restart: unless-stopped
+    command: ["redis-server", "--requirepass", "${NAUTOBOT_REDIS_PASSWORD}"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${NAUTOBOT_REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal
+
+  nautobot-web:
+    <<: *nautobot-common
+    container_name: ${COMPOSE_PROJECT_NAME}-web
+    # Loopback-only port mapping for direct curl/Playwright access.
+    # Caddy reverse-proxies normal browser traffic via the labels below.
+    ports:
+      - "127.0.0.1:8086:8080"
+    healthcheck:
+      # Use the in-process /health/ endpoint (cheap) instead of the upstream
+      # `nautobot-server health_check` (which cold-boots Django every probe).
+      test: ["CMD-SHELL", "curl -sf -o /dev/null http://127.0.0.1:8080/health/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5m
+    networks:
+      - internal
+      - caddy
+    labels:
+      caddy: ${DOMAIN}
+      caddy.reverse_proxy: "{{upstreams 8080}}"
+      caddy.encode: "gzip zstd"
+
+  nautobot-worker:
+    <<: *nautobot-common
+    container_name: ${COMPOSE_PROJECT_NAME}-worker
+    # `command:` (not `entrypoint:`) so upstream docker-entrypoint.sh runs
+    # first — it sets up media/static perms before exec'ing the worker.
+    command: ["nautobot-server", "celery", "worker", "-l", "INFO"]
+    healthcheck:
+      test: ["CMD-SHELL", "nautobot-server health_check"]
+      interval: 60s
+      timeout: 30s
+      retries: 3
+      start_period: 5m
+    networks:
+      - internal
+
+volumes:
+  postgres-data:
+  redis-data:
+  nautobot-static:
+  nautobot-media:
+  nautobot-git-repos:
+
+networks:
+  # Private per-stack network for DB/cache/internal-only traffic.
+  internal:
+    driver: bridge
+  # Shared edge network for caddy-docker-proxy to discover nautobot-web.
+  # Backend services (postgres, redis) intentionally NOT on this network
+  # so they don't pollute the shared DNS namespace across stacks.
+  caddy:
+    external: true

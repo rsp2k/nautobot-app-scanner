@@ -1,0 +1,42 @@
+# Environments / secrets
+.env
+.env.local
+.env.*.local
+
+# Python build artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+.eggs/
+dist/
+build/
+wheels/
+
+# Caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Editors
+.idea/
+.vscode/
+*.swp
+*~
+
+# Docs build
+site/
+
+# Local-only artifacts
+/local/
+audits/
+
+# Nautobot dev-stack persistent data lives in named volumes; this only matters
+# if someone runs nautobot-server directly on the host. App-bundled static
+# under src/nautobot_scanner/static/ is intentionally tracked.
+/media/
+/static/
