@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE nmaprun>
+<?xml-stylesheet href="file:///usr/bin/../share/nmap/nmap.xsl" type="text/xsl"?>
+<!-- Synthetic discovery scan output for tests. nmap -sn -oX. -->
+<nmaprun scanner="nmap" args="nmap -sn -oX - 192.0.2.0/30" start="1716000000" startstr="Sat May 24 12:00:00 2026" version="7.94" xmloutputversion="1.05">
+  <scaninfo type="ping" protocol="ip" numservices="0" services=""/>
+  <verbose level="0"/>
+  <debugging level="0"/>
+  <host starttime="1716000001" endtime="1716000002">
+    <status state="up" reason="echo-reply" reason_ttl="64"/>
+    <address addr="192.0.2.1" addrtype="ipv4"/>
+    <address addr="00:11:22:33:44:55" addrtype="mac" vendor="Example Corp"/>
+    <hostnames>
+      <hostname name="gateway.example" type="PTR"/>
+    </hostnames>
+    <times srtt="123" rttvar="45" to="100000"/>
+  </host>
+  <host starttime="1716000003" endtime="1716000004">
+    <status state="up" reason="echo-reply" reason_ttl="64"/>
+    <address addr="192.0.2.2" addrtype="ipv4"/>
+    <hostnames>
+      <hostname name="host2.example" type="PTR"/>
+    </hostnames>
+  </host>
+  <host starttime="1716000005" endtime="1716000006">
+    <status state="down" reason="no-response" reason_ttl="0"/>
+    <address addr="192.0.2.3" addrtype="ipv4"/>
+    <hostnames/>
+  </host>
+  <runstats>
+    <finished time="1716000010" timestr="Sat May 24 12:00:10 2026" summary="Nmap done at Sat May 24 12:00:10 2026; 3 IP addresses (2 hosts up) scanned in 10.00 seconds" elapsed="10.00" exit="success"/>
+    <hosts up="2" down="1" total="3"/>
+  </runstats>
+</nmaprun>

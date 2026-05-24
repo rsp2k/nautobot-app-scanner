@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE nmaprun>
+<!-- Synthetic vuln scan with NSE script output. Vulners script enabled. -->
+<nmaprun scanner="nmap" args="nmap -sV --script vulners -oX - 192.0.2.20" start="1716000200" version="7.94" xmloutputversion="1.05">
+  <scaninfo type="syn" protocol="tcp" numservices="1000" services="1-1024"/>
+  <host starttime="1716000201" endtime="1716000260">
+    <status state="up" reason="syn-ack" reason_ttl="64"/>
+    <address addr="192.0.2.20" addrtype="ipv4"/>
+    <hostnames/>
+    <ports>
+      <port protocol="tcp" portid="80">
+        <state state="open" reason="syn-ack" reason_ttl="64"/>
+        <service name="http" product="Apache httpd" version="2.4.41" method="probed" conf="10">
+          <cpe>cpe:/a:apache:http_server:2.4.41</cpe>
+        </service>
+        <script id="vulners" output="
+  cpe:/a:apache:http_server:2.4.41:
+    CVE-2021-44790  9.8  https://vulners.com/cve/CVE-2021-44790
+    CVE-2022-22720  9.8  https://vulners.com/cve/CVE-2022-22720
+    CVE-2020-11984  7.5  https://vulners.com/cve/CVE-2020-11984
+">
+        </script>
+        <script id="http-title" output="Apache2 Ubuntu Default Page: It works"/>
+      </port>
+    </ports>
+  </host>
+  <runstats>
+    <finished time="1716000261" elapsed="60.00" exit="success"/>
+    <hosts up="1" down="0" total="1"/>
+  </runstats>
+</nmaprun>
