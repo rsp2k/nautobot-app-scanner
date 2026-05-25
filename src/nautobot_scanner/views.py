@@ -176,19 +176,30 @@ class DiscoveredHostPromoteToDeviceView(LoginRequiredMixin, PermissionRequiredMi
                 tenant=cleaned.get("tenant"),
             )
 
-            # Either reuse the existing linked IPAddress or create a fresh one.
+            # IPAddress resolution — three cases, in priority order:
+            #   1. linked_ipaddress already set (explicit promote-to-IP first)
+            #   2. IP exists in the chosen namespace (someone else created it)
+            #   3. Doesn't exist → create fresh
+            # Case 2 matters because IPAddress has a unique constraint on
+            # (parent_prefix, host), so naive create() raises IntegrityError
+            # when the IP was added via a Scan target setup or manual entry.
             if host.linked_ipaddress:
                 ip = host.linked_ipaddress
             else:
                 ip_str = str(host.ip_address)
                 mask = "/128" if ":" in ip_str else "/32"
-                ip = IPAddress.objects.create(
-                    address=f"{ip_str}{mask}",
-                    namespace=cleaned["ipaddress_namespace"],
-                    status=cleaned["ipaddress_status"],
-                    dns_name=host.hostname or "",
-                    description=f"Auto-created with Device {device.name} from scanner DiscoveredHost {host.pk}",
-                )
+                ip = IPAddress.objects.filter(
+                    host=ip_str,
+                    parent__namespace=cleaned["ipaddress_namespace"],
+                ).first()
+                if ip is None:
+                    ip = IPAddress.objects.create(
+                        address=f"{ip_str}{mask}",
+                        namespace=cleaned["ipaddress_namespace"],
+                        status=cleaned["ipaddress_status"],
+                        dns_name=host.hostname or "",
+                        description=f"Auto-created with Device {device.name} from scanner DiscoveredHost {host.pk}",
+                    )
                 host.linked_ipaddress = ip
 
             interface = Interface.objects.create(
