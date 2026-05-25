@@ -437,6 +437,15 @@ class DiscoveredHostUIViewSet(NautobotUIViewSet):
                 table_filter="discovered_host",
                 table_title="Open Ports",
             ),
+            # Two-hop filter: VulnerabilityFinding → DiscoveredPort → DiscoveredHost.
+            # Avoids denormalizing a host FK onto VulnerabilityFinding just to render this panel.
+            ObjectsTablePanel(
+                section=SectionChoices.RIGHT_HALF,
+                weight=150,
+                table_class=tables.VulnerabilityFindingTable,
+                table_filter="discovered_port__discovered_host",
+                table_title="Vulnerabilities",
+            ),
             ObjectsTablePanel(
                 section=SectionChoices.RIGHT_HALF,
                 weight=200,

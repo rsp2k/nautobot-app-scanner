@@ -41,7 +41,8 @@ class ScannerAgentForm(NautobotModelForm):
         model = models.ScannerAgent
         fields = (
             "name", "agent_type", "status", "location",
-            "user", "version", "capabilities", "description", "tags",
+            "user", "expected_checkin_interval_seconds",
+            "version", "capabilities", "description", "tags",
         )
 
 
