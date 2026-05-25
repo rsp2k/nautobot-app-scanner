@@ -231,7 +231,16 @@ class DiscoveredHostPromoteToDeviceView(LoginRequiredMixin, PermissionRequiredMi
 
     @staticmethod
     def _initial_for(host) -> dict:
-        """Pre-fill values from the discovered host."""
+        """Pre-fill values from the discovered host.
+
+        ``manufacturer`` is auto-selected when the host's mac_vendor (resolved
+        from the OUI at ingest) matches an existing dcim.Manufacturer. The
+        lookup is tolerant: an OUI registration of "Hewlett Packard" matches
+        a Nautobot Manufacturer named "HP" or "Hewlett-Packard" via the
+        first significant word + icontains. Saves the operator from re-typing
+        what we already know from the layer-2 evidence.
+        """
+        from nautobot.dcim.models import Manufacturer as _Manufacturer
         from nautobot.extras.models import Status as _Status
         from nautobot.ipam.models import Namespace as _Namespace
 
@@ -248,12 +257,32 @@ class DiscoveredHostPromoteToDeviceView(LoginRequiredMixin, PermissionRequiredMi
         except _Status.DoesNotExist:
             active = None
 
+        # OUI-derived manufacturer hint.
+        manufacturer_pk = None
+        if host.mac_vendor:
+            # First-significant-word match is more forgiving than a full string
+            # compare: IEEE registers "Hewlett Packard" but Nautobot installs
+            # might have "HP", "HPE", "Hewlett-Packard", "Hewlett Packard
+            # Enterprise" — all reasonable. We take the first match; if there
+            # are multiple, operator can override in the dropdown.
+            # Strip trailing punctuation so "Apple," matches "Apple", and
+            # bare "Inc"/"Corp" suffixes get peeled off ("Cisco Systems, Inc"
+            # → "Cisco" as the fallback term).
+            first_word = host.mac_vendor.split()[0].rstrip(",.;:")
+            match = (
+                _Manufacturer.objects.filter(name__icontains=host.mac_vendor).first()
+                or _Manufacturer.objects.filter(name__icontains=first_word).first()
+            )
+            if match:
+                manufacturer_pk = match.pk
+
         return {
             "name": name,
             "status": active,
             "ipaddress_status": active,
             "ipaddress_namespace": ns,
             "interface_name": "mgmt0",
+            "manufacturer": manufacturer_pk,
         }
 
 
@@ -421,7 +450,7 @@ class DiscoveredHostUIViewSet(NautobotUIViewSet):
                 section=SectionChoices.LEFT_HALF,
                 weight=100,
                 fields=[
-                    "scan", "ip_address", "hostname", "mac_address",
+                    "scan", "ip_address", "hostname", "mac_address", "mac_vendor",
                     "host_state", "os_family", "os_type", "os_accuracy",
                     "linked_ipaddress", "linked_device",
                 ],

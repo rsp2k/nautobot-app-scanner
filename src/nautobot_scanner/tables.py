@@ -87,6 +87,7 @@ class DiscoveredHostTable(BaseTable):
     vulnerability_count = tables.Column(verbose_name="Vulns", orderable=False)
     os_family = tables.Column(verbose_name="OS")
     mac_address = tables.Column(verbose_name="MAC")
+    mac_vendor = tables.Column(verbose_name="Vendor")
     scan = tables.Column(linkify=True)
     linked_ipaddress = tables.Column(linkify=True, verbose_name="IPAM IP")
     linked_device = tables.Column(linkify=True, verbose_name="Device")
@@ -97,13 +98,13 @@ class DiscoveredHostTable(BaseTable):
         fields = (
             "pk", "ip_address", "hostname", "host_state",
             "open_port_count", "vulnerability_count",
-            "os_family", "os_type", "mac_address", "os_accuracy",
+            "os_family", "os_type", "mac_address", "mac_vendor", "os_accuracy",
             "scan", "linked_ipaddress", "linked_device", "actions",
         )
         default_columns = (
             "pk", "ip_address", "hostname", "host_state",
             "open_port_count", "vulnerability_count",
-            "mac_address", "scan", "linked_ipaddress", "actions",
+            "mac_address", "mac_vendor", "scan", "linked_ipaddress", "actions",
         )
 
 

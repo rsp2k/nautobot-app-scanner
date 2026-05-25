@@ -13,7 +13,7 @@ to materialize a new IPAddress and the view does the cross-model write.
 
 from django import forms
 from nautobot.apps.forms import DynamicModelChoiceField, NautobotFilterForm, NautobotModelForm
-from nautobot.dcim.models import DeviceType, Location, Platform
+from nautobot.dcim.models import DeviceType, Location, Manufacturer, Platform
 from nautobot.extras.models import Role, Status
 from nautobot.ipam.models import Namespace, Prefix
 from nautobot.tenancy.models import Tenant
@@ -226,9 +226,19 @@ class PromoteDiscoveredHostToDeviceForm(forms.Form):
         query_params={"content_types": "dcim.device"},
         help_text="Functional role (e.g., 'Access Point', 'Server').",
     )
+    manufacturer = DynamicModelChoiceField(
+        queryset=Manufacturer.objects.all(),
+        required=False,
+        help_text=(
+            "Auto-selected from the discovered MAC's OUI when a matching "
+            "Manufacturer already exists in Nautobot. Used to filter the "
+            "device_type dropdown — pick or change the manufacturer first."
+        ),
+    )
     device_type = DynamicModelChoiceField(
         queryset=DeviceType.objects.all(),
-        help_text="Manufacturer + model. Pick something close to what the scan suggests.",
+        query_params={"manufacturer_id": "$manufacturer"},
+        help_text="Model — the dropdown filters by manufacturer above.",
     )
     status = forms.ModelChoiceField(
         queryset=Status.objects.all(),

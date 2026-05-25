@@ -84,11 +84,38 @@ class ParsedHost:
     host_state: str
     hostname: str = ""
     mac_address: str = ""
+    mac_vendor: str = ""
     os_family: str = ""
     os_type: str = ""
     os_accuracy: int | None = None
     ports: list[ParsedPort] = field(default_factory=list)
     traceroute_hops: list[ParsedHop] = field(default_factory=list)
+
+
+# ----------------------------------------------------------------------------
+# MAC OUI → vendor resolver. Pure function — uses the IEEE registry bundled
+# with netaddr (no network calls, no extra dependencies). Returns empty
+# string for any input that doesn't resolve, never raises.
+# ----------------------------------------------------------------------------
+
+
+def resolve_mac_vendor(mac: str) -> str:
+    """Return the IEEE-registered vendor for a MAC's OUI, or empty on miss.
+
+    Handles all common MAC formatting (`AA:BB:CC:DD:EE:FF`, `AA-BB-CC-...`,
+    bare hex). Empty input returns empty string. OUIs not in the registry —
+    typically locally-administered MACs from VMs/containers — also return
+    empty string rather than raising.
+    """
+    if not mac:
+        return ""
+    try:
+        import netaddr
+
+        eui = netaddr.EUI(mac)
+        return eui.oui.registration().org or ""
+    except (netaddr.AddrFormatError, netaddr.NotRegisteredError, ValueError):
+        return ""
 
 
 # ----------------------------------------------------------------------------
@@ -153,11 +180,13 @@ def _convert_host(nmap_host) -> ParsedHost:
     ports = [_convert_port(s, nmap_host) for s in nmap_host.services]
     hops = _extract_traceroute(nmap_host)
 
+    mac = nmap_host.mac or ""
     return ParsedHost(
         ip_address=nmap_host.address,
         host_state=state,
         hostname=hostname,
-        mac_address=nmap_host.mac or "",
+        mac_address=mac,
+        mac_vendor=resolve_mac_vendor(mac),
         os_family=os_family,
         os_type=os_type,
         os_accuracy=os_accuracy,
@@ -351,6 +380,7 @@ def persist(scan: Scan, parsed: list[ParsedHost]) -> dict:
             scan=scan,
             ip_address=ph.ip_address,
             mac_address=ph.mac_address,
+            mac_vendor=ph.mac_vendor,
             hostname=ph.hostname,
             os_family=ph.os_family,
             os_type=ph.os_type,

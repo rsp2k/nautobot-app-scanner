@@ -48,6 +48,17 @@ class DiscoveredHost(PrimaryModel):
         blank=True,
         help_text="Layer-2 MAC if nmap could resolve it (ARP for IPv4, NDP for IPv6).",
     )
+    mac_vendor = models.CharField(
+        max_length=128,
+        blank=True,
+        db_index=True,
+        help_text=(
+            "Manufacturer resolved from the MAC's OUI via the IEEE registry "
+            "bundled with netaddr. Filled at ingest; empty when MAC is unknown "
+            "or OUI isn't in the registry (rare — typically VM-generated MACs "
+            "with locally-administered bit set)."
+        ),
+    )
     hostname = models.CharField(max_length=CHARFIELD_MAX_LENGTH, blank=True)
     os_family = models.CharField(
         max_length=64,
