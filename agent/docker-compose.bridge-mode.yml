@@ -23,6 +23,8 @@ services:
       context: .
     container_name: ${COMPOSE_PROJECT_NAME:-scanner-agent-bridge}
     restart: unless-stopped
+    # See host-mode compose for the rationale on `user: "0"`.
+    user: "0"
     cap_add:
       - NET_RAW
       - NET_ADMIN

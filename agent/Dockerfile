@@ -9,8 +9,15 @@
 
 FROM alpine:3.20
 
-RUN apk add --no-cache nmap nmap-scripts python3 ca-certificates \
-    && adduser -D -u 1001 agent
+RUN apk add --no-cache nmap nmap-scripts python3 ca-certificates libcap \
+    && adduser -D -u 1001 agent \
+    # Grant nmap raw-socket capabilities at the binary level so SYN scans
+    # and ARP-based host discovery work without running as root. cap_add
+    # in the compose stack provides the kernel-level grant; this setcap
+    # call carries it through to the binary's effective+permitted sets.
+    # Without this, a non-root container can't do ARP probes, so LAN scans
+    # come back without MAC addresses.
+    && setcap cap_net_raw,cap_net_admin,cap_net_bind_service=+eip /usr/bin/nmap
 
 WORKDIR /app
 COPY agent.py /app/agent.py

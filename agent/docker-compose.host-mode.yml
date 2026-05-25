@@ -20,8 +20,15 @@ services:
     container_name: ${COMPOSE_PROJECT_NAME:-scanner-agent-host}
     restart: unless-stopped
     network_mode: host
+    # Run as root inside the container so nmap's file capabilities are
+    # actually granted. With a non-root user, Linux requires the user to
+    # already have the cap in its permitted set for file caps to take
+    # effect — which non-root containers don't get even with cap_add.
+    # The compose-level cap_add still bounds what's available, so this
+    # container can ONLY do NET_RAW/NET_ADMIN, not arbitrary root things.
+    user: "0"
     cap_add:
-      - NET_RAW    # SYN scans, ICMP echo
+      - NET_RAW    # SYN scans, ICMP echo, ARP probes
       - NET_ADMIN  # interface enumeration (some nmap scan types)
     environment:
       NAUTOBOT_URL: ${NAUTOBOT_URL}              # e.g. https://scanner.local.example.com
