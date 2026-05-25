@@ -104,6 +104,33 @@ class DiscoveredHost(PrimaryModel):
         """Display string."""
         return f"{self.ip_address} ({self.hostname or self.host_state})"
 
+    @property
+    def open_port_count(self) -> int:
+        """Count of open ports on this host.
+
+        Falls back to a per-row query when the queryset wasn't annotated;
+        the standalone list view annotates with Count() to avoid N+1, so
+        this only runs row-by-row for nested-panel contexts where a
+        handful of hosts are shown.
+        """
+        # If the viewset annotated us with `_open_port_count`, use that;
+        # otherwise issue the count query directly.
+        cached = getattr(self, "_open_port_count", None)
+        if cached is not None:
+            return cached
+        return self.ports.filter(state="open").count()
+
+    @property
+    def vulnerability_count(self) -> int:
+        """Count of vulnerability findings across all ports on this host."""
+        cached = getattr(self, "_vulnerability_count", None)
+        if cached is not None:
+            return cached
+        # Count VulnerabilityFinding records by walking through ports.
+        from nautobot_scanner.models import VulnerabilityFinding
+
+        return VulnerabilityFinding.objects.filter(discovered_port__discovered_host=self).count()
+
 
 class DiscoveredPort(BaseModel):
     """One port nmap reported on a DiscoveredHost.

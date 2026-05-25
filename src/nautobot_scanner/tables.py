@@ -76,6 +76,11 @@ class DiscoveredHostTable(BaseTable):
     ip_address = tables.LinkColumn()
     hostname = tables.Column()
     host_state = tables.Column(verbose_name="State")
+    # Both counts come from the model properties — they read the annotated
+    # value when the viewset's queryset annotated it (fast path, no N+1),
+    # and fall back to a per-row count query for nested-panel contexts.
+    open_port_count = tables.Column(verbose_name="Open Ports", orderable=False)
+    vulnerability_count = tables.Column(verbose_name="Vulns", orderable=False)
     os_family = tables.Column(verbose_name="OS")
     mac_address = tables.Column(verbose_name="MAC")
     scan = tables.Column(linkify=True)
@@ -86,11 +91,14 @@ class DiscoveredHostTable(BaseTable):
     class Meta(BaseTable.Meta):
         model = models.DiscoveredHost
         fields = (
-            "pk", "ip_address", "hostname", "host_state", "os_family", "os_type",
-            "mac_address", "os_accuracy", "scan", "linked_ipaddress", "linked_device", "actions",
+            "pk", "ip_address", "hostname", "host_state",
+            "open_port_count", "vulnerability_count",
+            "os_family", "os_type", "mac_address", "os_accuracy",
+            "scan", "linked_ipaddress", "linked_device", "actions",
         )
         default_columns = (
-            "pk", "ip_address", "hostname", "host_state", "os_family",
+            "pk", "ip_address", "hostname", "host_state",
+            "open_port_count", "vulnerability_count",
             "mac_address", "scan", "linked_ipaddress", "actions",
         )
 

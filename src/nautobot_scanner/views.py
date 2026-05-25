@@ -398,7 +398,16 @@ class DiscoveredHostUIViewSet(NautobotUIViewSet):
     Promote-to-IPAddress action (Phase 9) hangs off this view.
     """
 
-    queryset = models.DiscoveredHost.objects.all()
+    # Annotate counts in the queryset so the standalone list view doesn't N+1
+    # on the Open Ports / Vulns columns. The DiscoveredHost model properties
+    # read these annotations if present, falling back to per-row counts for
+    # nested-panel contexts where the standalone queryset doesn't apply.
+    from django.db.models import Count, Q
+
+    queryset = models.DiscoveredHost.objects.annotate(
+        _open_port_count=Count("ports", filter=Q(ports__state="open"), distinct=True),
+        _vulnerability_count=Count("ports__vulnerabilities", distinct=True),
+    )
     table_class = tables.DiscoveredHostTable
     filterset_class = filters.DiscoveredHostFilterSet
     filterset_form_class = forms.DiscoveredHostFilterForm

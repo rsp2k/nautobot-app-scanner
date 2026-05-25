@@ -13,6 +13,10 @@ services:
   scanner-agent:
     image: nautobot-scanner-agent:latest
     container_name: ${COMPOSE_PROJECT_NAME:-scanner-agent-dev-bridge}
+    # Set a friendly hostname so when the agent shows up in its own scan
+    # output, it labels itself "dev-bridge-scanner" instead of leaking the
+    # docker container short-ID.
+    hostname: dev-bridge-scanner
     restart: unless-stopped
     user: "0"  # see host-mode compose for rationale
     cap_add:
