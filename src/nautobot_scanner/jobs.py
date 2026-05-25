@@ -235,10 +235,9 @@ class MarkStaleAgents(Job):
         commit_default = True
 
     def run(self):
-        """Walk all remote agents and offline the stale ones."""
+        """Walk all remote agents and offline the ones that have aged past their own threshold."""
         cfg = settings.PLUGINS_CONFIG.get("nautobot_scanner", {})
-        interval = cfg.get("agent_checkin_interval_seconds", 60)
-        threshold = timezone.now() - datetime.timedelta(seconds=3 * interval)
+        global_interval = cfg.get("agent_checkin_interval_seconds", 60)
 
         try:
             offline_status = Status.objects.get(name="Offline")
@@ -249,25 +248,30 @@ class MarkStaleAgents(Job):
             )
             raise
 
-        stale = ScannerAgent.objects.filter(
-            agent_type="remote",
-            last_seen__lt=threshold,
-        ).exclude(status=offline_status)
+        now = timezone.now()
+        # Candidates: remote agents that have ever checked in and aren't already offline.
+        candidates = (
+            ScannerAgent.objects.filter(agent_type="remote")
+            .exclude(status=offline_status)
+            .exclude(last_seen__isnull=True)
+        )
 
-        count = stale.count()
-        if not count:
-            self.logger.info("No stale agents (threshold: %ss).", 3 * interval)
+        flipped: list[tuple[str, int]] = []  # (name, seconds_since_last_seen)
+        for agent in candidates:
+            interval = agent.expected_checkin_interval_seconds or global_interval
+            age_seconds = (now - agent.last_seen).total_seconds()
+            if age_seconds > 3 * interval:
+                agent.status = offline_status
+                agent.save(update_fields=["status"])
+                flipped.append((agent.name, int(age_seconds)))
+
+        if not flipped:
+            self.logger.info("No stale agents (checked %d remote agent(s)).", candidates.count())
             return "0"
 
-        names = list(stale.values_list("name", flat=True))
-        stale.update(status=offline_status)
-        self.logger.warning(
-            "Marked %d agent(s) offline (no checkin within %ss): %s",
-            count,
-            3 * interval,
-            ", ".join(names),
-        )
-        return str(count)
+        for name_, age in flipped:
+            self.logger.warning("Marked %s offline — %ds since last checkin.", name_, age)
+        return str(len(flipped))
 
 
 # ----------------------------------------------------------------------------

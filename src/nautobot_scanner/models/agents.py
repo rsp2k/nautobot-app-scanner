@@ -63,6 +63,15 @@ class ScannerAgent(PrimaryModel):
         help_text="Bound user account; the DRF Token on this user is the agent's bearer credential. Auto-created for remote agents.",
     )
     last_seen = models.DateTimeField(null=True, blank=True, db_index=True)
+    expected_checkin_interval_seconds = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text=(
+            "How often this agent is expected to check in. MarkStaleAgents flags the "
+            "agent Offline once last_seen exceeds 3× this value. Leave blank to use the "
+            "plugin-wide default (PLUGINS_CONFIG['nautobot_scanner']['agent_checkin_interval_seconds'])."
+        ),
+    )
     version = models.CharField(max_length=64, blank=True, help_text="Agent software version reported at checkin.")
     capabilities = models.JSONField(
         default=dict,

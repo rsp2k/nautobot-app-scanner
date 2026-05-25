@@ -76,10 +76,18 @@ Optional:
 
 | Variable | Default | Notes |
 |---|---|---|
-| `CHECKIN_INTERVAL_SECONDS` | `60` | Heartbeat cadence. `MarkStaleAgents` flips status to offline at `3 * interval`. |
+| `CHECKIN_INTERVAL_SECONDS` | `60` | Heartbeat cadence on the **agent** side. Match this to the agent's `expected_checkin_interval_seconds` on the server side (or leave both blank to use the plugin default). |
 | `POLL_INTERVAL_SECONDS` | `30` | How often the agent checks for new pending scans. |
 | `SCAN_TIMEOUT_SECONDS` | `3600` | Max wall time for one nmap subprocess. |
 | `NMAP_BIN` | `/usr/bin/nmap` | Override if you ship a custom nmap. |
+
+!!! tip "Slower checkin for flaky links"
+    For an agent on a high-latency or intermittent link (satellite,
+    cellular, restricted firewall), bump the agent's
+    `CHECKIN_INTERVAL_SECONDS` (e.g. `300` = 5 min) **and** set
+    `expected_checkin_interval_seconds = 300` on the matching
+    `ScannerAgent` in Nautobot. Otherwise `MarkStaleAgents` will flip
+    the agent to `Offline` every time the checkin runs late.
 
 ### 5. Start the container
 

@@ -17,6 +17,7 @@ DRF Token.
 | `location` | FK to `dcim.Location` (nullable) — where the agent is physically deployed |
 | `user` | OneToOne to `settings.AUTH_USER_MODEL` (nullable) — auto-created for remote agents; the DRF Token on this user authenticates the agent |
 | `last_seen` | DateTime, db_indexed — updated at every checkin |
+| `expected_checkin_interval_seconds` | PositiveInteger, nullable — override the plugin-wide default checkin cadence for *this* agent. `MarkStaleAgents` flags the agent `Offline` when `last_seen > 3 × this`. Leave blank to fall back to `PLUGINS_CONFIG['nautobot_scanner']['agent_checkin_interval_seconds']` (default 60s). Useful when a remote agent on a flaky link can't realistically check in every minute. |
 | `version` | Agent software version reported at checkin |
 | `capabilities` | JSONField — free-form dict (nmap version, NSE scripts available, platform) reported at checkin |
 | `description` | Free-text |

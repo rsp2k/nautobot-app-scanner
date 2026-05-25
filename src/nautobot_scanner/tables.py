@@ -22,12 +22,16 @@ class ScannerAgentTable(StatusTableMixin, BaseTable):
     agent_type = tables.Column(verbose_name="Type")
     location = tables.Column(linkify=True)
     last_seen = tables.DateTimeColumn(short=False, verbose_name="Last Seen")
+    expected_checkin_interval_seconds = tables.Column(verbose_name="Checkin (s)")
     version = tables.Column()
     actions = ButtonsColumn(models.ScannerAgent)
 
     class Meta(BaseTable.Meta):
         model = models.ScannerAgent
-        fields = ("pk", "name", "agent_type", "status", "location", "last_seen", "version", "actions")
+        fields = (
+            "pk", "name", "agent_type", "status", "location",
+            "last_seen", "expected_checkin_interval_seconds", "version", "actions",
+        )
         default_columns = ("pk", "name", "agent_type", "status", "location", "last_seen", "actions")
 
 

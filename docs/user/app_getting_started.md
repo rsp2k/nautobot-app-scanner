@@ -32,37 +32,24 @@ authenticating to the REST API.
 <figcaption>The new agent appears in the **Scanner Agents** list.</figcaption>
 </figure>
 
-## 2. Create a scan profile
+## 2. Pick a scan profile
 
-Profiles are reusable nmap argument templates. A safe first profile:
+Six profiles ship by default — `discovery`, `top-100-tcp`, `full-tcp`,
+`vuln`, `topology`, `udp-common`. The data migration that seeds them
+runs automatically on the first `nautobot-server migrate`, so a freshly
+installed instance already has working presets.
 
-**Apps > Scanner > Scan Profiles > Add**:
+**Apps > Scanner > Scan Profiles** to confirm they're there.
 
-| Field | Value |
-|-------|-------|
-| Name | `discovery-fast` |
-| Scan type | `Host discovery` |
-| nmap arguments | `-sn` |
-| Timing template | `T3 — Normal (default)` |
-| Enabled scripts | _(empty)_ |
+For a first scan, `discovery` is the safe pick — it's a ping scan
+only (`-sn`), no port scanning, fast and low-impact.
 
-`-sn` means "ping scan, no port scan" — fast, low-impact, ideal for
-finding what's alive in a /24.
-
-For a real port scan, try:
-
-| Field | Value |
-|-------|-------|
-| Name | `tcp-top-1000-version` |
-| Scan type | `Service / version detection` |
-| nmap arguments | `-sS -sV --top-ports 1000` |
-| Timing template | `T4 — Aggressive` |
-
-See [Scan Profiles](scan_profiles.md) for a reference of common combos.
+See [Scan Profiles](scan_profiles.md) for the full catalog and recipes
+for writing your own.
 
 <figure markdown>
-![Scan profiles list](../images/profiles-list.png)
-<figcaption>Profiles list view — each profile is reusable across any agent.</figcaption>
+![Scan profiles list with the six seeded defaults](../images/profiles-list.png)
+<figcaption>Profiles list — the seeded defaults are immediately available; the **Add Scan Profile** button creates custom ones.</figcaption>
 </figure>
 
 ## 3. Pick a target prefix

@@ -76,8 +76,16 @@ is 60 seconds (configurable via `PLUGINS_CONFIG['nautobot_scanner']['agent_check
 
 A scheduled `MarkStaleAgents` Job (runs every 5 min by default) flips
 the status of any agent whose `last_seen` is older than `3 ×
-expected_interval` to `offline`. The Scanner Agent list view groups by
+expected_interval` to `Offline`. The Scanner Agent list view groups by
 status so you can see at a glance which segments have lost their agent.
+
+**Per-agent override**: set `expected_checkin_interval_seconds` on a
+specific `ScannerAgent` to give it a different cadence than the
+plugin-wide default. Common case: a satellite-link agent that can
+realistically only check in every 5 minutes — set it to `300` and
+`MarkStaleAgents` won't flag it offline until 15 minutes of silence
+instead of the global 3-minute threshold. Leave the field blank to
+inherit the plugin default.
 
 ### Reference agent
 

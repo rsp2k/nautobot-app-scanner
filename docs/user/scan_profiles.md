@@ -9,6 +9,31 @@ The same profile can be re-used by any agent for any target.
 <figcaption>Scan profiles list — each row links to a detail/edit page; the **Add Scan Profile** button creates a new one.</figcaption>
 </figure>
 
+## Shipped profiles
+
+Six profiles ship by default — seeded by a data migration the first
+time you `nautobot-server migrate` after install. Most operators won't
+need to write their own; pick the closest fit and dispatch.
+
+| Name | nmap args | Use case |
+|---|---|---|
+| `discovery` | `-sn` | Host discovery only. Cheap (one packet per host). Use as the first scan against an unknown subnet to find what's alive. |
+| `top-100-tcp` | `-sV --top-ports 100` | The default port-scan answer. Service + version detection on the top 100 TCP ports. |
+| `full-tcp` | `-sS -sV -p-` | Deep dive — every TCP port (1-65535) with version detection. Slow (minutes for /24). Use on suspect hosts, not blanket sweeps. |
+| `vuln` | `-sV --top-ports 100` + `vulners` NSE | Same shape as `top-100-tcp` plus CVE annotations on findings via the `vulners` script. |
+| `topology` | `-sn --traceroute` | Discovery + traceroute for layer-3 path mapping. Populates `TraceRouteHop` records. |
+| `udp-common` | `-sU --top-ports 50` | The only UDP profile shipped. Catches DNS / SNMP / NTP / DHCP / syslog without taking hours (UDP scanning is ~50× slower than TCP). |
+
+All six use timing template `T4` (aggressive, fast). Edit any profile
+in the UI to slow it down for stealthier contexts.
+
+!!! tip "Edits survive upgrades"
+    The seed migration uses `get_or_create` keyed on profile name —
+    re-running migrations after you've edited a default profile won't
+    overwrite your changes. Renaming a default profile also "orphans"
+    it from the seeder, so the next upgrade will recreate the
+    canonical version alongside your edited copy.
+
 ## Why profiles exist
 
 You probably don't want operators typing nmap arguments into the Run
@@ -20,65 +45,38 @@ The `scan_type` field is a coarse classification used by table filters
 and panel-rendering decisions — but `nmap_arguments` is always the
 source of truth for what gets passed to the binary.
 
-## Common profile recipes
+## Writing your own profile
 
-### Host discovery (fastest)
+When the defaults don't fit — you need OS fingerprinting, a specific NSE
+script, IDS-evasion timing, or a non-standard port set — create a
+custom profile via **Apps > Scanner > Scan Profiles > Add**.
 
-| Field | Value |
-|-------|-------|
-| `scan_type` | `discovery` |
-| `nmap_arguments` | `-sn` |
-| `timing_template` | `T3` |
+Two recipes the defaults don't cover, as a starting point:
 
-ARP scan on local subnets, ICMP/TCP-ACK on routed networks. No port
-scan. Finishes a /24 in seconds.
-
-### TCP top-1000 with service version
+### TCP top-1000 + OS fingerprint
 
 | Field | Value |
 |-------|-------|
 | `scan_type` | `version` |
-| `nmap_arguments` | `-sS -sV --top-ports 1000` |
+| `nmap_arguments` | `-sS -sV -O --top-ports 1000` |
 | `timing_template` | `T4` |
 
-SYN scan of the most common 1000 TCP ports plus `-sV` service/version
-detection. Populates `DiscoveredPort.product` / `version` / `extra_info`
-/ `cpe`.
+SYN scan with version detection plus `-O` OS fingerprinting. Populates
+`DiscoveredHost.os_family` / `os_type` / `os_accuracy` (which the
+shipped `top-100-tcp` profile doesn't because `-O` needs raw sockets
+and a probe-able TCP port).
 
-### Full TCP + OS fingerprint
+### Stealth / IDS-evasion (slow)
 
 | Field | Value |
 |-------|-------|
 | `scan_type` | `port` |
-| `nmap_arguments` | `-sS -O -p-` |
-| `timing_template` | `T4` |
+| `nmap_arguments` | `-sS -f --data-length 200` |
+| `timing_template` | `T1` |
 
-All 65,535 TCP ports + OS detection. Slow. Populates
-`DiscoveredHost.os_family` / `os_type` / `os_accuracy`.
-
-### Vulnerability scripts (vulners)
-
-| Field | Value |
-|-------|-------|
-| `scan_type` | `vuln` |
-| `nmap_arguments` | `-sV --script vulners` |
-| `timing_template` | `T3` |
-| `enabled_scripts` | `["vulners"]` |
-
-`-sV` first (vulners needs version output), then runs the `vulners`
-NSE script to look up known CVEs against detected service versions.
-Populates `VulnerabilityFinding` records hanging off each port.
-
-### Topology / traceroute
-
-| Field | Value |
-|-------|-------|
-| `scan_type` | `topology` |
-| `nmap_arguments` | `-sn --traceroute` |
-| `timing_template` | `T3` |
-
-Host discovery + path tracing. Populates `TraceRouteHop` records per
-host.
+`T1` "Sneaky" timing + fragmented packets + decoy traffic length.
+Won't trip most IDS thresholds; takes minutes per host. Use against
+hosts you suspect have active monitoring you don't want to alert.
 
 ## What you cannot put in `nmap_arguments`
 
