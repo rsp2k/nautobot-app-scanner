@@ -1,0 +1,52 @@
+# Bridge-network agent: scans services living inside docker overlays.
+#
+# Use this for:
+#   - Inventorying services on the caddy edge network
+#   - Probing internal app stacks (every container on a named compose network)
+#   - Multi-environment deployments where each project's network gets its
+#     own agent instance
+#
+# Attach to whichever external docker networks you want visibility into.
+# The agent sees every IP on every attached network and resolves docker
+# DNS for hostnames.
+#
+# Note: the agent only sees networks listed under `networks:` below. To
+# add or remove visibility, edit this file and `docker compose up -d`.
+#
+# Run:    docker compose -f docker-compose.bridge-mode.yml --env-file .env up -d
+# Stop:   docker compose -f docker-compose.bridge-mode.yml down
+
+services:
+  scanner-agent:
+    image: nautobot-scanner-agent:latest
+    build:
+      context: .
+    container_name: ${COMPOSE_PROJECT_NAME:-scanner-agent-bridge}
+    restart: unless-stopped
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+    environment:
+      NAUTOBOT_URL: ${NAUTOBOT_URL}
+      AGENT_ID: ${AGENT_ID}
+      AGENT_TOKEN: ${AGENT_TOKEN}
+      VERIFY_TLS: ${VERIFY_TLS:-true}
+      POLL_INTERVAL_SECONDS: ${POLL_INTERVAL_SECONDS:-30}
+      CHECKIN_INTERVAL_SECONDS: ${CHECKIN_INTERVAL_SECONDS:-60}
+      SCAN_TIMEOUT_SECONDS: ${SCAN_TIMEOUT_SECONDS:-3600}
+      AGENT_VERSION: reference-agent/bridge-mode
+      AGENT_LOG_LEVEL: ${AGENT_LOG_LEVEL:-INFO}
+    networks:
+      # Edit this list to control which docker networks the agent can scan.
+      # Each entry must already exist (created by some other compose stack).
+      - caddy
+      # - some-other-stack_internal
+      # - production_app-tier
+
+networks:
+  caddy:
+    external: true
+  # some-other-stack_internal:
+  #   external: true
+  # production_app-tier:
+  #   external: true

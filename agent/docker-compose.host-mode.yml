@@ -1,0 +1,35 @@
+# Host-network agent: scans every IP the host can reach.
+#
+# Use this for:
+#   - Scanning the management LAN from a jump host
+#   - Reading from a SPAN port the host is attached to
+#   - Probing services on physical interfaces the host owns
+#
+# The container shares the host's network namespace, so it sees every
+# physical/virtual interface (eth0, wlan0, tun0, etc.) and resolves DNS
+# the same way the host does.
+#
+# Run:    docker compose -f docker-compose.host-mode.yml --env-file .env up -d
+# Stop:   docker compose -f docker-compose.host-mode.yml down
+
+services:
+  scanner-agent:
+    image: nautobot-scanner-agent:latest
+    build:
+      context: .
+    container_name: ${COMPOSE_PROJECT_NAME:-scanner-agent-host}
+    restart: unless-stopped
+    network_mode: host
+    cap_add:
+      - NET_RAW    # SYN scans, ICMP echo
+      - NET_ADMIN  # interface enumeration (some nmap scan types)
+    environment:
+      NAUTOBOT_URL: ${NAUTOBOT_URL}              # e.g. https://scanner.local.example.com
+      AGENT_ID: ${AGENT_ID}                       # ScannerAgent UUID from Nautobot
+      AGENT_TOKEN: ${AGENT_TOKEN}                 # User token from the auto-created agent user
+      VERIFY_TLS: ${VERIFY_TLS:-true}             # set "false" for self-signed dev certs
+      POLL_INTERVAL_SECONDS: ${POLL_INTERVAL_SECONDS:-30}
+      CHECKIN_INTERVAL_SECONDS: ${CHECKIN_INTERVAL_SECONDS:-60}
+      SCAN_TIMEOUT_SECONDS: ${SCAN_TIMEOUT_SECONDS:-3600}
+      AGENT_VERSION: reference-agent/host-mode
+      AGENT_LOG_LEVEL: ${AGENT_LOG_LEVEL:-INFO}
