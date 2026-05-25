@@ -1,0 +1,37 @@
+# Dev-only bridge-mode agent that joins the nautobot-scanner-dev stack's
+# internal network. Lets you scan docker overlay services and get
+# reverse-DNS to container names (via docker's embedded resolver 127.0.0.11).
+#
+# Differs from the generic docker-compose.bridge-mode.yml in two ways:
+#   1. Attaches to nautobot-scanner-dev_internal (the dev stack's network)
+#      so it can resolve container hostnames like nautobot-scanner-dev-postgres.
+#   2. Talks to Nautobot via its in-cluster service name nautobot-web:8080
+#      rather than the host's loopback port, because we're inside the
+#      docker network now.
+
+services:
+  scanner-agent:
+    image: nautobot-scanner-agent:latest
+    container_name: ${COMPOSE_PROJECT_NAME:-scanner-agent-dev-bridge}
+    restart: unless-stopped
+    user: "0"  # see host-mode compose for rationale
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+    environment:
+      # In-cluster URL — uses docker's embedded DNS to resolve nautobot-web.
+      NAUTOBOT_URL: http://nautobot-web:8080
+      AGENT_ID: ${AGENT_ID}
+      AGENT_TOKEN: ${AGENT_TOKEN}
+      VERIFY_TLS: ${VERIFY_TLS:-false}
+      POLL_INTERVAL_SECONDS: ${POLL_INTERVAL_SECONDS:-10}
+      CHECKIN_INTERVAL_SECONDS: ${CHECKIN_INTERVAL_SECONDS:-30}
+      SCAN_TIMEOUT_SECONDS: ${SCAN_TIMEOUT_SECONDS:-600}
+      AGENT_VERSION: reference-agent/dev-bridge-mode
+      AGENT_LOG_LEVEL: ${AGENT_LOG_LEVEL:-INFO}
+    networks:
+      - nautobot-scanner-dev_internal
+
+networks:
+  nautobot-scanner-dev_internal:
+    external: true
