@@ -5,8 +5,8 @@ One host nmap reported during a scan. Identity is `(scan, ip_address)`
 historical per-scan state is preserved.
 
 <figure markdown>
-![DiscoveredHost detail with nested Open Ports and Traceroute Hops tables](../images/discoveredhost-detail.png)
-<figcaption>DiscoveredHost detail — the BaseModel child records (Open Ports, Traceroute Hops) render as nested tables on the host's own page.</figcaption>
+![DiscoveredHost detail with nested Open Ports, Vulnerabilities, and Traceroute Hops tables](../images/discoveredhost-detail.png)
+<figcaption>DiscoveredHost detail after a `vuln` profile scan. Left column: host fields + the **Actions** panel with Promote-to-IPAddress / Promote-to-Device buttons. Right column: nested tables for Open Ports (6 services), Vulnerabilities (3 Critical `vulners` + 3 Informational `http-server-header`), and Traceroute Hops. IP and hostname are sanitized to RFC-5737 / `.example.com` placeholders.</figcaption>
 </figure>
 
 | Field | Description |
