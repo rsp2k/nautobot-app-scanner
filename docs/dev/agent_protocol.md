@@ -1,164 +1,245 @@
-# Agent Protocol
+# Scanner Agent Protocol
 
-The REST contract a remote agent must implement to participate in
-scanner. This page is the source of truth — the reference agent at
-`examples/reference_agent.py` is one implementation of it.
+The wire contract between `nautobot-app-scanner` and a remote agent. If
+you can speak HTTP and run `nmap`, you can write a conforming agent in
+any language — see [`agent/agent.py`](https://git.supported.systems/nautobot-app-scanner/src/branch/main/agent/agent.py)
+for the reference Python implementation (~250 lines, standard library
+only).
 
-!!! note "API surface comes in Phase 7"
-    These endpoints are designed and documented but not yet shipped.
-    Build against this spec; once Phase 7 lands the implementation
-    must match what's here.
+For *deploying* the reference agent, see
+[Install Remote Agent](../admin/install_remote_agent.md). This page is
+for people writing a custom agent.
 
-## Base URL
+## Lifecycle
 
 ```
-https://<nautobot-host>/api/plugins/scanner/
+   Operator                Nautobot                Remote Agent
+   ────────                ────────                ────────────
+       │                       │                         │
+       │ Runs the "Run Scan"   │                         │
+       │ Job, picks a remote   │                         │
+       │ agent                 │                         │
+       ├───────────────────────▶                         │
+       │                       │                         │
+       │           Scan(status=pending,                  │
+       │           ingestion_token=<uuid>)               │
+       │                       │                         │
+       │                       │       GET /pending-scans/
+       │                       ◀─────────────────────────┤
+       │                       │                         │
+       │           ① atomically flips                    │
+       │              status=running                     │
+       │           ② returns scan list                   │
+       │                       ├────────────────────────▶│
+       │                       │                         │
+       │                       │              ③ runs nmap
+       │                       │                 with given
+       │                       │                 args + targets
+       │                       │                         │
+       │                       │  POST /scans/<id>/ingest/
+       │                       │  X-Ingestion-Token: <uuid>
+       │                       │  body: raw nmap XML
+       │                       ◀─────────────────────────┤
+       │                       │                         │
+       │           ④ select_for_update                   │
+       │              + token check                      │
+       │           ⑤ parse XML, persist                  │
+       │           ⑥ status=completed                    │
+       │              ingestion_token=None               │
+       │                       │                         │
+       │   Sees results        │                         │
+       │   on the Scan         │                         │
+       │   detail page         │                         │
+       ◀───────────────────────┤                         │
 ```
 
 ## Authentication
 
-Every request includes a DRF Token in the Authorization header:
+All three endpoints require an HTTP `Authorization: Token <key>` header.
+The token must belong to a `User` that is bound (via `OneToOneField`)
+to a `ScannerAgent` with `agent_type=remote`. Plain Nautobot user
+tokens won't work — they'll return `401`.
 
-```
-Authorization: Token <token-value>
-```
+Tokens are auto-issued when a remote agent is created via Nautobot's
+admin UI:
 
-The token belongs to the `auth.User` that's bound to the
-`ScannerAgent` (1:1). The custom auth class on the agent endpoints
-validates that the token's user matches the `<agent_id>` in the URL —
-agents can only act as themselves.
-
-The token is shown **once** at agent creation. Lost tokens are rotated
-via the user's admin page.
+1. Scanner → Agents → Add → fill in name, set `Agent Type = Remote`, Save.
+2. The signal handler auto-creates a User named `scanner-agent-<slug>`.
+3. Visit the User detail page (linked from the agent) and create a Token.
 
 ## Endpoints
 
-### `GET /agents/<id>/pending-scans/`
+Base URL: `{nautobot_base}/api/plugins/scanner/`
 
-Return all scans currently assigned to this agent in `pending` status.
+---
 
-**Response 200:**
+### `GET /agents/<uuid>/pending-scans/`
+
+Polls for scans assigned to this agent that are waiting to be picked up.
+
+**Atomic side effect**: every scan returned is transitioned
+`pending → running` *inside the same transaction* that selects them, so
+two pollers (or two pollers from the same agent racing each other)
+can't both pick up the same scan. `SELECT ... FOR UPDATE SKIP LOCKED`
+handles the concurrent case.
+
+**Request**
+
+```http
+GET /api/plugins/scanner/agents/12c69f09-ea56-4fff-8c55-13bd6d53c065/pending-scans/
+Authorization: Token <key>
+```
+
+**Response 200**
 
 ```json
-{
-  "scans": [
-    {
-      "id": "0fcaf26c-...",
-      "ingestion_token": "57ab2090-...",
-      "profile": {
-        "id": "e08f1d76-...",
-        "nmap_arguments": "-sS -sV --top-ports 1000",
-        "timing_template": "T4",
-        "enabled_scripts": ["vulners"]
-      },
-      "targets": ["10.50.0.0/24", "192.168.1.42/32"],
-      "cancel_requested": false
+[
+  {
+    "id": "f89f3738-7394-4eba-bd7f-be216ee18d40",
+    "ingestion_token": "a4c8b1d2-e9f4-4a5b-9c7d-3e2f1a8b5c6d",
+    "profile": {
+      "name": "version-scan",
+      "scan_type": "version",
+      "nmap_arguments": "-sV --top-ports 100",
+      "timing_template": "T4",
+      "enabled_scripts": []
+    },
+    "targets": {
+      "prefixes": ["10.128.144.0/24"],
+      "ipaddresses": []
     }
-  ]
-}
+  }
+]
 ```
 
-**Response 401:** invalid / missing token, or token's user doesn't
-match the `<agent_id>` in the URL.
+Empty array means "no work". Poll again later.
 
-The `targets` array is a list of nmap-syntax target strings —
-prefixes are emitted in CIDR form, individual IPs in `/32` or `/128`
-form. Just pass them straight to nmap.
+**Errors**
 
-### `POST /scans/<id>/ingest/`
+| Status | Cause |
+|---|---|
+| `401` | Token missing or invalid |
+| `403` | Token belongs to a different agent than the one in the URL |
+| `404` | Agent UUID doesn't exist (or isn't `agent_type=remote`) |
 
-Submit raw nmap XML for parsing and persistence. **The scan must be
-in `running` state** (transition: PendingScansView flips it to running
-when an agent fetches it; the agent then POSTs ingest).
+---
 
-**Request headers:**
+### `POST /scans/<uuid>/ingest/`
 
-```
-Authorization: Token <token>
-X-Ingestion-Token: <ingestion_token from pending-scans/>
+Uploads nmap XML for a previously-picked-up scan. The server parses the
+XML, materializes `DiscoveredHost` / `DiscoveredPort` / `VulnerabilityFinding`
+/ `TraceRouteHop` records, gzips the raw XML to storage, and transitions
+the scan to `completed`.
+
+**Critical**: the `X-Ingestion-Token` header must match the
+`ingestion_token` you received from `/pending-scans/`. The server clears
+the token on successful ingest, so a second POST with the same token
+gets `403`. This is the retry-after-504 defense — a network blip
+between you and Nautobot won't cause double-insertion of host records.
+
+**Request**
+
+```http
+POST /api/plugins/scanner/scans/f89f3738-7394-4eba-bd7f-be216ee18d40/ingest/
+Authorization: Token <key>
 Content-Type: application/xml
+X-Ingestion-Token: a4c8b1d2-e9f4-4a5b-9c7d-3e2f1a8b5c6d
+
+<?xml version="1.0" encoding="UTF-8"?>
+<nmaprun ...>
+  ...
+</nmaprun>
 ```
 
-**Request body:** raw nmap XML output (the contents of `nmap ... -oX -`).
-
-**Response 200:**
+**Response 200**
 
 ```json
 {
-  "scan_id": "0fcaf26c-...",
+  "scan_id": "f89f3738-7394-4eba-bd7f-be216ee18d40",
   "status": "completed",
-  "hosts_persisted": 42,
-  "ports_persisted": 318,
-  "vulnerabilities_persisted": 5
-}
-```
-
-**Response 409:** the ingest token doesn't match, OR the scan is no
-longer in `running` state. Retrying with the same token will keep
-hitting 409. **Do not retry.**
-
-**Response 400:** XML was un-parseable. The scan transitions to
-`failed`; the agent should log and move on.
-
-### `POST /agents/<id>/checkin/`
-
-Heartbeat. Updates `last_seen`, `version`, `capabilities`.
-
-**Request body:**
-
-```json
-{
-  "version": "1.0.0",
-  "capabilities": {
-    "nmap_version": "7.94",
-    "nse_scripts": ["vulners", "http-title", "ssl-cert"],
-    "platform": "Linux 5.15 amd64"
+  "summary": {
+    "hosts_up": 256,
+    "hosts_down": 0,
+    "ports_open": 11,
+    "vulnerabilities": 0,
+    "traceroute_hops": 0
   }
 }
 ```
 
-**Response 200:** empty body.
+**Errors**
 
-Agents should check in at least every `agent_checkin_interval_seconds`
-(default: 60). The `MarkStaleAgents` job flips agents to `offline`
-when `last_seen < now - 3 * interval`.
+| Status | Cause |
+|---|---|
+| `400` | Missing/malformed `X-Ingestion-Token`, or unparseable nmap XML |
+| `401` | Token missing or invalid |
+| `403` | Token-agent doesn't own this scan; OR token has already been consumed (replay) |
+| `404` | Scan UUID doesn't exist |
+| `409` | Scan is in a state that can't accept ingest (e.g. `cancelled`) |
 
-## Recommended agent loop
+---
+
+### `POST /agents/<uuid>/checkin/`
+
+Heartbeat. Updates `last_seen` (mandatory) and optionally `version` and
+`capabilities` if the agent wants to publish them.
+
+**Request**
+
+```http
+POST /api/plugins/scanner/agents/12c69f09-ea56-4fff-8c55-13bd6d53c065/checkin/
+Authorization: Token <key>
+Content-Type: application/json
+
+{
+  "version": "reference-agent/1.0",
+  "capabilities": {
+    "nmap_version": "Nmap version 7.94 ( https://nmap.org )",
+    "hostname": "dmz-jumpbox"
+  }
+}
+```
+
+Both `version` and `capabilities` are optional. A bare empty `{}` is
+valid and just bumps `last_seen`.
+
+**Response 200**
+
+```json
+{
+  "agent_id": "12c69f09-ea56-4fff-8c55-13bd6d53c065",
+  "last_seen": "2026-05-24T23:59:01.123456Z",
+  "version": "reference-agent/1.0",
+  "capabilities": {...}
+}
+```
+
+Recommended cadence: every 60 seconds. The server-side `Mark Stale
+Agents Offline` Job flips agents to status `Offline` when `last_seen >
+3 × CHECKIN_INTERVAL_SECONDS` ago (default threshold: 180 seconds).
+
+## Building your own agent
+
+Minimal pseudocode:
 
 ```python
 while True:
-    checkin()
-    for scan in pending_scans():
-        if scan.cancel_requested:
-            continue
-        xml = nmap_run(scan.profile, scan.targets)
-        try:
-            ingest(scan.id, scan.ingestion_token, xml)
-        except Conflict409:
-            pass  # don't retry
-        except BadRequest400:
-            log("nmap output rejected: ", xml[:500])
-    sleep(CHECKIN_INTERVAL)
+    scans = http_get(f"{base}/agents/{agent_id}/pending-scans/", token)
+    for scan in scans:
+        argv = ["nmap", "-oX", "-"] + scan["profile"]["nmap_arguments"].split() \
+             + [f"-{scan['profile']['timing_template']}"] \
+             + scan["targets"]["prefixes"] + scan["targets"]["ipaddresses"]
+        xml = subprocess.run(argv, capture_output=True, text=True).stdout
+        http_post(
+            f"{base}/scans/{scan['id']}/ingest/",
+            body=xml,
+            headers={"X-Ingestion-Token": scan["ingestion_token"]},
+            token=token,
+        )
+    sleep(POLL_INTERVAL)
 ```
 
-## What an agent should NOT do
-
-- Don't parse the XML on the agent side — server is the single source
-  of truth for what fields exist. Send the raw XML.
-- Don't retry 409 ingests — the token is one-shot.
-- Don't create scans yourself — only `RunScan` (server-side) creates
-  scans. Agents only consume them.
-- Don't modify the `Scan` record except via the documented endpoints.
-- Don't checkin with bogus capabilities — they're surfaced in the UI
-  and operators rely on them.
-
-## Versioning
-
-The contract is **stable from v1.0 onward**. Pre-1.0 (the `2026.x.x`
-calver releases) may break it; in that case the change is announced
-in the release notes and the reference agent updated in lockstep.
-
-Future versions of the contract will be advertised via a
-`scanner-protocol-version` HTTP header on responses. Agents should
-log warnings if the server reports a newer protocol than they were
-built against.
+Background thread does `POST /checkin/` every `CHECKIN_INTERVAL`. That's
+the whole protocol. The reference agent is ~250 lines because it adds
+TLS opts, error handling, signal traps, capability probing, and
+configuration loading — none of which are protocol requirements.

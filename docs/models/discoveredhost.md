@@ -45,13 +45,25 @@ export_templates, graphql, relationships, webhooks.
 | Reverse FK | `ports` | `DiscoveredPort` |
 | Reverse FK | `traceroute_hops` | `TraceRouteHop` |
 
-## Promote action
+## Computed properties
 
-A DiscoveredHost can be promoted to a real `ipam.IPAddress` via the
-**Promote to IPAddress** action — see [Promote to IPAddress](../user/promotion.md).
-The action checks `ipam.add_ipaddress` permission and sets
-`linked_ipaddress` on the discovered host to the newly-created
-IPAddress.
+| Property | Returns |
+|---|---|
+| `open_port_count` | Number of `DiscoveredPort` rows on this host where `state="open"`. Reads from `_open_port_count` if the queryset was annotated (the list view does this to avoid N+1), otherwise falls back to a per-row count query. |
+| `vulnerability_count` | Total `VulnerabilityFinding` rows across all ports on this host. Same annotation-or-fallback pattern. |
+
+Both properties power the badges on the scanner panels embedded in
+Device / IPAddress / Prefix detail pages — using `_count` annotations
+keeps those panels fast even when a Device has many associated
+DiscoveredHosts.
+
+## Promote actions
+
+A DiscoveredHost can be promoted to a real `ipam.IPAddress` (lightweight,
+permission: `ipam.add_ipaddress`) or to a full `dcim.Device` + Interface
++ IPAddress (heavier, requires `dcim.add_device` + `dcim.add_interface`
++ `ipam.add_ipaddress`). See [Promote a Discovered Host](../user/promotion.md)
+for both flows.
 
 ## See also
 

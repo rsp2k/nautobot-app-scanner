@@ -81,11 +81,21 @@ status so you can see at a glance which segments have lost their agent.
 
 ### Reference agent
 
-A minimal reference implementation lives at `examples/reference_agent.py`
-in the repo. It's a single-file Python script demonstrating the
-poll-execute-post loop. See [Agent Protocol](../dev/agent_protocol.md)
-for the full REST contract you'd implement if you wanted a richer agent
-(e.g. one that runs in a container managed by your orchestrator).
+A containerized reference agent ships in the
+[`agent/`](https://git.supported.systems/nautobot-app-scanner/src/branch/main/agent)
+directory of the repo. Same Dockerfile, three compose variants depending
+on what network you need to reach:
+
+| Mode | Use case | Compose file |
+|---|---|---|
+| **Host network** | Scanning the LAN the host sits on (DMZ, OT, branch) | `agent/docker-compose.host-mode.yml` |
+| **Bridge / attached** | Scanning a specific docker overlay (e.g. a caddy stack) | `agent/docker-compose.bridge-mode.yml` |
+| **Dev-bridge** | Local dev — joins `nautobot-scanner-dev_internal` to reverse-look-up Nautobot's other dev containers via docker DNS | `agent/docker-compose.dev-bridge.yml` |
+
+See [Install Remote Agent](../admin/install_remote_agent.md) for the
+deployment walkthrough; see [Agent Protocol](../dev/agent_protocol.md)
+for the REST contract if you want to write your own agent in something
+other than Python.
 
 ## Comparing the two backends
 

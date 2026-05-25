@@ -133,6 +133,7 @@ nav:
       - "TraceRouteHop": "models/traceroutehop.md"
   - "Administrator Guide":
     - "Install": "admin/install.md"
+    - "Install Remote Agent": "admin/install_remote_agent.md"
     - "Compatibility Matrix": "admin/compatibility_matrix.md"
     - "Upgrade": "admin/upgrade.md"
     - "Uninstall": "admin/uninstall.md"
