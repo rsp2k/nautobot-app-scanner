@@ -11,7 +11,7 @@ contribution flow is intentionally lightweight.
 2. **Read [Architecture Decisions](architecture.md)** — those choices
    are load-bearing. Proposals to revisit them are welcome but need to
    address the original "why."
-3. **Read the [Plan file](https://git.supported.systems/nautobot-app-scanner/src/branch/main/docs/dev/architecture.md)**
+3. **Read the [Plan file](https://github.com/rsp2k/nautobot-app-scanner/blob/main/docs/dev/architecture.md)**
    to understand what's currently mid-flight vs. shipped.
 
 ## Set up the dev environment
@@ -20,7 +20,7 @@ See [Development Environment](dev_environment.md) for the full walkthrough.
 Short version:
 
 ```bash
-git clone https://git.supported.systems/nautobot-app-scanner
+git clone https://github.com/rsp2k/nautobot-app-scanner
 cd nautobot-app-scanner
 cp development/.env.example development/.env
 # edit development/.env to set DOMAIN and rotate the changeme- secrets
@@ -39,7 +39,7 @@ Then attach to nbshell or http://127.0.0.1:8087/ (loopback port — see
   enables E/W/F/I/B/UP/D rules.
 - **Models**: every PrimaryModel must declare the full
   `@extras_features(...)` set unless there's a documented reason not
-  to. See [`models/agents.py`](https://git.supported.systems/nautobot-app-scanner/src/branch/main/src/nautobot_scanner/models/agents.py)
+  to. See [`models/agents.py`](https://github.com/rsp2k/nautobot-app-scanner/blob/main/src/nautobot_scanner/models/agents.py)
   for the canonical example.
 - **Migrations**: generate via `make makemigrations` (which handles
   the host UID / container UID 999 bind-mount mismatch); commit the

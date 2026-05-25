@@ -62,7 +62,7 @@ on the host detail page — with full permission checks against
 
 ## Quick links
 
-- **Source**: [git.supported.systems/nautobot-app-scanner](https://git.supported.systems/nautobot-app-scanner)
+- **Source**: [github.com/rsp2k/nautobot-app-scanner](https://github.com/rsp2k/nautobot-app-scanner)
 - **Issue tracker**: same repo
 - **Author**: Ryan Malloy &lt;ryan@supported.systems&gt;
 - **License**: Apache 2.0

@@ -1,7 +1,7 @@
 # Install a Remote Scanner Agent
 
 The repo ships a containerized reference agent under
-[`agent/`](https://git.supported.systems/nautobot-app-scanner/src/branch/main/agent).
+[`agent/`](https://github.com/rsp2k/nautobot-app-scanner/tree/main/agent).
 It's a single Python file plus a Dockerfile — same image, three compose
 variants for different network-reach scenarios. This page is the
 operational deploy walkthrough.

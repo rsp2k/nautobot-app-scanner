@@ -7,7 +7,7 @@ bind-mounted for hot reload.
 ## One-time setup
 
 ```bash
-git clone https://git.supported.systems/nautobot-app-scanner
+git clone https://github.com/rsp2k/nautobot-app-scanner
 cd nautobot-app-scanner
 
 # Generate .env with random dev secrets

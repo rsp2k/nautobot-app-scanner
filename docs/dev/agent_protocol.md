@@ -2,7 +2,7 @@
 
 The wire contract between `nautobot-app-scanner` and a remote agent. If
 you can speak HTTP and run `nmap`, you can write a conforming agent in
-any language — see [`agent/agent.py`](https://git.supported.systems/nautobot-app-scanner/src/branch/main/agent/agent.py)
+any language — see [`agent/agent.py`](https://github.com/rsp2k/nautobot-app-scanner/blob/main/agent/agent.py)
 for the reference Python implementation (~250 lines, standard library
 only).
 

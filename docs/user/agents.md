@@ -95,7 +95,7 @@ inherit the plugin default.
 ### Reference agent
 
 A containerized reference agent ships in the
-[`agent/`](https://git.supported.systems/nautobot-app-scanner/src/branch/main/agent)
+[`agent/`](https://github.com/rsp2k/nautobot-app-scanner/tree/main/agent)
 directory of the repo. Same Dockerfile, three compose variants depending
 on what network you need to reach:
 
