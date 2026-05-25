@@ -5,7 +5,7 @@ site_dir: "src/nautobot_scanner/static/nautobot_scanner/docs"
 site_name: "Nautobot Scanner Documentation"
 # `repo_url` powers the "Edit this page" + "View source" links on every
 # page (rendered via `edit_uri` above).
-repo_url: "https://git.supported.systems/nautobot-app-scanner"
+repo_url: "https://github.com/rsp2k/nautobot-app-scanner"
 copyright: "Copyright &copy; Ryan Malloy"
 
 theme:
