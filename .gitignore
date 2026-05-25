@@ -1,7 +1,23 @@
 # Environments / secrets
+# Ignore EVERY dotenv variant by default; whitelist only the public templates below.
+# This catches `.env`, `.env.local`, `.env.production`, `.env.dev-bridge`, etc. —
+# previously each new variant slipped through (we shipped agent/.env.dev-bridge with
+# a real token before this rule existed). Two conventions collided here:
+#   - Next.js / CRA style: `.env`, `.env.local`, `.env.<env>.local`
+#   - docker-compose style: `.env.<variant>` (paralleling docker-compose.<variant>.yml)
+# `.env.*` covers both — whatever convention future devs reach for, they're caught.
 .env
-.env.local
-.env.*.local
+.env.*
+
+# Public templates — must be tracked. Negation patterns MUST come after the
+# ignore rules they're un-ignoring.
+!.env.example
+!.env.*.example
+
+# Local-only screenshots / audits / pixel artifacts. JPEGs are pixel data so we
+# can't grep them for PII after capture — exclude the whole tree and rely on the
+# sanitize-before-screenshot workflow when something genuinely needs publishing.
+artifacts/
 
 # Python build artifacts
 __pycache__/
