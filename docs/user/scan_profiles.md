@@ -11,7 +11,7 @@ The same profile can be re-used by any agent for any target.
 
 ## Shipped profiles
 
-Six profiles ship by default — seeded by a data migration the first
+Seven profiles ship by default — seeded by data migrations the first
 time you `nautobot-server migrate` after install. Most operators won't
 need to write their own; pick the closest fit and dispatch.
 
@@ -19,13 +19,24 @@ need to write their own; pick the closest fit and dispatch.
 |---|---|---|
 | `discovery` | `-sn` | Host discovery only. Cheap (one packet per host). Use as the first scan against an unknown subnet to find what's alive. |
 | `top-100-tcp` | `-sV --top-ports 100` | The default port-scan answer. Service + version detection on the top 100 TCP ports. |
-| `full-tcp` | `-sS -sV -p-` | Deep dive — every TCP port (1-65535) with version detection. Slow (minutes for /24). Use on suspect hosts, not blanket sweeps. |
+| `os-detect` | `-sS -sV -O --top-ports 100 --osscan-limit` | TCP scan + OS fingerprint. The only profile that populates `DiscoveredHost.os_family` / `os_type` / `os_accuracy`. `--osscan-limit` skips hosts without an open+closed port pair so firewalled targets don't fill the UI with 0% guesses. Requires `cap_net_raw` on the scanner. |
+| `full-tcp` | `-sS -sV -O -p-` | Deep dive — every TCP port (1-65535) with version detection + OS fingerprint. Slow (minutes for /24). Use on suspect hosts, not blanket sweeps. |
 | `vuln` | `-sV --top-ports 100` + `vulners` NSE | Same shape as `top-100-tcp` plus CVE annotations on findings via the `vulners` script. |
 | `topology` | `-sn --traceroute` | Discovery + traceroute for layer-3 path mapping. Populates `TraceRouteHop` records. |
 | `udp-common` | `-sU --top-ports 50` | The only UDP profile shipped. Catches DNS / SNMP / NTP / DHCP / syslog without taking hours (UDP scanning is ~50× slower than TCP). |
 
-All six use timing template `T4` (aggressive, fast). Edit any profile
+All seven use timing template `T4` (aggressive, fast). Edit any profile
 in the UI to slow it down for stealthier contexts.
+
+!!! info "OS fingerprint data missing?"
+    Only profiles with `-O` populate the `os_family` / `os_type` /
+    `os_accuracy` fields on `DiscoveredHost`. `os-detect` and the
+    upgraded `full-tcp` are the two shipped profiles that do this.
+    Some hosts still come back blank — nmap needs both an open and a
+    closed TCP port for a confident TCP/IP-stack signature, and
+    consumer IoT (Sonos, Lutron, etc.) often don't match nmap's DB
+    even when probed. Enterprise gear (FortiGate, HP printers,
+    Synology NAS, macOS) typically fingerprints at 87-100% confidence.
 
 !!! tip "Edits survive upgrades"
     The seed migration uses `get_or_create` keyed on profile name —

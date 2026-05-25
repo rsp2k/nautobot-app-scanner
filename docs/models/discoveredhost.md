@@ -44,6 +44,7 @@ export_templates, graphql, relationships, webhooks.
 | FK out | `linked_device` | `dcim.Device` (auto-resolved at ingest) |
 | Reverse FK | `ports` | `DiscoveredPort` |
 | Reverse FK | `traceroute_hops` | `TraceRouteHop` |
+| Reverse two-hop | `ports.vulnerabilities` | `VulnerabilityFinding` (rendered as a panel on the host detail page via `discovered_port__discovered_host` table filter) |
 
 ## Computed properties
 
