@@ -58,6 +58,11 @@ Device / IPAddress / Prefix detail pages — using `_count` annotations
 keeps those panels fast even when a Device has many associated
 DiscoveredHosts.
 
+<figure markdown>
+![DiscoveredHost list view with Open Ports and Vulns count columns](../images/dh-list-with-port-vuln-columns.png)
+<figcaption>The DH list view's **Open Ports** and **Vulns** columns are populated from the same `_open_port_count` / `_vulnerability_count` annotations — `select_related("scan")` plus the count annotation keeps the page to two queries regardless of row count.</figcaption>
+</figure>
+
 ## Promote actions
 
 A DiscoveredHost can be promoted to a real `ipam.IPAddress` (lightweight,

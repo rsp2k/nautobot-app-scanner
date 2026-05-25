@@ -79,6 +79,11 @@ the status of any agent whose `last_seen` is older than `3 ×
 expected_interval` to `Offline`. The Scanner Agent list view groups by
 status so you can see at a glance which segments have lost their agent.
 
+<figure markdown>
+![Scanner Agents list view with three Active agents and one Offline (dmz-agent)](../images/agents-list-with-offline.png)
+<figcaption>The agent list with a color-coded **Status** column — `Offline` (yellow) stands out against `Active` (green). The `dmz-agent` shown here was flipped by `MarkStaleAgents` after missing its expected checkin window.</figcaption>
+</figure>
+
 **Per-agent override**: set `expected_checkin_interval_seconds` on a
 specific `ScannerAgent` to give it a different cadence than the
 plugin-wide default. Common case: a satellite-link agent that can

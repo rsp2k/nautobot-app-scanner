@@ -43,6 +43,16 @@ details.
 <figcaption>The **Scan Coverage** panel injects directly into the IPAM `Prefix` detail page via a `TemplateExtension` — coverage percentage, IPs scanned, hosts up, and recent scan history all in one glance. Same pattern works for `dcim.Device` and `ipam.IPAddress` detail pages.</figcaption>
 </figure>
 
+<figure markdown>
+![Scanner Activity panel on an IPAddress detail page](../images/ipaddress-with-scanner-panel.png)
+<figcaption>The same pattern on an `ipam.IPAddress` detail page — the **Scanner Activity** panel lists every scan that observed this address, with link-through to the per-scan `DiscoveredHost` rows.</figcaption>
+</figure>
+
+<figure markdown>
+![Scanner Activity panel on a Device detail page](../images/device-with-scanner-panel.png)
+<figcaption>And on a `dcim.Device` detail page — agent-side resolution via `DiscoveredHost.linked_device = Device.primary_ip4.match` means scans automatically attach to the right device record at ingest time, no manual linkage step.</figcaption>
+</figure>
+
 ## Scan lifecycle
 
 ```

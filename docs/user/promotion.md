@@ -61,6 +61,11 @@ If you need to give an operator promote capability:
    - Sets `DiscoveredHost.linked_ipaddress` to the new record
    - Redirects you to the new IPAddress detail page
 
+<figure markdown>
+![Promote to IPAddress form pre-filled from a discovered host](../images/promote-to-ipaddress-form.png)
+<figcaption>The Promote-to-IPAddress form. Address and DNS Name are pre-filled from the `DiscoveredHost`; you supply Namespace, Status, and (optionally) Tenant. The displayed values are sanitized RFC-5737 / `.example.com` placeholders.</figcaption>
+</figure>
+
 ## What happens to the DiscoveredHost
 
 Promotion doesn't delete the `DiscoveredHost`. It links to the new

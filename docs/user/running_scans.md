@@ -19,6 +19,11 @@ streaming, retry, and the `JobResult` page.
 Both jobs are registered via `register_jobs()` and appear under
 **Apps > Jobs** in the Nautobot navigation.
 
+<figure markdown>
+![Jobs list filtered to the Scanner module showing Run Scan, Scan Prefix, and Mark Stale Agents Offline](../images/jobs-scanner-registered.png)
+<figcaption>All three Scanner-app Jobs registered under the `nautobot_scanner.jobs` grouping — `RunScan`, `ScanPrefix`, and the housekeeping `MarkStaleAgents`.</figcaption>
+</figure>
+
 ## Lifecycle in the dispatching Job
 
 ```
@@ -94,3 +99,8 @@ for the dispatching Job. That's where you'll find:
 
 Click the **Job Result** link on a Scan detail page to see the full
 log stream.
+
+<figure markdown>
+![JobResult detail for Mark Stale Agents Offline showing Status=Completed and Result Data=0](../images/jobresult-mark-stale-agents.png)
+<figcaption>A completed `MarkStaleAgents` JobResult. The **Result Data** value (`"0"` here) is the count of agents flipped this run — when an agent is already `Offline`, the query correctly excludes it, so a follow-up sweep is a no-op.</figcaption>
+</figure>
