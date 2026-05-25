@@ -15,10 +15,12 @@ works without REST access.
 
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
+from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views import View
 from nautobot.apps.ui import ObjectDetailContent, ObjectFieldsPanel, ObjectsTablePanel, Panel, SectionChoices
 from nautobot.apps.views import NautobotUIViewSet
+from nautobot.dcim.models import Device, Interface
 from nautobot.ipam.models import IPAddress
 
 from nautobot_scanner import filters, forms, models, tables
@@ -110,6 +112,137 @@ class DiscoveredHostPromoteView(LoginRequiredMixin, PermissionRequiredMixin, Vie
             "status": status_initial,
             "dns_name": host.hostname,
             "description": f"Promoted from scanner DiscoveredHost {host.pk} (scan {host.scan.pk})",
+        }
+
+
+class DiscoveredHostPromoteToDeviceView(LoginRequiredMixin, PermissionRequiredMixin, View):
+    """Promote a DiscoveredHost into a real dcim.Device + Interface + IPAddress.
+
+    Heavier workflow than the IPAddress promotion — a Device requires
+    Location + Role + DeviceType so the form takes more inputs. In one
+    atomic transaction we:
+
+    1. Create the Device (with the form's name/location/role/device_type/...)
+    2. Create or reuse the IPAddress (reuses if linked_ipaddress already set)
+    3. Create an Interface on the Device (with the discovered MAC if any)
+    4. Assign the IPAddress to the Interface
+    5. Set Device.primary_ip4 = the IPAddress
+    6. Set DiscoveredHost.linked_device = the new Device
+
+    Required permissions: nautobot_scanner.change_discoveredhost,
+    dcim.add_device, dcim.add_interface, ipam.add_ipaddress.
+    """
+
+    permission_required = (
+        "nautobot_scanner.change_discoveredhost",
+        "dcim.add_device",
+        "dcim.add_interface",
+        "ipam.add_ipaddress",
+    )
+
+    def get(self, request, pk):
+        """Render the prefilled form."""
+        host = get_object_or_404(models.DiscoveredHost, pk=pk)
+        initial = self._initial_for(host)
+        form = forms.PromoteDiscoveredHostToDeviceForm(initial=initial)
+        return render(
+            request,
+            "nautobot_scanner/discoveredhost_promote_to_device.html",
+            {"object": host, "form": form},
+        )
+
+    def post(self, request, pk):
+        """Create the Device + Interface + IPAddress in one transaction."""
+        host = get_object_or_404(models.DiscoveredHost, pk=pk)
+        form = forms.PromoteDiscoveredHostToDeviceForm(request.POST)
+
+        if not form.is_valid():
+            return render(
+                request,
+                "nautobot_scanner/discoveredhost_promote_to_device.html",
+                {"object": host, "form": form},
+            )
+
+        cleaned = form.cleaned_data
+
+        with transaction.atomic():
+            device = Device.objects.create(
+                name=cleaned["name"],
+                location=cleaned["location"],
+                role=cleaned["role"],
+                device_type=cleaned["device_type"],
+                status=cleaned["status"],
+                platform=cleaned.get("platform"),
+                tenant=cleaned.get("tenant"),
+            )
+
+            # Either reuse the existing linked IPAddress or create a fresh one.
+            if host.linked_ipaddress:
+                ip = host.linked_ipaddress
+            else:
+                ip_str = str(host.ip_address)
+                mask = "/128" if ":" in ip_str else "/32"
+                ip = IPAddress.objects.create(
+                    address=f"{ip_str}{mask}",
+                    namespace=cleaned["ipaddress_namespace"],
+                    status=cleaned["ipaddress_status"],
+                    dns_name=host.hostname or "",
+                    description=f"Auto-created with Device {device.name} from scanner DiscoveredHost {host.pk}",
+                )
+                host.linked_ipaddress = ip
+
+            interface = Interface.objects.create(
+                device=device,
+                name=cleaned["interface_name"],
+                type="virtual",
+                mac_address=host.mac_address or None,
+                status=cleaned["status"],
+            )
+            # Assign the IPAddress to the Interface.
+            ip.assigned_object = interface
+            ip.save()
+
+            # Primary IP must be set *after* assignment.
+            if ":" in str(host.ip_address):
+                device.primary_ip6 = ip
+            else:
+                device.primary_ip4 = ip
+            device.save()
+
+            host.linked_device = device
+            host.save(update_fields=["linked_ipaddress", "linked_device"])
+
+        messages.success(
+            request,
+            f"Created Device '{device.name}' with interface '{interface.name}' and primary IP {ip.address}.",
+        )
+        return redirect(device.get_absolute_url())
+
+    @staticmethod
+    def _initial_for(host) -> dict:
+        """Pre-fill values from the discovered host."""
+        from nautobot.extras.models import Status as _Status
+        from nautobot.ipam.models import Namespace as _Namespace
+
+        # Strip the domain from the hostname for a cleaner Device name.
+        # `sonos-542a1b19f8b0.example.com` → `sonos-542a1b19f8b0`.
+        name = (host.hostname or str(host.ip_address)).split(".", 1)[0]
+
+        try:
+            ns = _Namespace.objects.get(name="Global").pk
+        except _Namespace.DoesNotExist:
+            ns = None
+        try:
+            active = _Status.objects.get(name="Active").pk
+        except _Status.DoesNotExist:
+            active = None
+
+        return {
+            "name": name,
+            "status": active,
+            "ipaddress_status": active,
+            "ipaddress_namespace": ns,
+            "interface_name": "mgmt0",
         }
 
 

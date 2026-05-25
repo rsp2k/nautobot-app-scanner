@@ -27,4 +27,9 @@ urlpatterns = router.urls + [
         views.DiscoveredHostPromoteView.as_view(),
         name="discoveredhost_promote",
     ),
+    path(
+        "discovered-hosts/<uuid:pk>/promote-to-device/",
+        views.DiscoveredHostPromoteToDeviceView.as_view(),
+        name="discoveredhost_promote_to_device",
+    ),
 ]

@@ -13,7 +13,8 @@ to materialize a new IPAddress and the view does the cross-model write.
 
 from django import forms
 from nautobot.apps.forms import DynamicModelChoiceField, NautobotFilterForm, NautobotModelForm
-from nautobot.extras.models import Status
+from nautobot.dcim.models import DeviceType, Location, Platform
+from nautobot.extras.models import Role, Status
 from nautobot.ipam.models import Namespace, Prefix
 from nautobot.tenancy.models import Tenant
 
@@ -196,4 +197,62 @@ class PromoteDiscoveredHostForm(forms.Form):
         required=False,
         max_length=200,
         help_text="Free-form note; pre-filled with the discovering scan reference.",
+    )
+
+
+class PromoteDiscoveredHostToDeviceForm(forms.Form):
+    """Promote a DiscoveredHost into a real dcim.Device.
+
+    Heavier than the IPAddress promotion because a Device requires
+    Location + Role + DeviceType. Also auto-creates an Interface (with
+    MAC if we discovered one) and an IPAddress, then links them so the
+    Device picks up the discovered IP as its primary_ip4.
+
+    The view checks `dcim.add_device` permission separately — this form
+    only validates the payload.
+    """
+
+    name = forms.CharField(
+        max_length=64,
+        help_text="Device name. Pre-filled from the discovered hostname (domain stripped).",
+    )
+    location = DynamicModelChoiceField(
+        queryset=Location.objects.all(),
+        help_text="Where the device physically lives.",
+    )
+    role = DynamicModelChoiceField(
+        queryset=Role.objects.all(),
+        query_params={"content_types": "dcim.device"},
+        help_text="Functional role (e.g., 'Access Point', 'Server').",
+    )
+    device_type = DynamicModelChoiceField(
+        queryset=DeviceType.objects.all(),
+        help_text="Manufacturer + model. Pick something close to what the scan suggests.",
+    )
+    status = forms.ModelChoiceField(
+        queryset=Status.objects.all(),
+        help_text="Lifecycle status (e.g., Active).",
+    )
+    platform = DynamicModelChoiceField(
+        queryset=Platform.objects.all(),
+        required=False,
+        help_text="Optional. OS/firmware platform.",
+    )
+    tenant = DynamicModelChoiceField(
+        queryset=Tenant.objects.all(),
+        required=False,
+        help_text="Optional. Tenant scoping.",
+    )
+    interface_name = forms.CharField(
+        max_length=64,
+        initial="mgmt0",
+        help_text="Name for the auto-created Interface that holds the discovered IP.",
+    )
+    ipaddress_namespace = DynamicModelChoiceField(
+        queryset=Namespace.objects.all(),
+        help_text="Namespace for the new IPAddress (or its parent lookup if reusing).",
+    )
+    ipaddress_status = forms.ModelChoiceField(
+        queryset=Status.objects.all(),
+        help_text="Status for the new IPAddress record.",
     )
