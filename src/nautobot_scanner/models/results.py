@@ -149,10 +149,15 @@ class DiscoveredPort(BaseModel):
     port = models.PositiveIntegerField()
     protocol = models.CharField(max_length=8, choices=ProtocolChoices)
     state = models.CharField(max_length=16, choices=PortStateChoices)
-    service_name = models.CharField(max_length=64, blank=True)
+    # Widened to CHARFIELD_MAX_LENGTH after a real-world scan hit the prior
+    # 64-char ceiling on version strings — consumer routers and IoT devices
+    # return banners with full module manifests and build metadata that
+    # routinely exceed 64 chars (e.g. "Apache 2.4.41 ((Ubuntu) mod_jk/1.2.45
+    # mod_perl/2.0.11 Perl/v5.30.0)"). service_name widened in sympathy.
+    service_name = models.CharField(max_length=CHARFIELD_MAX_LENGTH, blank=True)
     banner = models.TextField(blank=True)
-    product = models.CharField(max_length=128, blank=True)
-    version = models.CharField(max_length=64, blank=True)
+    product = models.CharField(max_length=CHARFIELD_MAX_LENGTH, blank=True)
+    version = models.CharField(max_length=CHARFIELD_MAX_LENGTH, blank=True)
     extra_info = models.CharField(max_length=CHARFIELD_MAX_LENGTH, blank=True)
     cpe = models.JSONField(
         default=list,
