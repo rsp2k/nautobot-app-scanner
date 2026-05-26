@@ -123,47 +123,112 @@ class NautobotClient:
         result = self._request("GET", f"/api/plugins/scanner/agents/{self.agent_id}/pending-scans/")
         return result or []
 
-    def ingest(self, scan_id: str, ingestion_token: str, raw_xml: str) -> dict:
+    def ingest(
+        self,
+        scan_id: str,
+        ingestion_token: str,
+        raw_body: str,
+        tool: str = "nmap",
+        content_type: str = "application/xml",
+    ) -> dict:
+        """POST raw tool output to the ingest endpoint.
+
+        Phase G: ``tool`` + ``content_type`` parameters were added so non-nmap
+        tools can ingest their own output formats (dig text, masscan JSON,
+        etc.). Older agent calls that pass only the first three positional
+        args still work — defaults preserve the nmap-XML contract.
+        """
         return self._request(
             "POST",
             f"/api/plugins/scanner/scans/{scan_id}/ingest/",
-            body=raw_xml.encode("utf-8"),
+            body=raw_body.encode("utf-8"),
             extra_headers={
-                "Content-Type": "application/xml",
+                "Content-Type": content_type,
                 "X-Ingestion-Token": ingestion_token,
+                # Phase G: server-side parser dispatch reads this header to
+                # pick the right parser. Default "nmap" preserves back-compat
+                # if a future caller forgets to pass it.
+                "X-Tool": tool,
             },
         )
 
 
 # ----------------------------------------------------------------------------
-# nmap execution
+# Tool registry — pluggable dispatch
 # ----------------------------------------------------------------------------
+#
+# Each entry maps a tool name (matching server-side ToolChoices) to:
+#   (argv_builder, content_type)
+# where argv_builder(scan: dict) -> list[str] composes the argv from the
+# pending-scan payload, and content_type is the HTTP header value the
+# agent uses when POSTing the captured stdout back via client.ingest().
+#
+# Adding a new tool (`mtr`, `curl`, `openssl`, etc.) is purely additive:
+# write a build_<tool>_argv() function and register it here. The server's
+# parser.PARSERS dict must contain a matching key, otherwise the ingest
+# returns 400.
 
 
-def build_argv(scan: dict, nmap_bin: str) -> list[str]:
+def _all_targets(scan: dict) -> list[str]:
+    """Collect prefix + IP + raw-IP targets from the pending-scan payload."""
+    targets = scan.get("targets", {})
+    out: list[str] = []
+    out.extend(targets.get("prefixes", []))
+    out.extend(targets.get("ipaddresses", []))
+    out.extend(targets.get("raw_ips", []))
+    return out
+
+
+def build_nmap_argv(scan: dict) -> list[str]:
     """Compose nmap argv from a pending-scan payload."""
     profile = scan["profile"]
+    nmap_bin = os.environ.get("NMAP_BIN", "/usr/bin/nmap")
     argv = [nmap_bin, "-oX", "-"]
     argv.extend(shlex.split(profile.get("nmap_arguments", "") or ""))
     argv.append(f"-{profile.get('timing_template', 'T3')}")
     scripts = profile.get("enabled_scripts") or []
     if scripts:
         argv.extend(["--script", ",".join(scripts)])
-    argv.extend(scan["targets"].get("prefixes", []))
-    argv.extend(scan["targets"].get("ipaddresses", []))
-    # Raw IPs/CIDRs from ad-hoc rescans (server-side migration 0011, added
-    # 2026-05-26). Older agents that pre-date this field just ignore it —
-    # the server treats it as optional. Newer agents append it to the nmap
-    # target list alongside the IPAM-anchored targets.
-    argv.extend(scan["targets"].get("raw_ips", []))
+    argv.extend(_all_targets(scan))
     return argv
 
 
-def run_nmap(argv: list[str], timeout: int) -> tuple[int, str, str]:
-    """Run nmap, return (returncode, stdout, stderr). Truncates stderr to 4 KB."""
+def build_dig_argv(scan: dict) -> list[str]:
+    """Compose dig argv from a pending-scan payload.
+
+    dig takes one target per invocation, but we run it once with all
+    targets appended — dig accepts that and writes their answers
+    sequentially. The server-side parser groups records by name; for
+    Phase G we don't try to split them per target (see parser.py).
+    """
+    profile = scan["profile"]
+    dig_bin = os.environ.get("DIG_BIN", "/usr/bin/dig")
+    argv = [dig_bin]
+    # tool_arguments holds the dig-specific args (e.g. "+noall +answer ANY").
+    # nmap_arguments stays empty for dig profiles.
+    argv.extend(shlex.split(profile.get("tool_arguments", "") or ""))
+    argv.extend(_all_targets(scan))
+    return argv
+
+
+# (argv_builder, content_type) per tool. Server's X-Tool header
+# dispatches the parser; here we pick the right binary + headers.
+TOOL_REGISTRY = {
+    "nmap": (build_nmap_argv, "application/xml"),
+    "dig": (build_dig_argv, "text/plain"),
+}
+
+
+def run_tool(argv: list[str], timeout: int) -> tuple[int, str, str]:
+    """Run any tool, return (returncode, stdout, stderr).
+
+    Generalized from the old run_nmap(): every supported tool produces
+    its output on stdout, so a single dispatch is fine. Truncates
+    stderr to 4 KB to bound log volume on chatty failures.
+    """
     LOG.info("Running: %s", shlex.join(argv))
     try:
-        result = subprocess.run(  # noqa: S603 — argv validated upstream
+        result = subprocess.run(  # noqa: S603 — argv built from trusted profile fields
             argv,
             capture_output=True,
             text=True,
@@ -171,11 +236,11 @@ def run_nmap(argv: list[str], timeout: int) -> tuple[int, str, str]:
             check=False,
         )
     except subprocess.TimeoutExpired:
-        LOG.error("nmap exceeded %ds timeout", timeout)
+        LOG.error("%s exceeded %ds timeout", argv[0], timeout)
         return (124, "", f"timeout after {timeout}s")
     except FileNotFoundError:
-        LOG.error("nmap binary not found at %s", argv[0])
-        return (127, "", "nmap not found")
+        LOG.error("binary not found: %s", argv[0])
+        return (127, "", f"{argv[0]} not found")
     return (result.returncode, result.stdout, (result.stderr or "")[:4096])
 
 
@@ -185,18 +250,41 @@ def run_nmap(argv: list[str], timeout: int) -> tuple[int, str, str]:
 
 
 def capabilities() -> dict:
-    """Probe local environment for things Nautobot might want to know."""
-    caps = {"hostname": socket.gethostname()}
+    """Probe local environment for things Nautobot might want to know.
+
+    Returns a hostname + version-string for each tool the registry
+    advertises. A "missing" value lets the server filter scan dispatch
+    to agents that actually have the binary installed (a netshoot-based
+    agent will have all of them; a stripped-down agent might have only
+    nmap).
+    """
+    caps: dict[str, str] = {"hostname": socket.gethostname()}
+    for tool in TOOL_REGISTRY.keys():
+        caps[f"{tool}_version"] = _probe_tool_version(tool)
+    return caps
+
+
+def _probe_tool_version(tool: str) -> str:
+    """Return the first line of `<tool> --version`, or 'missing' if absent.
+
+    Defensive against every plausible failure mode so the capabilities
+    probe never crashes the agent: FileNotFoundError when the binary
+    isn't installed, TimeoutExpired when the tool hangs (rare for
+    --version but possible for tools that try to open a network socket
+    on start), PermissionError when file caps without NET_RAW in the
+    process bounding set prevent execve.
+    """
     try:
-        result = subprocess.run(  # noqa: S607,S603 — fixed argv, no shell
-            ["nmap", "--version"], capture_output=True, text=True, timeout=5, check=False,
+        result = subprocess.run(  # noqa: S603 — fixed binary name, no shell
+            [tool, "--version"], capture_output=True, text=True, timeout=5, check=False,
         )
         if result.returncode == 0:
-            first_line = (result.stdout or "").splitlines()[0] if result.stdout else ""
-            caps["nmap_version"] = first_line
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        caps["nmap_version"] = "missing"
-    return caps
+            text = result.stdout or result.stderr or ""
+            first_line = text.splitlines()[0] if text else ""
+            return first_line[:128]
+    except (FileNotFoundError, subprocess.TimeoutExpired, PermissionError, OSError):
+        pass
+    return "missing"
 
 
 def checkin_loop(client: NautobotClient, version: str, interval: int, stop: threading.Event) -> None:
@@ -210,8 +298,8 @@ def checkin_loop(client: NautobotClient, version: str, interval: int, stop: thre
         stop.wait(interval)
 
 
-def poll_and_execute(client: NautobotClient, scan_timeout: int, nmap_bin: str) -> None:
-    """One iteration of pending-scans → run → ingest."""
+def poll_and_execute(client: NautobotClient, scan_timeout: int) -> None:
+    """One iteration of pending-scans → run → ingest, dispatching by tool."""
     try:
         scans = client.get_pending_scans()
     except Exception as exc:  # noqa: BLE001
@@ -231,20 +319,37 @@ def poll_and_execute(client: NautobotClient, scan_timeout: int, nmap_bin: str) -
             LOG.warning("Skipping scan %s: invalid ingestion_token", scan_id)
             continue
 
-        argv = build_argv(scan, nmap_bin)
-        rc, xml, err = run_nmap(argv, scan_timeout)
+        # Phase G: pick the tool from the scan payload (server sends the
+        # field starting with migration 0015). Default "nmap" so an agent
+        # talking to a pre-Phase-G server still works.
+        tool = (scan.get("tool") or "nmap").lower()
+        entry = TOOL_REGISTRY.get(tool)
+        if entry is None:
+            LOG.error(
+                "Skipping scan %s: tool %r not in this agent's registry "
+                "(supported: %s)",
+                scan_id, tool, sorted(TOOL_REGISTRY.keys()),
+            )
+            continue
+        argv_builder, content_type = entry
+
+        argv = argv_builder(scan)
+        rc, output, err = run_tool(argv, scan_timeout)
         if rc != 0:
-            # We could POST a "failed" sentinel, but the protocol doesn't have
-            # one — the server-side MarkStaleAgents job will eventually clean up
-            # never-ingested scans. For now, log and move on.
-            LOG.error("nmap rc=%d for scan %s: %s", rc, scan_id, err[:200])
+            # No "failed" sentinel in the protocol — the server's
+            # MarkStaleAgents job eventually GCs never-ingested scans.
+            # For now, log and move on.
+            LOG.error("%s rc=%d for scan %s: %s", tool, rc, scan_id, err[:200])
             continue
 
         try:
-            response = client.ingest(scan_id, ingestion_token, xml)
-            LOG.info("Ingested scan %s: %s", scan_id, response)
+            response = client.ingest(
+                scan_id, ingestion_token, output,
+                tool=tool, content_type=content_type,
+            )
+            LOG.info("Ingested %s scan %s: %s", tool, scan_id, response)
         except urllib.error.HTTPError as exc:
-            LOG.error("ingest HTTP error for scan %s: %d", scan_id, exc.code)
+            LOG.error("ingest HTTP error for %s scan %s: %d", tool, scan_id, exc.code)
 
 
 def main() -> int:
@@ -261,7 +366,9 @@ def main() -> int:
     poll_interval = env_int("POLL_INTERVAL_SECONDS", 30)
     checkin_interval = env_int("CHECKIN_INTERVAL_SECONDS", 60)
     scan_timeout = env_int("SCAN_TIMEOUT_SECONDS", 3600)
-    nmap_bin = env("NMAP_BIN", "/usr/bin/nmap")
+    # NMAP_BIN + DIG_BIN are still read by the per-tool argv builders;
+    # they're no longer threaded through main() because the tool registry
+    # is now the dispatch surface.
     version = env("AGENT_VERSION", "reference-agent/1.0")
 
     client = NautobotClient(nautobot_url, agent_id, token, verify_tls=verify_tls)
@@ -289,7 +396,7 @@ def main() -> int:
     checkin_thread.start()
 
     while not stop.is_set():
-        poll_and_execute(client, scan_timeout, nmap_bin)
+        poll_and_execute(client, scan_timeout)
         stop.wait(poll_interval)
 
     LOG.info("Agent stopped cleanly")

@@ -141,10 +141,19 @@ class AgentPendingScansView(_AgentEndpointMixin, APIView):
                     {
                         "id": str(scan.pk),
                         "ingestion_token": str(scan.ingestion_token),
+                        # Phase G: top-level tool field tells the agent
+                        # WHICH binary to invoke. Defaults to "nmap" for
+                        # back-compat (the model default is also "nmap",
+                        # so legacy profiles serialize correctly).
+                        "tool": scan.profile.tool or "nmap",
                         "profile": {
                             "name": scan.profile.name,
                             "scan_type": scan.profile.scan_type,
+                            "tool": scan.profile.tool or "nmap",
                             "nmap_arguments": scan.profile.nmap_arguments,
+                            # Phase G: generic argument string for non-nmap tools.
+                            # Older agents that don't read it just ignore the field.
+                            "tool_arguments": scan.profile.tool_arguments or "",
                             "timing_template": scan.profile.timing_template,
                             "enabled_scripts": scan.profile.enabled_scripts or [],
                         },
@@ -194,16 +203,37 @@ class ScanIngestView(_AgentEndpointMixin, APIView):
                 status=drf_status.HTTP_400_BAD_REQUEST,
             )
 
-        raw_xml = request.body.decode("utf-8", errors="replace") if request.body else ""
+        raw_body = request.body.decode("utf-8", errors="replace") if request.body else ""
+
+        # Phase G: which tool produced this output? Default to nmap so old
+        # agents (no X-Tool header) keep working. Newer agents send the
+        # header explicitly; the parser dispatcher routes accordingly.
+        posted_tool = (request.META.get("HTTP_X_TOOL", "") or "nmap").lower()
+
+        # Resolve the target list from the scan — needed by non-nmap
+        # parsers (dig groups answers by question, not by target IP, so
+        # the parser needs to know who we asked about). Read it before
+        # the parser runs so a parse error doesn't waste a DB roundtrip.
+        try:
+            preview_scan = models.Scan.objects.only("pk").get(pk=pk)
+        except models.Scan.DoesNotExist:
+            preview_scan = None
+        target_list: list[str] = []
+        if preview_scan is not None:
+            target_list.extend(str(ip.host) for ip in preview_scan.target_ipaddresses.all())
+            target_list.extend(str(p.prefix) for p in preview_scan.target_prefixes.all())
+            target_list.extend(preview_scan.target_raw_ips or [])
 
         # Parse outside the transaction — it's CPU-bound, no need to hold
         # the row lock across it. If parse fails we return 400 without ever
         # touching the Scan row.
         try:
-            parsed_report, parsed_hosts = parser.parse_xml_with_report(raw_xml)
+            parsed_report, parsed_hosts = parser.dispatch_parser(
+                posted_tool, raw_body, targets=target_list,
+            )
         except ValueError as exc:
             return Response(
-                {"detail": f"Invalid nmap XML: {exc}"},
+                {"detail": f"Invalid {posted_tool} output: {exc}"},
                 status=drf_status.HTTP_400_BAD_REQUEST,
             )
 
@@ -241,13 +271,24 @@ class ScanIngestView(_AgentEndpointMixin, APIView):
             scan.status = ScanStateChoices.COMPLETED
             scan.completed_at = timezone.now()
             scan.ingestion_token = None
-            scan.save(update_fields=["summary", "status", "completed_at", "ingestion_token"])
+            scan.tool_used = posted_tool
+            scan.save(update_fields=[
+                "summary", "status", "completed_at", "ingestion_token", "tool_used",
+            ])
 
-            # Save the raw XML too (gzipped). Done inside the lock so a
-            # crashed worker doesn't leave a half-saved Scan with no XML.
+            # Save the raw output too (gzipped). Route to raw_xml for nmap
+            # (legacy tooling expects the XML there) and raw_output for
+            # everything else. Done inside the lock so a crashed worker
+            # doesn't leave a half-saved Scan with no payload.
             from nautobot_scanner.backends.local import LocalBackend
 
-            LocalBackend._save_raw_xml(scan, raw_xml)  # noqa: SLF001 — share the same helper
+            if posted_tool == "nmap":
+                LocalBackend._save_raw_xml(scan, raw_body)  # noqa: SLF001 — share helper
+            else:
+                # File extension hints at the format for future tooling that
+                # re-opens raw_output without needing a per-tool dispatcher.
+                ext = {"masscan": "json"}.get(posted_tool, "txt")
+                LocalBackend._save_raw_output(scan, raw_body, ext=ext)  # noqa: SLF001
 
         # Update agent.last_seen.
         models.ScannerAgent.objects.filter(pk=scan.agent_id).update(last_seen=timezone.now())

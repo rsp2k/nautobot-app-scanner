@@ -237,6 +237,96 @@ def parse_xml_with_report(raw: str) -> tuple[ParsedReport, list[ParsedHost]]:
     return parsed_report, [_convert_host(h) for h in report.hosts]
 
 
+# ----------------------------------------------------------------------------
+# Phase G — pluggable parser dispatch + dig parser
+# ----------------------------------------------------------------------------
+
+
+def parse_dig_text(raw: str, targets: list[str]) -> tuple[ParsedReport, list[ParsedHost]]:
+    """Minimal dig parser — one ParsedHost per target, dig text as a finding.
+
+    dig's text output (``+noall +answer``) is line-oriented and hard to
+    split per target when multiple are queried in one run. For Phase G
+    we punt: every target becomes a ParsedHost with state=up, and the
+    full dig output is attached as a single host-scope finding. The
+    existing UI (host detail → Host Findings panel, finding detail
+    page with structured-data block) renders it cleanly.
+
+    A future "smart" dig parser could split the answer section by the
+    question that produced each record group and emit one finding per
+    record (with `elements={'type': 'A', 'ttl': 300, 'value': ...}`),
+    but that's a tightening, not a foundation requirement.
+    """
+    out: list[ParsedHost] = []
+    body = (raw or "").strip()
+
+    # Split lines into "answer" records (lines that look like
+    # `name. TTL IN TYPE value`). Used only for the elements dict —
+    # the original text is preserved in `output`.
+    records = []
+    for line in body.splitlines():
+        line = line.strip()
+        if not line or line.startswith(";"):
+            continue
+        parts = line.split(None, 4)
+        if len(parts) == 5 and parts[2] == "IN":
+            records.append({
+                "name": parts[0],
+                "ttl": parts[1],
+                "type": parts[3],
+                "value": parts[4],
+            })
+
+    finding_elements = {"records": records, "record_count": len(records)}
+    has_answers = bool(records)
+
+    for tgt in targets:
+        ph = ParsedHost(
+            ip_address=tgt,
+            host_state=HostStateChoices.UP if has_answers else HostStateChoices.UNKNOWN,
+            host_findings=[
+                ParsedVulnerability(
+                    nse_script="dig-answer",
+                    output=body or "(no output)",
+                    severity=SeverityChoices.INFO,
+                    elements=finding_elements,
+                ),
+            ],
+        )
+        out.append(ph)
+
+    return ParsedReport(), out
+
+
+# Map ToolChoices values → parser function. The dispatch picks one
+# at ingest based on the agent's X-Tool header (or the scan's profile).
+# Adding a new tool: write a parse_<tool>_<format>() returning the same
+# (ParsedReport, list[ParsedHost]) tuple, then register it here.
+#
+# Signatures differ slightly: nmap doesn't need targets (the XML names
+# its own hosts); dig+masscan+others do. dispatch_parser() normalizes
+# the call sites.
+PARSERS: dict[str, object] = {
+    "nmap": parse_xml_with_report,
+    "dig": parse_dig_text,
+}
+
+
+def dispatch_parser(
+    tool: str,
+    raw: str,
+    targets: list[str] | None = None,
+) -> tuple[ParsedReport, list[ParsedHost]]:
+    """Route raw tool output to its parser. Default to nmap for back-compat."""
+    parser_fn = PARSERS.get(tool or "nmap")
+    if parser_fn is None:
+        raise ValueError(f"No parser registered for tool: {tool!r}")
+    # nmap's signature is (raw,) — others take targets too.
+    if tool == "nmap" or tool == "":
+        return parser_fn(raw)  # type: ignore[no-any-return,operator]
+    return parser_fn(raw, targets or [])  # type: ignore[no-any-return,operator]
+
+
 def _convert_host(nmap_host) -> ParsedHost:
     """Convert a libnmap `NmapHost` to our `ParsedHost` dataclass."""
     state_map = {

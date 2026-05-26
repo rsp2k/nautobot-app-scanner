@@ -143,6 +143,29 @@ class LocalBackend(ScannerBackend):
         scan.save(update_fields=["raw_xml", "raw_xml_size"])
 
     @staticmethod
+    def _save_raw_output(scan: Scan, output: str, ext: str = "txt") -> None:
+        """Gzip + attach non-XML tool output (dig text, masscan JSON, etc.).
+
+        Sibling of _save_raw_xml — kept separate so nmap-shaped tooling
+        that reads scan.raw_xml directly isn't confused by non-nmap
+        bytes. The `ext` argument signals the format ('txt' for dig,
+        'json' for masscan); future tooling can dispatch on the file
+        extension when re-opening.
+        """
+        if not output:
+            return
+        buf = BytesIO()
+        with gzip.GzipFile(fileobj=buf, mode="wb") as gz:
+            gz.write(output.encode("utf-8"))
+        scan.raw_output.save(
+            f"scan-{scan.pk}.{ext}.gz",
+            ContentFile(buf.getvalue()),
+            save=False,
+        )
+        scan.raw_output_size = len(output.encode("utf-8"))
+        scan.save(update_fields=["raw_output", "raw_output_size"])
+
+    @staticmethod
     def _fail(scan: Scan, message: str) -> None:
         """Mark scan failed with an error message — single point of update."""
         logger.warning("LocalBackend failing scan %s: %s", scan.pk, message)

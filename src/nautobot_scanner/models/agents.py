@@ -17,7 +17,7 @@ from nautobot.apps.models import PrimaryModel
 from nautobot.extras.models import StatusField
 from nautobot.extras.utils import extras_features
 
-from nautobot_scanner.choices import AgentTypeChoices, ScanTypeChoices, TimingTemplateChoices
+from nautobot_scanner.choices import AgentTypeChoices, ScanTypeChoices, TimingTemplateChoices, ToolChoices
 from nautobot_scanner.utils import get_default_status
 
 
@@ -104,7 +104,15 @@ class ScannerAgent(PrimaryModel):
     "webhooks",
 )
 class ScanProfile(PrimaryModel):
-    """Reusable nmap argument template."""
+    """Reusable probe-tool argument template.
+
+    Originally nmap-only; Phase G generalized to any tool the agent
+    image bundles. ``tool`` defaults to ``nmap`` so existing seeded
+    profiles continue to work without migration data. New tools
+    (``dig``, ``masscan``, etc.) leave ``nmap_arguments`` blank and use
+    ``tool_arguments`` instead — the dispatch path picks one based on
+    ``tool``.
+    """
 
     name = models.CharField(max_length=CHARFIELD_MAX_LENGTH, unique=True)
     scan_type = models.CharField(
@@ -112,8 +120,40 @@ class ScanProfile(PrimaryModel):
         choices=ScanTypeChoices,
         help_text="Coarse classification — actual behavior is determined by nmap_arguments.",
     )
+    # Phase G: which underlying probe tool this profile invokes. Defaults
+    # to nmap for back-compat with every pre-Phase-G profile (the seed
+    # migrations 0002, 0005, 0010 all create nmap-shaped profiles).
+    tool = models.CharField(
+        max_length=24,
+        choices=ToolChoices,
+        default=ToolChoices.NMAP,
+        db_index=True,
+        help_text=(
+            "Which probe tool the agent runs for this profile. "
+            "Defaults to 'nmap' for back-compat; pick another value to "
+            "use a different tool from the agent's netshoot toolkit "
+            "(dig, masscan, curl, mtr, openssl-s_client, ...)."
+        ),
+    )
     nmap_arguments = models.TextField(
-        help_text="Raw nmap flags (e.g. '-sS -sV --top-ports 1000'). Target list is appended by the backend.",
+        blank=True,
+        help_text=(
+            "Raw nmap flags (e.g. '-sS -sV --top-ports 1000') — only "
+            "used when tool='nmap'. Target list is appended by the "
+            "backend. Leave blank for non-nmap profiles."
+        ),
+    )
+    # Phase G: generic argument string used when tool != 'nmap'. Kept
+    # separate from nmap_arguments so each can be validated against the
+    # right tool's syntax independently.
+    tool_arguments = models.TextField(
+        blank=True,
+        help_text=(
+            "Arguments for the chosen tool when it's not nmap. "
+            "Example for tool='dig': '-t AXFR @1.2.3.4'. "
+            "Example for tool='masscan': '-p 0-65535 --rate=10000'. "
+            "Target list is appended by the backend."
+        ),
     )
     timing_template = models.CharField(
         max_length=4,

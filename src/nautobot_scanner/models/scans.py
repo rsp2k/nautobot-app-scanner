@@ -93,6 +93,37 @@ class Scan(PrimaryModel):
         help_text="Gzipped nmap XML for forensics and parser-bug recovery.",
     )
     raw_xml_size = models.PositiveIntegerField(default=0, help_text="Uncompressed XML size in bytes.")
+    # Phase G: which tool actually produced this scan's output. Stamped
+    # at ingest from the parsed-report side of the parser dispatch, NOT
+    # from the profile — agents on older versions might fall back to
+    # nmap silently, and we want to know what really ran.
+    tool_used = models.CharField(
+        max_length=24,
+        blank=True,
+        db_index=True,
+        help_text=(
+            "Which probe tool produced this scan's output (nmap, dig, "
+            "masscan, ...). Stamped at ingest. Empty for pre-Phase-G "
+            "scans where the assumption was always nmap."
+        ),
+    )
+    # Phase G: non-XML tool output (dig text, masscan JSON, curl headers).
+    # Kept distinct from raw_xml so nmap-specific tooling that opens the
+    # gzipped XML directly doesn't get confused. Long-term raw_xml could
+    # be renamed → raw_output and discriminated by file extension.
+    raw_output = models.FileField(
+        upload_to="scanner/output/%Y/%m/",
+        null=True,
+        blank=True,
+        help_text=(
+            "Gzipped non-XML output from non-nmap tools (dig text, "
+            "masscan JSON, etc.). nmap scans use raw_xml instead."
+        ),
+    )
+    raw_output_size = models.PositiveIntegerField(
+        default=0,
+        help_text="Uncompressed size of raw_output in bytes.",
+    )
     job_result = models.ForeignKey(
         to="extras.JobResult",
         on_delete=models.SET_NULL,

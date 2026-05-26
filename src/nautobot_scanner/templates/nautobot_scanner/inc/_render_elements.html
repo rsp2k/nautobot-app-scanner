@@ -32,9 +32,7 @@ levels for ssl-cert; 1-2 for most others).
             {% include "nautobot_scanner/inc/_render_elements.html" with data=value depth=depth|add:1 %}
           {% endif %}
         {% elif value|stringformat:"s"|slice:":1" == "[" %}
-          {# Best-effort list detection — Django templates don't expose isinstance,
-             so we use the repr's leading char as a heuristic. Works for the libnmap
-             shapes we see in practice (lists of dicts or strings). #}
+          {# Best-effort list detection: stringformat repr starts with '['. #}
           {% include "nautobot_scanner/inc/_render_elements.html" with data=value depth=depth|add:1 %}
         {% else %}
           <code style="word-break:break-all">{{ value }}</code>

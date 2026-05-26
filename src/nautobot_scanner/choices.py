@@ -20,6 +20,38 @@ class AgentTypeChoices(ChoiceSet):
     )
 
 
+class ToolChoices(ChoiceSet):
+    """Which underlying probe tool a ScanProfile invokes.
+
+    Defaults to ``nmap`` for back-compat with every pre-Phase-G profile.
+    New tools (added when the agent's netshoot base image makes them
+    available) get their own value here AND a parser entry in
+    ``parser.PARSERS``. The agent's tool registry must also include
+    an argv-builder for the value.
+
+    The choice list is the contract between the server and agent —
+    the server only dispatches names the agent claims to support; an
+    older agent that doesn't recognize a tool returns its scans to
+    PENDING via the timeout path.
+    """
+
+    NMAP = "nmap"
+    MASSCAN = "masscan"
+    DIG = "dig"
+    CURL = "curl"
+    MTR = "mtr"
+    OPENSSL_SCLIENT = "openssl-s_client"
+
+    CHOICES = (
+        (NMAP, "nmap — port/service/OS discovery (default)"),
+        (MASSCAN, "masscan — fast IP-range sweep (10M pps)"),
+        (DIG, "dig — DNS record snapshot"),
+        (CURL, "curl — HTTP request/response capture"),
+        (MTR, "mtr — path + latency baseline"),
+        (OPENSSL_SCLIENT, "openssl s_client — deep TLS enumeration"),
+    )
+
+
 class ScanTypeChoices(ChoiceSet):
     """Coarse classification of what a ScanProfile is meant to do.
 
