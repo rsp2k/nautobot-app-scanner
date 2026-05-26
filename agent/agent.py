@@ -151,6 +151,11 @@ def build_argv(scan: dict, nmap_bin: str) -> list[str]:
         argv.extend(["--script", ",".join(scripts)])
     argv.extend(scan["targets"].get("prefixes", []))
     argv.extend(scan["targets"].get("ipaddresses", []))
+    # Raw IPs/CIDRs from ad-hoc rescans (server-side migration 0011, added
+    # 2026-05-26). Older agents that pre-date this field just ignore it —
+    # the server treats it as optional. Newer agents append it to the nmap
+    # target list alongside the IPAM-anchored targets.
+    argv.extend(scan["targets"].get("raw_ips", []))
     return argv
 
 

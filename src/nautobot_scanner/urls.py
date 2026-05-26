@@ -32,6 +32,13 @@ urlpatterns = router.urls + [
         views.DiscoveredHostPromoteToDeviceView.as_view(),
         name="discoveredhost_promote_to_device",
     ),
+    # POST endpoint — dispatches a fresh single-host scan against this
+    # host's IP via target_raw_ips (no IPAM commitment required).
+    path(
+        "discovered-hosts/<uuid:pk>/rescan/",
+        views.DiscoveredHostRescanView.as_view(),
+        name="discoveredhost_rescan",
+    ),
     # Bitemporal scan diff — `?vs=<scan_pk>` pins to a specific other scan;
     # absent, the view auto-picks the previous completed scan on the same agent.
     path(

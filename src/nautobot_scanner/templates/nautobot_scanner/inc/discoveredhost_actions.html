@@ -27,6 +27,17 @@
 
   {# Action buttons — only show the ones that apply. #}
   <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.6rem">
+    {% comment %}Rescan — always available; uses target_raw_ips so no IPAM commitment needed. Bitemporal storage means re-runs are purely additive to the timeline.{% endcomment %}
+    {% if perms.nautobot_scanner.change_discoveredhost %}
+      <form method="post" action="{% url 'plugins:nautobot_scanner:discoveredhost_rescan' pk=object.pk %}" style="margin:0">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-warning"
+                title="Re-dispatch the same agent + profile against ONLY this host's IP. Bitemporal — old beliefs stay queryable.">
+          <i class="mdi mdi-refresh"></i> Rescan this host
+        </button>
+      </form>
+    {% endif %}
+
     {% if not object.linked_ipaddress %}
       {% if perms.ipam.add_ipaddress %}
         <a href="{% url 'plugins:nautobot_scanner:discoveredhost_promote' pk=object.pk %}"

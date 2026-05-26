@@ -94,7 +94,7 @@ class LocalBackend(ScannerBackend):
 
     @staticmethod
     def _collect_targets(scan: Scan) -> list[str]:
-        """Build the nmap target list from M2M Prefixes + IPAddresses."""
+        """Build the nmap target list from M2M Prefixes + IPAddresses + raw IPs."""
         targets: list[str] = []
         for prefix in scan.target_prefixes.all():
             targets.append(str(prefix.prefix))
@@ -102,6 +102,11 @@ class LocalBackend(ScannerBackend):
             # Strip mask — nmap accepts either, but bare IPs render cleaner
             # in logs and the resulting XML.
             targets.append(str(ip.host))
+        # Raw IPs / CIDRs from ad-hoc rescans that bypass IPAM (see
+        # DiscoveredHostRescanView). Trust the strings — they came from
+        # our own DiscoveredHost records.
+        for raw in (scan.target_raw_ips or []):
+            targets.append(str(raw))
         return targets
 
     @staticmethod

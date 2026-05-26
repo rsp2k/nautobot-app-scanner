@@ -151,6 +151,11 @@ class AgentPendingScansView(_AgentEndpointMixin, APIView):
                         "targets": {
                             "prefixes": [str(p.prefix) for p in scan.target_prefixes.all()],
                             "ipaddresses": [str(ip.host) for ip in scan.target_ipaddresses.all()],
+                            # Raw IPs/CIDRs for ad-hoc rescans that bypass IPAM
+                            # (added in migration 0011). Agents built before this
+                            # field existed should default to ignoring it; new
+                            # agents append it to the nmap target list.
+                            "raw_ips": list(scan.target_raw_ips or []),
                         },
                     },
                 )

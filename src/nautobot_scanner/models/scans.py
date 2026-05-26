@@ -50,6 +50,16 @@ class Scan(PrimaryModel):
         related_name="scans",
         blank=True,
     )
+    target_raw_ips = models.JSONField(
+        default=list,
+        blank=True,
+        help_text=(
+            "Raw IP/CIDR strings to scan that aren't IPAM-committed (e.g. "
+            "ad-hoc rescans triggered from a DiscoveredHost detail page). "
+            "Appended to the nmap target list alongside target_prefixes + "
+            "target_ipaddresses. Avoids polluting IPAM with throw-away entries."
+        ),
+    )
     status = models.CharField(
         max_length=16,
         choices=ScanStateChoices,

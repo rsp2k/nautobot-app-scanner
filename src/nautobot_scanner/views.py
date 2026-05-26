@@ -547,3 +547,52 @@ class ScanDiffView(LoginRequiredMixin, View):
             "nautobot_scanner/scan_diff.html",
             {"object": scan, "before": before, "after": after, "diff": diff},
         )
+
+
+class DiscoveredHostRescanView(LoginRequiredMixin, PermissionRequiredMixin, View):
+    """POST endpoint that re-dispatches a scan against THIS host's IP only.
+
+    Bitemporal-safe: the new Scan creates fresh DiscoveredHost rows with
+    their own ``recorded_during`` window. Prior beliefs stay queryable
+    via ``.as_of(<prior_time>)`` and the scan diff view. Nothing gets
+    overwritten — every rescan is purely additive to the timeline,
+    making this a one-click "is anything different on this host right
+    now?" check.
+
+    Scope: the new scan targets EXACTLY one IP — the discovered host's
+    ``ip_address`` — via the ``target_raw_ips`` field (added in
+    migration 0011 specifically for this case). No IPAM commitment is
+    created or required. The fact that linked_ipaddress may or may not
+    be set is irrelevant; we always go through the raw-IP path so
+    behavior is identical for promoted and unpromoted hosts.
+
+    Agent + profile inherit from the host's parent scan, so the rescan
+    exercises the same code path the original did. The diff view from
+    the resulting scan back to its parent immediately surfaces what
+    changed.
+    """
+
+    permission_required = ("nautobot_scanner.change_discoveredhost",)
+
+    def post(self, request, pk):
+        """Dispatch a fresh single-host scan; redirect to its detail page."""
+        host = get_object_or_404(models.DiscoveredHost, pk=pk)
+        parent = host.scan
+
+        new_scan = models.Scan.objects.create(
+            agent=parent.agent,
+            profile=parent.profile,
+            target_raw_ips=[str(host.ip_address)],
+        )
+
+        from nautobot_scanner.backends import get_backend
+
+        get_backend(parent.agent).dispatch(new_scan)
+        new_scan.refresh_from_db()
+
+        messages.success(
+            request,
+            f"Dispatched rescan of {host.ip_address} via {parent.agent.name} "
+            f"using profile '{parent.profile.name}'. Status: {new_scan.status}.",
+        )
+        return redirect(new_scan.get_absolute_url())
