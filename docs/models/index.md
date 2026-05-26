@@ -27,31 +27,34 @@ model for field-level reference.
 
 ## Relationship diagram
 
-```
-ScannerAgent ──┐
-               │
-               ├──FK──→ Scan ──FK──→ DiscoveredHost ──FK──→ DiscoveredPort ──FK──→ NseFinding
-               │         │             │                              
-ScanProfile ───┘         │             └──FK──→ TraceRouteHop
-                         │
-            ┌────────────┤
-            │            │
-    M2M to ipam.Prefix   M2M to ipam.IPAddress
-    (target_prefixes)    (target_ipaddresses)
-```
-
-Plus the links discovered hosts get back into Nautobot's IPAM and DCIM:
-
-```
-DiscoveredHost ──FK──→ ipam.IPAddress (linked_ipaddress, set by Promote action)
-DiscoveredHost ──FK──→ dcim.Device    (linked_device, auto-resolved at ingest)
+```mermaid
+erDiagram
+    ScannerAgent ||--o{ Scan : "runs"
+    ScanProfile ||--o{ Scan : "configures"
+    Scan }o--o{ Prefix : "target_prefixes (M2M)"
+    Scan }o--o{ IPAddress : "target_ipaddresses (M2M)"
+    Scan ||--o{ DiscoveredHost : "produces"
+    DiscoveredHost ||--o{ DiscoveredPort : "has"
+    DiscoveredHost ||--o{ TraceRouteHop : "traced-via"
+    DiscoveredHost ||--o{ NseFinding : "host_findings (host-scope NSE)"
+    DiscoveredPort ||--o{ NseFinding : "vulnerabilities (port-scope NSE)"
+    DiscoveredHost }o--|| IPAddress : "linked_ipaddress (set by Promote)"
+    DiscoveredHost }o--|| Device : "linked_device (auto at ingest)"
+    ScannerAgent ||--o| User : "remote-agent auth (OneToOne)"
 ```
 
-And the user binding for remote agents:
+Notation summary (mermaid erDiagram crow's-foot):
 
-```
-ScannerAgent ──OneToOne──→ auth.User (settings.AUTH_USER_MODEL — Nautobot's users.User)
-```
+- `||--o{` — one-to-many (parent on left, children on right)
+- `}o--o{` — many-to-many (M2M tables)
+- `}o--||` — many-to-one (FK on the many side)
+- `||--o|` — one-to-zero-or-one (nullable OneToOne)
+
+`Prefix` / `IPAddress` / `Device` / `User` are Nautobot's own models;
+the rest are this app's. The two `NseFinding` relationships are the
+[port-OR-host scope generalization](nsefinding.md#port-scope-vs-host-scope)
+shipped in migration `0009` — exactly one is set per finding row,
+enforced by a `CheckConstraint` at the schema level.
 
 ## Base class choices
 

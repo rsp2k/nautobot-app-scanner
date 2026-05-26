@@ -25,6 +25,7 @@ attached. The `severity` field is what actually distinguishes
 | `output` | TextField — raw script output. May contain CVE IDs, CVSS scores, exploit URLs, or just informational data depending on the script. |
 | `severity` | CharField (choices=`SeverityChoices`, db_indexed) — `unknown` / `info` / `low` / `medium` / `high` / `critical`. Default `unknown` — **never null**. |
 | `references` | JSONField (list) — parsed reference URLs (CVE links, exploit-db entries, vendor advisories). |
+| `elements` | JSONField (dict, default `{}`) — structured key-value data the NSE script emits alongside text `output`. `ssl-cert` populates `cert.validity.notAfter`; `smb-os-discovery` populates `os.fqdn`; `http-headers` populates each header as a key. Empty dict for scripts that emit text only. The per-finding detail page renders these via a type-aware partial so operators get structured access without grep'ing `output`. |
 
 **Base class:** `BaseModel` (lightweight — no status/tags/change-log).
 
@@ -107,6 +108,21 @@ The host detail page renders both as separate **Host Findings** and
 **Port Findings** panels. `DiscoveredHost.vulnerability_count`
 property sums across both scopes so the list view's **Vulns** column
 stays accurate regardless of where the finding attached.
+
+## Detail page
+
+Each `NseFinding` has its own detail page at
+`/plugins/scanner/findings/<pk>/`. The page renders the structured
+`elements` dict via a type-aware partial (booleans, dicts, lists all
+get appropriate formatting) alongside the raw `output` text and the
+parsed `references` list — useful when an `ssl-cert` finding's `output`
+is opaque PEM but `elements.cert.validity.notAfter` is exactly what
+the operator wanted to read.
+
+The finding list view (and the per-host **Port Findings** / **Host
+Findings** panels) link into the detail page directly; the rolled-up
+**NSE findings** panel on the [Scan detail page](scan.md#on-the-scan-detail-page)
+does the same.
 
 ## See also
 

@@ -29,6 +29,11 @@ historical per-scan state is preserved.
 | `uptime_seconds` | PositiveBigIntegerField (nullable) — seconds since last boot, derived by nmap from TCP timestamps during `-O`. Populated when nmap can read TCP timestamps off at least one open port. |
 | `last_boot_at` | DateTimeField (nullable, db_indexed) — absolute boot timestamp = `scan.completed_at - uptime_seconds`. Stored materialized so filters like *"hosts that rebooted in the last hour"* work without subtracting at query time. |
 | `tcp_sequence_class` | CharField(64) — TCP ISN classification from `-O` (e.g. `random positive increments`, `trivial time dependency`). OS-family signal independent of `os_family` — useful when `-O` returns a low-confidence fingerprint but the ISN class is clearly Linux-style vs Windows-style. |
+| `os_vendor` | CharField(64, db_indexed) — OS vendor from nmap's `osclass` (`Microsoft`, `Apple`, `Linux`, `Cisco`, `Fortinet`, …). Filterable column for "show me everything Microsoft makes." |
+| `os_device_type` | CharField(32, db_indexed) — device class from nmap's `osclass` `type` attribute: `general purpose`, `router`, `printer`, `firewall`, `switch`, `storage-misc`, `webcam`, etc. Powers the "show me all printers" filter without parsing `os_type` strings. |
+| `os_gen` | CharField(32) — OS generation/version string from nmap's `osclass` `osgen` (e.g. `10`, `7`, `2.4.X`). Coarser than `os_type` — useful for rolling up "Windows 10 family" without caring which specific build. |
+| `os_cpe` | JSONField (list of strings) — CPE strings nmap associates with the OS match (e.g. `['cpe:/o:microsoft:windows_10']`). The **bridge to CVE databases** — feed these into your vuln-tracking system to correlate OS-level CVEs. |
+| `os_alternative_matches` | JSONField (list of dicts) — alternative OS guesses beyond the top match, as `[{'name': str, 'accuracy': int}, ...]`. Tells operators whether the top guess was 95% top / 92% next (close call worth eyeballing) vs 90% top / 50% next (clear winner). |
 
 <figure markdown>
 ![DiscoveredHost detail page for firewall-01 showing populated Os Family=FortiOS, Os Accuracy=100, Distance Hops=1](../images/walkthrough-host-detail-populated.png)
@@ -135,6 +140,30 @@ permission: `ipam.add_ipaddress`) or to a full `dcim.Device` + Interface
 + IPAddress (heavier, requires `dcim.add_device` + `dcim.add_interface`
 + `ipam.add_ipaddress`). See [Promote a Discovered Host](../user/promotion.md)
 for both flows.
+
+## Rescan this host
+
+The DiscoveredHost detail page also has a **Rescan this host** action
+that dispatches a fresh single-host scan against this host's
+`ip_address`. The new scan inherits the **agent + profile** from the
+host's parent scan, so the rescan exercises exactly the same code
+path the original did — making the resulting [scan diff](../user/scan_diff.md)
+immediately useful as a "what changed on this host in the last N
+minutes?" check.
+
+Operationally:
+
+- **Bitemporally additive.** A rescan creates *new* DiscoveredHost
+  rows with their own `recorded_during` windows — prior beliefs stay
+  queryable via `.as_of(<earlier time>)`. Nothing is overwritten.
+- **No IPAM commitment.** The new scan uses
+  [`Scan.target_raw_ips`](scan.md) (a JSONField of bare IP strings,
+  added in migration `0011` specifically for this case) instead of
+  `target_ipaddresses` M2M. Bypasses IPAM entirely so the rescan
+  works identically whether the host has been promoted yet or not.
+- **Permission**: `nautobot_scanner.change_discoveredhost` —
+  rescanning is a "read fresher data about this host" action, not an
+  IPAM/DCIM mutation. POST-only (`POST /plugins/scanner/discovered-hosts/<pk>/rescan/`).
 
 ## See also
 

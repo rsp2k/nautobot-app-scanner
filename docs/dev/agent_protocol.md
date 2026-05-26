@@ -12,45 +12,26 @@ for people writing a custom agent.
 
 ## Lifecycle
 
-```
-   Operator                Nautobot                Remote Agent
-   ────────                ────────                ────────────
-       │                       │                         │
-       │ Runs the "Run Scan"   │                         │
-       │ Job, picks a remote   │                         │
-       │ agent                 │                         │
-       ├───────────────────────▶                         │
-       │                       │                         │
-       │           Scan(status=pending,                  │
-       │           ingestion_token=<uuid>)               │
-       │                       │                         │
-       │                       │       GET /pending-scans/
-       │                       ◀─────────────────────────┤
-       │                       │                         │
-       │           ① atomically flips                    │
-       │              status=running                     │
-       │           ② returns scan list                   │
-       │                       ├────────────────────────▶│
-       │                       │                         │
-       │                       │              ③ runs nmap
-       │                       │                 with given
-       │                       │                 args + targets
-       │                       │                         │
-       │                       │  POST /scans/<id>/ingest/
-       │                       │  X-Ingestion-Token: <uuid>
-       │                       │  body: raw nmap XML
-       │                       ◀─────────────────────────┤
-       │                       │                         │
-       │           ④ select_for_update                   │
-       │              + token check                      │
-       │           ⑤ parse XML, persist                  │
-       │           ⑥ status=completed                    │
-       │              ingestion_token=None               │
-       │                       │                         │
-       │   Sees results        │                         │
-       │   on the Scan         │                         │
-       │   detail page         │                         │
-       ◀───────────────────────┤                         │
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Operator
+    participant Nautobot
+    participant Agent as Remote Agent
+
+    Operator->>Nautobot: Runs "Run Scan" job,<br/>picks a remote agent
+    Note over Nautobot: Scan(status=pending,<br/>ingestion_token=uuid)
+
+    Agent->>Nautobot: GET /agents/<id>/pending-scans/
+    Note over Nautobot: ① atomically flips<br/>status=pending → running<br/>(SELECT FOR UPDATE SKIP LOCKED)
+    Nautobot-->>Agent: ② scan list with<br/>nmap args + targets + token
+
+    Note over Agent: ③ runs nmap locally<br/>with given args
+
+    Agent->>Nautobot: POST /scans/<id>/ingest/<br/>X-Ingestion-Token: uuid<br/>body: raw nmap XML
+    Note over Nautobot: ④ select_for_update + token check<br/>⑤ parse XML, persist<br/>⑥ status=completed,<br/>ingestion_token cleared
+
+    Nautobot-->>Operator: Results visible on<br/>the Scan detail page
 ```
 
 ## Authentication

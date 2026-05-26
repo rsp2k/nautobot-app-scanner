@@ -26,22 +26,23 @@ Both jobs are registered via `register_jobs()` and appear under
 
 ## Lifecycle in the dispatching Job
 
-```
-RunScan.run()
-    ↓
-1. Validate inputs (agent active? targets non-empty?)
-2. Create Scan record (status=running, ingestion_token=<uuid>, job_result=<self>)
-3. get_backend(agent).dispatch(scan)
-       ↓
-       LocalBackend:  subprocess.run(nmap)  → parse_xml → persist → status=completed
-       RemoteBackend: just flip status=pending and return
-    ↓
-4. Job result reflects: created Scan UUID + status at return time
+```mermaid
+flowchart TD
+    A([RunScan.run]) --> B[Validate inputs<br/>agent active?<br/>targets non-empty?]
+    B --> C[Create Scan record<br/>status=running<br/>ingestion_token=uuid<br/>job_result=self]
+    C --> D{get_backend agent type?}
+    D -- LocalBackend --> E[subprocess.run nmap]
+    E --> F[parser.parse_xml]
+    F --> G[parser.persist<br/>status=completed]
+    D -- RemoteBackend --> H[Flip status=pending<br/>return immediately]
+    G --> I([Job result: Scan UUID +<br/>status at return time])
+    H --> I
 ```
 
 For local backends the Job blocks until the scan completes (or fails or
 times out). For remote backends the Job returns immediately and the
-`Scan` row moves to `completed` later, when the agent posts back.
+`Scan` row moves to `completed` later, when the agent posts back via
+`POST /ingest/` — see the [Agent Protocol sequence diagram](../dev/agent_protocol.md#lifecycle).
 
 ## Scheduling
 
