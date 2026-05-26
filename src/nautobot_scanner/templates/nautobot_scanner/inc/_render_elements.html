@@ -1,0 +1,62 @@
+{% comment %}
+Recursive renderer for NseFinding.elements — handles arbitrarily
+nested dict/list/scalar shapes that libnmap pulls out of NSE
+elem/table XML children.
+
+Usage (call site uses {% include with data=... depth=0 %}).
+
+Rendering strategy: dict becomes <dl>; nested dicts collapse into
+<details> at depth >= 2; lists become <ol>; scalars print verbatim.
+
+Recursion bottoms out on scalars — libnmap normalizes leaf values to
+strings so depth is bounded by NSE script complexity (typically 2-4
+levels for ssl-cert; 1-2 for most others).
+{% endcomment %}
+{% load humanize %}
+{% if data.items %}
+  {# It's a dict — render as <dl>. #}
+  <dl style="margin:0">
+    {% for key, value in data.items %}
+      <dt style="font-family:monospace;font-weight:normal;color:#5cb85c;margin-top:.3rem">{{ key }}</dt>
+      <dd style="margin-left:1.2rem">
+        {% if value.items %}
+          {# Nested dict — collapse at depth >= 2 to keep the page scannable. #}
+          {% if depth >= 2 %}
+            <details>
+              <summary style="cursor:pointer;opacity:.7">{{ value|length }} key{{ value|length|pluralize }}</summary>
+              <div style="margin-top:.3rem">
+                {% include "nautobot_scanner/inc/_render_elements.html" with data=value depth=depth|add:1 %}
+              </div>
+            </details>
+          {% else %}
+            {% include "nautobot_scanner/inc/_render_elements.html" with data=value depth=depth|add:1 %}
+          {% endif %}
+        {% elif value|stringformat:"s"|slice:":1" == "[" %}
+          {# Best-effort list detection — Django templates don't expose isinstance,
+             so we use the repr's leading char as a heuristic. Works for the libnmap
+             shapes we see in practice (lists of dicts or strings). #}
+          {% include "nautobot_scanner/inc/_render_elements.html" with data=value depth=depth|add:1 %}
+        {% else %}
+          <code style="word-break:break-all">{{ value }}</code>
+        {% endif %}
+      </dd>
+    {% endfor %}
+  </dl>
+{% else %}
+  {# Not a dict — could be list or scalar. Try iterating; scalars print as-is. #}
+  {% if data|length and data|stringformat:"s"|slice:":1" == "[" %}
+    <ol style="margin:0;padding-left:1.5rem">
+      {% for item in data %}
+        <li style="margin-top:.2rem">
+          {% if item.items %}
+            {% include "nautobot_scanner/inc/_render_elements.html" with data=item depth=depth|add:1 %}
+          {% else %}
+            <code style="word-break:break-all">{{ item }}</code>
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ol>
+  {% else %}
+    <code style="word-break:break-all">{{ data }}</code>
+  {% endif %}
+{% endif %}

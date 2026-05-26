@@ -48,6 +48,11 @@ class ParsedVulnerability:
     output: str
     severity: str = SeverityChoices.UNKNOWN
     references: list[str] = field(default_factory=list)
+    # Structured key-value data emitted by the NSE script alongside the text
+    # output. Empty dict for scripts that emit text only (fingerprint-strings,
+    # banner). Nested dict for scripts like ssl-cert (cert.validity.notAfter),
+    # smb-os-discovery (os.fqdn), http-headers (each header as a key).
+    elements: dict = field(default_factory=dict)
 
 
 @dataclass
@@ -334,11 +339,17 @@ def _convert_script(script_result: dict) -> ParsedVulnerability:
     output = script_result.get("output", "")
     severity = _guess_severity(name, output)
     references = _extract_references(output)
+    # `elements` is libnmap's parse of <elem>/<table> children. Most scripts
+    # emit some — ssl-cert is the canonical example with subject/issuer/cert
+    # nested dicts. We store it as-is; downstream queries can do JSON path
+    # lookups like elements__cert__validity__notAfter__lt=<date>.
+    elements = script_result.get("elements") or {}
     return ParsedVulnerability(
         nse_script=name,
         output=output,
         severity=severity,
         references=references,
+        elements=elements,
     )
 
 
@@ -544,6 +555,7 @@ def persist(scan: Scan, parsed: list[ParsedHost]) -> dict:
                     output=pv.output,
                     severity=pv.severity,
                     references=pv.references,
+                    elements=pv.elements,
                 )
                 summary["vulnerabilities"] += 1
 
@@ -556,6 +568,7 @@ def persist(scan: Scan, parsed: list[ParsedHost]) -> dict:
                 output=hf.output,
                 severity=hf.severity,
                 references=hf.references,
+                elements=hf.elements,
             )
             summary["vulnerabilities"] += 1
 

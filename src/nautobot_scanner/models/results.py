@@ -442,6 +442,17 @@ class NseFinding(BaseModel):
         blank=True,
         help_text="Parsed reference URLs (CVE links, exploit-db entries, vendor advisories).",
     )
+    elements = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text=(
+            "Structured key-value data emitted by the NSE script "
+            "alongside the text output. ssl-cert populates "
+            "cert.validity.notAfter; smb-os-discovery populates os.fqdn; "
+            "http-headers populates each header as a key. Empty dict "
+            "for scripts that emit text only."
+        ),
+    )
 
     class Meta:
         """Meta options."""

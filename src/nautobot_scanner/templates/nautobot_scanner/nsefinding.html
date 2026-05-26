@@ -66,6 +66,28 @@
       </div>
     </div>
 
+    {# ---------- Structured data (NSE elements) ---------- #}
+    {% comment %}
+    Empty dict for scripts that emit text only (fingerprint-strings,
+    banner). For ssl-cert / smb-os-discovery / http-headers / etc., the
+    script emits structured elem/table children that libnmap parses
+    into a nested dict. We render that with the recursive partial
+    below so users can SEE the data they can also FILTER on.
+    {% endcomment %}
+    <div class="panel panel-default">
+      <div class="panel-heading">
+        <strong>Structured data</strong>
+        <small class="text-muted" style="margin-left:.5rem">queryable NSE elements</small>
+      </div>
+      <div class="panel-body">
+        {% if object.elements %}
+          {% include "nautobot_scanner/inc/_render_elements.html" with data=object.elements depth=0 %}
+        {% else %}
+          <span style="opacity:.5">No structured elements emitted. Scripts like <code>ssl-cert</code>, <code>smb-os-discovery</code>, and <code>http-headers</code> populate this with nested key-value data that the filterset can query (<code>?elements__cert__validity__notAfter__lt=2026-06-30</code>). Text-only scripts (<code>fingerprint-strings</code>, banner) leave it empty.</span>
+        {% endif %}
+      </div>
+    </div>
+
     {# ---------- References (if any) ---------- #}
     <div class="panel panel-default">
       <div class="panel-heading">
