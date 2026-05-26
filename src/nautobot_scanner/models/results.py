@@ -5,15 +5,84 @@ IPAM IPAddress). `DiscoveredPort`, `VulnerabilityFinding`, and
 `TraceRouteHop` are BaseModel child records — they only exist in the context
 of their parent and don't need standalone UI/API surfaces (they're rendered
 nested in the host's detail page).
+
+`DiscoveredHost` is **bitemporal** — every row carries two independent
+time dimensions tracking when the fact was observed and when we believed
+it to be true:
+
+- ``valid_during``: wire-time. The window during which nmap was actually
+  collecting data for this host (typically the parent scan's
+  ``[started_at, completed_at]`` range).
+- ``recorded_during``: belief-time. ``[ingest_time, ∞)`` while the row is
+  the current belief; ``[ingest_time, supersede_time)`` once a re-parse
+  has produced a fresher belief about the same ``(scan, ip)``.
+- ``entry_id``: per-row UUID distinguishing successive beliefs.
+
+This lets us re-parse old scans without losing prior beliefs (the diff
+between "what scan #42 said in March" and "what it says now after we
+fixed a parser bug" stays queryable), and lets the diff view answer
+"as of belief-time T, what did we know" — not just "what do we know
+now". Pattern matches l2trace.warehack.ing's tier-4 bitemporal model.
 """
 
+import datetime
+import uuid
+
+from django.contrib.postgres.fields import DateTimeRangeField
 from django.db import models
+from django.utils import timezone
 from nautobot.apps.constants import CHARFIELD_MAX_LENGTH
 from nautobot.apps.models import BaseModel, PrimaryModel
 from nautobot.extras.utils import extras_features
 from nautobot.ipam.fields import VarbinaryIPField
+from psycopg2.extras import DateTimeTZRange
 
 from nautobot_scanner.choices import HostStateChoices, PortStateChoices, ProtocolChoices, SeverityChoices
+
+
+def _open_belief_window() -> DateTimeTZRange:
+    """Default for ``DiscoveredHost.recorded_during`` — open-ended at now()."""
+    return DateTimeTZRange(lower=timezone.now(), upper=None, bounds="[)")
+
+
+class DiscoveredHostQuerySet(models.QuerySet):
+    """Bitemporal query helpers for DiscoveredHost.
+
+    ``objects`` (the default manager) still returns *all* rows including
+    superseded beliefs — matches Django's "manager.all() returns all rows"
+    expectation, important because Nautobot internals (admin, serializers,
+    list viewsets) assume this contract.
+
+    Callers that want "what do we currently believe?" use ``.current()``;
+    callers asking "what did we believe at time T?" use ``.as_of(dt)``.
+    The viewset queryset wires this in so the UI lists default to current
+    beliefs by default — the all-beliefs view is opt-in via a filter param.
+    """
+
+    def current(self):
+        """Only rows representing the currently-held belief.
+
+        A row is "current" iff its ``recorded_during`` upper bound is NULL
+        (open-ended). Pre-belief-supersede rows have a concrete upper bound
+        and are excluded.
+        """
+        # Range fields support `__endswith=None` and `__contains=now` lookups.
+        # `contains(now())` is semantically "is this belief still in force?" —
+        # which is exactly the question and reads more naturally.
+        return self.filter(recorded_during__contains=timezone.now())
+
+    def as_of(self, dt: datetime.datetime):
+        """Rows representing what we believed at the given recorded-time."""
+        return self.filter(recorded_during__contains=dt)
+
+    def for_wire_time(self, dt: datetime.datetime):
+        """Rows whose wire-time observation window contains the given moment.
+
+        Returns ALL beliefs (current AND historical) for any observation
+        whose ``valid_during`` includes ``dt``. Chain with ``.current()`` or
+        ``.as_of(T)`` to scope by recording-time.
+        """
+        return self.filter(valid_during__contains=dt)
 
 
 @extras_features(
@@ -100,13 +169,51 @@ class DiscoveredHost(PrimaryModel):
         help_text="Auto-resolved at ingest by matching ip_address against Device.primary_ip4/6.",
     )
 
+    # ------------------------------------------------------------------
+    # Bitemporal axes (tier-4 pattern from l2trace.warehack.ing).
+    # ------------------------------------------------------------------
+    valid_during = DateTimeRangeField(
+        null=True,
+        blank=True,
+        help_text=(
+            "Wire-time range when the host was actually observed. Typically "
+            "[scan.started_at, scan.completed_at]. NULL only for rows backfilled "
+            "from scans without timestamps (legacy data, malformed XML)."
+        ),
+    )
+    recorded_during = DateTimeRangeField(
+        default=_open_belief_window,
+        help_text=(
+            "Belief-time range. [ingest_time, ∞) while this row is the current "
+            "belief; the upper bound is closed when a re-parse of the same scan "
+            "produces a fresher belief about the same (scan, ip_address)."
+        ),
+    )
+    entry_id = models.UUIDField(
+        default=uuid.uuid4,
+        editable=False,
+        db_index=True,
+        help_text=(
+            "Unique per row — distinguishes successive beliefs about the same "
+            "(scan, ip_address) observation. Stable across migrations."
+        ),
+    )
+
+    objects = models.Manager.from_queryset(DiscoveredHostQuerySet)()
+
     class Meta:
-        """Meta options."""
+        """Meta options.
+
+        Note: the historical ``unique_together = (("scan", "ip_address"),)`` is
+        replaced with a partial unique index in migration 0007 — uniqueness
+        only applies to currently-believed rows (those whose ``recorded_during``
+        upper bound is NULL). Multiple historical-belief rows for the same
+        (scan, ip) are expected and supported.
+        """
 
         ordering = ("ip_address",)
         verbose_name = "discovered host"
         verbose_name_plural = "discovered hosts"
-        unique_together = (("scan", "ip_address"),)
         indexes = [
             models.Index(fields=["ip_address", "host_state"]),
         ]

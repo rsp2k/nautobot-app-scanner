@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+
+{% block title %}Diff: scan {{ object.pk|truncatechars:8 }}{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-md-12">
+
+    {# ---------- Header strip: before/after pill labels ---------- #}
+    <div class="panel panel-default">
+      <div class="panel-heading">
+        <strong>Scan diff: {{ before.agent.name }}</strong>
+        <small class="text-muted" style="margin-left:.6rem">
+          bitemporally anchored at <em>now</em> (current beliefs)
+        </small>
+      </div>
+      <div class="panel-body" style="display:grid;grid-template-columns:1fr auto 1fr;gap:1rem;align-items:center">
+        <div style="text-align:right">
+          <div style="opacity:.6;font-size:.85em">BEFORE</div>
+          <a href="{{ before.get_absolute_url }}"><code>{{ before.profile.name }}</code></a>
+          <div style="opacity:.6;font-size:.85em">{{ before.completed_at|date:"Y-m-d H:i" }}</div>
+        </div>
+        <div style="font-size:1.6em;opacity:.6">→</div>
+        <div>
+          <div style="opacity:.6;font-size:.85em">AFTER</div>
+          <a href="{{ after.get_absolute_url }}"><code>{{ after.profile.name }}</code></a>
+          <div style="opacity:.6;font-size:.85em">{{ after.completed_at|date:"Y-m-d H:i" }}</div>
+        </div>
+      </div>
+    </div>
+
+    {# ---------- Headline counts ---------- #}
+    <div class="row" style="margin-bottom:1rem">
+      <div class="col-md-3"><div class="panel panel-default"><div class="panel-body" style="text-align:center">
+        <div style="font-size:1.8em;color:#5cb85c">+{{ diff.added|length }}</div>
+        <div style="opacity:.6">added hosts</div>
+      </div></div></div>
+      <div class="col-md-3"><div class="panel panel-default"><div class="panel-body" style="text-align:center">
+        <div style="font-size:1.8em;color:#d9534f">−{{ diff.removed|length }}</div>
+        <div style="opacity:.6">removed hosts</div>
+      </div></div></div>
+      <div class="col-md-3"><div class="panel panel-default"><div class="panel-body" style="text-align:center">
+        <div style="font-size:1.8em;color:#f0ad4e">~{{ diff.changed|length }}</div>
+        <div style="opacity:.6">changed hosts</div>
+      </div></div></div>
+      <div class="col-md-3"><div class="panel panel-default"><div class="panel-body" style="text-align:center">
+        <div style="font-size:1.8em;opacity:.5">={{ diff.unchanged_count }}</div>
+        <div style="opacity:.6">unchanged hosts</div>
+      </div></div></div>
+    </div>
+
+    {# ---------- ADDED ---------- #}
+    {% if diff.added %}
+    <div class="panel panel-default">
+      <div class="panel-heading"><strong style="color:#5cb85c">＋ Added</strong>
+        <small class="text-muted">— present in AFTER, absent from BEFORE</small></div>
+      <table class="table table-hover">
+        <thead><tr><th>IP</th><th>Hostname</th><th>State</th><th>Vendor</th><th>OS</th><th>Open ports</th></tr></thead>
+        <tbody>
+          {% for h in diff.added %}
+          <tr>
+            <td><code>{{ h.ip_address }}</code></td>
+            <td>{{ h.hostname|default:"—" }}</td>
+            <td>{{ h.host_state }}</td>
+            <td>{{ h.mac_vendor|default:"—" }}</td>
+            <td>{{ h.os_family|default:"—" }}</td>
+            <td>{{ h.open_ports|length }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+
+    {# ---------- REMOVED ---------- #}
+    {% if diff.removed %}
+    <div class="panel panel-default">
+      <div class="panel-heading"><strong style="color:#d9534f">− Removed</strong>
+        <small class="text-muted">— present in BEFORE, absent from AFTER</small></div>
+      <table class="table table-hover">
+        <thead><tr><th>IP</th><th>Hostname</th><th>State</th><th>Vendor</th><th>OS</th><th>Open ports</th></tr></thead>
+        <tbody>
+          {% for h in diff.removed %}
+          <tr>
+            <td><code>{{ h.ip_address }}</code></td>
+            <td>{{ h.hostname|default:"—" }}</td>
+            <td>{{ h.host_state }}</td>
+            <td>{{ h.mac_vendor|default:"—" }}</td>
+            <td>{{ h.os_family|default:"—" }}</td>
+            <td>{{ h.open_ports|length }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+
+    {# ---------- CHANGED ---------- #}
+    {% if diff.changed %}
+    <div class="panel panel-default">
+      <div class="panel-heading"><strong style="color:#f0ad4e">~ Changed</strong>
+        <small class="text-muted">— in both, differing on at least one observable field</small></div>
+      <table class="table table-hover">
+        <thead>
+          <tr>
+            <th>IP</th>
+            <th>Fields changed</th>
+            <th>Ports opened</th>
+            <th>Ports closed</th>
+            <th>Before → After (notable)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in diff.changed %}
+          <tr>
+            <td><code>{{ c.ip_address }}</code></td>
+            <td>
+              {% for f in c.fields_changed %}<span class="label label-warning" style="margin-right:.2rem">{{ f }}</span>{% endfor %}
+            </td>
+            <td>
+              {% for port_proto in c.ports_opened %}<code style="color:#5cb85c;margin-right:.3rem">+{{ port_proto.0 }}/{{ port_proto.1 }}</code>{% endfor %}
+            </td>
+            <td>
+              {% for port_proto in c.ports_closed %}<code style="color:#d9534f;margin-right:.3rem">−{{ port_proto.0 }}/{{ port_proto.1 }}</code>{% endfor %}
+            </td>
+            <td style="font-size:.9em;opacity:.85">
+              {% if "host_state" in c.fields_changed %}<div>state: <code>{{ c.before.host_state }}</code> → <code>{{ c.after.host_state }}</code></div>{% endif %}
+              {% if "hostname" in c.fields_changed %}<div>hostname: <code>{{ c.before.hostname|default:"—" }}</code> → <code>{{ c.after.hostname|default:"—" }}</code></div>{% endif %}
+              {% if "mac_vendor" in c.fields_changed %}<div>vendor: <code>{{ c.before.mac_vendor|default:"—" }}</code> → <code>{{ c.after.mac_vendor|default:"—" }}</code></div>{% endif %}
+              {% if "os_family" in c.fields_changed %}<div>os: <code>{{ c.before.os_family|default:"—" }}</code> → <code>{{ c.after.os_family|default:"—" }}</code></div>{% endif %}
+              {% if "vulnerability_count" in c.fields_changed %}<div>vulns: {{ c.before.vulnerability_count }} → {{ c.after.vulnerability_count }}</div>{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+
+    {# ---------- Empty state ---------- #}
+    {% if not diff.has_drift %}
+    <div class="panel panel-default">
+      <div class="panel-body" style="text-align:center;padding:2rem">
+        <strong>No drift</strong> — every host observed in both scans is byte-for-byte identical.
+        <br><small class="text-muted">{{ diff.unchanged_count }} hosts compared, zero changes.</small>
+      </div>
+    </div>
+    {% endif %}
+
+    <p>
+      <a href="{{ before.get_absolute_url }}" class="btn btn-default">← Back to {{ before.profile.name }} scan</a>
+      <a href="{{ after.get_absolute_url }}" class="btn btn-default">{{ after.profile.name }} scan →</a>
+    </p>
+  </div>
+</div>
+{% endblock %}

@@ -184,4 +184,12 @@
   {% if object.error_message %}
     <div class="scanner-error"><strong>Error:</strong> {{ object.error_message }}</div>
   {% endif %}
+
+  {% if object.status == "completed" %}
+    <div style="margin-top:1rem;text-align:right">
+      <a href="{% url 'plugins:nautobot_scanner:scan_diff' pk=object.pk %}" class="btn btn-default btn-sm">
+        ⇆ Compare with previous scan on {{ object.agent.name }}
+      </a>
+    </div>
+  {% endif %}
 </div>

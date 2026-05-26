@@ -25,6 +25,7 @@ from nautobot.ipam.models import IPAddress
 
 from nautobot_scanner import filters, forms, models, tables
 from nautobot_scanner.api import serializers
+from nautobot_scanner.diff import diff_scans, previous_scan_on_agent
 
 
 class DiscoveredHostPromoteView(LoginRequiredMixin, PermissionRequiredMixin, View):
@@ -484,3 +485,52 @@ class DiscoveredHostUIViewSet(NautobotUIViewSet):
             ),
         ),
     )
+
+
+class ScanDiffView(LoginRequiredMixin, View):
+    """Side-by-side diff of two scans on the same agent.
+
+    The "other" scan is determined automatically from the URL — if no
+    ``vs`` query param is provided we use ``previous_scan_on_agent`` to
+    find the most recent prior completed scan on the same agent. This
+    matches the most common operator question: "what changed since last
+    time we scanned this network?"
+
+    The diff is bitemporally-anchored at "now" (current beliefs). A
+    future ``?as_of=<ISO datetime>`` param could surface the diff as it
+    appeared at a prior point in recording-time — deferred for now since
+    no UI affordance exists for picking that anchor.
+    """
+
+    def get(self, request, pk):
+        """Render the diff against the previous (or explicit ``?vs=``) scan."""
+        scan = get_object_or_404(models.Scan, pk=pk)
+
+        # Allow ?vs=<scan_pk> to pin the comparison to a specific other scan.
+        # Defaults to "previous completed scan on this agent" when absent.
+        vs_pk = request.GET.get("vs")
+        if vs_pk:
+            other = get_object_or_404(models.Scan, pk=vs_pk)
+        else:
+            other = previous_scan_on_agent(scan)
+
+        if other is None:
+            messages.warning(
+                request,
+                f"No prior completed scan found on agent {scan.agent.name} — "
+                f"nothing to diff against.",
+            )
+            return redirect(scan.get_absolute_url())
+
+        # diff_scans treats (a, b) as (before, after) — order by completed_at.
+        if other.completed_at and scan.completed_at and other.completed_at < scan.completed_at:
+            before, after = other, scan
+        else:
+            before, after = scan, other
+
+        diff = diff_scans(before, after)
+        return render(
+            request,
+            "nautobot_scanner/scan_diff.html",
+            {"object": scan, "before": before, "after": after, "diff": diff},
+        )

@@ -352,6 +352,8 @@ def persist(scan: Scan, parsed: list[ParsedHost]) -> dict:
     # when this module is imported at app-config time.
     from nautobot.dcim.models import Device
 
+    from psycopg2.extras import DateTimeTZRange
+
     from nautobot_scanner.models import (
         DiscoveredHost,
         DiscoveredPort,
@@ -366,6 +368,17 @@ def persist(scan: Scan, parsed: list[ParsedHost]) -> dict:
         "vulnerabilities": 0,
         "traceroute_hops": 0,
     }
+
+    # Bitemporal wire-time window for every host this scan observed.
+    # If completed_at hasn't landed yet (e.g., agent still uploading),
+    # leave the upper bound open — it'll be closed by Scan.completed_at
+    # being set later, but the host row's valid_during stays "as-of-now"
+    # for diff/audit queries that need a moment-in-time anchor.
+    valid_during = DateTimeTZRange(
+        lower=scan.started_at,
+        upper=scan.completed_at,  # may be None — that's fine, range stays open-ended
+        bounds="[)",
+    )
 
     for ph in parsed:
         # Auto-resolve linked Device by primary IP match.
@@ -387,6 +400,9 @@ def persist(scan: Scan, parsed: list[ParsedHost]) -> dict:
             os_accuracy=ph.os_accuracy,
             host_state=ph.host_state,
             linked_device=linked_device,
+            valid_during=valid_during,
+            # recorded_during defaults to [now(), None) via the model default
+            # entry_id defaults to a fresh uuid4 via the model default
         )
 
         if ph.host_state == HostStateChoices.UP:

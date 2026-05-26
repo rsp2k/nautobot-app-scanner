@@ -32,4 +32,11 @@ urlpatterns = router.urls + [
         views.DiscoveredHostPromoteToDeviceView.as_view(),
         name="discoveredhost_promote_to_device",
     ),
+    # Bitemporal scan diff — `?vs=<scan_pk>` pins to a specific other scan;
+    # absent, the view auto-picks the previous completed scan on the same agent.
+    path(
+        "scans/<uuid:pk>/diff/",
+        views.ScanDiffView.as_view(),
+        name="scan_diff",
+    ),
 ]
