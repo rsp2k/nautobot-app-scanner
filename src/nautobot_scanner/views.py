@@ -617,3 +617,33 @@ class DiscoveredHostRescanView(LoginRequiredMixin, PermissionRequiredMixin, View
             f"using profile '{parent.profile.name}'. Status: {new_scan.status}.",
         )
         return redirect(new_scan.get_absolute_url())
+
+
+class NseFindingDetailView(LoginRequiredMixin, View):
+    """Per-finding detail page — full output + references + parent context.
+
+    NseFinding is a BaseModel child (not PrimaryModel) so it doesn't get
+    a NautobotUIViewSet. The table view only ever shows a 150-char preview
+    of `output`; this page renders the full multi-line script output in a
+    `<pre>` block. Script dumps like `ssl-cert` and `smb-os-discovery`
+    routinely run hundreds of lines and need their own real estate.
+
+    No edit/create — findings are agent-ingested and immutable from the
+    operator's point of view. A future delete action could go here once
+    we decide whether deleting findings should also vacate the underlying
+    bitemporal belief rows.
+    """
+
+    def get(self, request, pk):
+        """Render the finding's full output with parent breadcrumb."""
+        finding = get_object_or_404(models.NseFinding, pk=pk)
+        # Parent is "exactly one of port-or-host" by CheckConstraint, so
+        # the template can `{% if finding.discovered_port %}` to branch.
+        host = finding.discovered_host or (
+            finding.discovered_port.discovered_host if finding.discovered_port else None
+        )
+        return render(
+            request,
+            "nautobot_scanner/nsefinding.html",
+            {"object": finding, "host": host},
+        )

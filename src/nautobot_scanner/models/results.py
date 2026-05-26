@@ -466,6 +466,11 @@ class NseFinding(BaseModel):
         """Display string."""
         return f"{self.nse_script} ({self.severity})"
 
+    def get_absolute_url(self, api=False):
+        """Detail-page URL — used by django-tables2 linkify and template `{{ obj.get_absolute_url }}`."""
+        from django.urls import reverse
+        return reverse("plugins:nautobot_scanner:nsefinding", kwargs={"pk": self.pk})
+
 
 class TraceRouteHop(BaseModel):
     """One hop in the path nmap traced to a DiscoveredHost.

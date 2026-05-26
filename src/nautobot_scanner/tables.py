@@ -9,6 +9,7 @@ not as standalone list views.
 """
 
 import django_tables2 as tables
+from django.utils.html import format_html
 from nautobot.apps.tables import BaseTable, ButtonsColumn, StatusTableMixin, ToggleColumn
 
 from nautobot_scanner import models
@@ -133,15 +134,51 @@ class DiscoveredPortTable(BaseTable):
 class NseFindingTable(BaseTable):
     """Nested-only table for NseFinding, rendered in DiscoveredHost detail."""
 
-    discovered_port = tables.Column(verbose_name="Port")
-    nse_script = tables.Column(verbose_name="Script")
+    # linkify on nse_script wires to NseFinding.get_absolute_url() — clicking
+    # the script name opens the full-output detail page. The port column has
+    # linkify=False explicitly because Nautobot's BaseTable auto-linkifies FK
+    # columns and DiscoveredPort has no detail page — without the explicit
+    # opt-out the table 500s with "Cannot find a URL for 22/tcp open".
+    discovered_port = tables.Column(verbose_name="Port", linkify=False)
+    nse_script = tables.Column(verbose_name="Script", linkify=True)
     severity = tables.Column()
-    output = tables.Column()
+    output = tables.Column(verbose_name="Output preview")
+    references = tables.Column(verbose_name="Refs", orderable=False)
+
+    def render_output(self, value):
+        """Truncated single-line preview with full content in `title=` for hover.
+
+        Raw script output is typically multi-line indented blocks — collapsing
+        whitespace into one line gives a useful at-a-glance preview without
+        breaking the table layout. The full text is one click (Script column)
+        away and one hover (title attribute) for quick peek.
+        """
+        if not value:
+            return "—"
+        collapsed = " ".join(value.split())
+        preview = collapsed[:140]
+        suffix = "…" if len(collapsed) > 140 else ""
+        return format_html(
+            '<code style="font-size:.85em" title="{}">{}{}</code>',
+            value, preview, suffix,
+        )
+
+    def render_references(self, value):
+        """Show count + first URL as a quick-link; full list lives on detail page."""
+        if not value:
+            return "—"
+        first = value[0]
+        more = len(value) - 1
+        suffix = format_html(' <span style="opacity:.6">+{}</span>', more) if more else ""
+        return format_html(
+            '<a href="{}" target="_blank" rel="noopener noreferrer" title="{}">{}{}</a>{}',
+            first, first, str(first)[:30], "…" if len(str(first)) > 30 else "", suffix,
+        )
 
     class Meta(BaseTable.Meta):
         model = models.NseFinding
-        fields = ("discovered_port", "nse_script", "severity", "output")
-        default_columns = ("discovered_port", "nse_script", "severity")
+        fields = ("discovered_port", "nse_script", "severity", "output", "references")
+        default_columns = ("discovered_port", "nse_script", "severity", "output", "references")
 
 
 class TraceRouteHopTable(BaseTable):

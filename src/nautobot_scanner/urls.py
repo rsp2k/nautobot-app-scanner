@@ -46,4 +46,12 @@ urlpatterns = router.urls + [
         views.ScanDiffView.as_view(),
         name="scan_diff",
     ),
+    # Per-finding detail page — full untruncated output + parent context +
+    # references list. Routed outside the router because NseFinding is a
+    # BaseModel child without a standalone UIViewSet (no list page).
+    path(
+        "findings/<uuid:pk>/",
+        views.NseFindingDetailView.as_view(),
+        name="nsefinding",
+    ),
 ]

@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{# Per-finding detail page. The NseFinding table on host/scan pages truncates
+   `output` to ~150 chars; this view renders the full script output verbatim
+   along with parsed references and a breadcrumb to the parent host/port. #}
+
+{% block title %}{{ object.nse_script }} on {{ host.ip_address }}{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-md-12">
+
+    {# ---------- Breadcrumb / parent context ---------- #}
+    <div class="panel panel-default">
+      <div class="panel-heading">
+        <strong>{{ object.nse_script }}</strong>
+        <small class="text-muted" style="margin-left:.5rem">NSE finding</small>
+        <span class="label label-{% if object.severity == 'critical' or object.severity == 'high' %}danger{% elif object.severity == 'medium' %}warning{% elif object.severity == 'low' %}info{% else %}default{% endif %}"
+              style="margin-left:.6rem">
+          {{ object.get_severity_display }}
+        </span>
+      </div>
+      <div class="panel-body">
+        <div style="display:grid;grid-template-columns:auto 1fr;gap:.4rem 1rem;align-items:baseline">
+          <div style="opacity:.6">Host:</div>
+          <div>
+            {% if host %}
+              <a href="{{ host.get_absolute_url }}"><code>{{ host.ip_address }}</code></a>
+              {% if host.hostname %}<span style="opacity:.6">({{ host.hostname }})</span>{% endif %}
+            {% else %}
+              <em>orphaned</em>
+            {% endif %}
+          </div>
+
+          <div style="opacity:.6">Scope:</div>
+          <div>
+            {% if object.discovered_port %}
+              Port <code>{{ object.discovered_port.port }}/{{ object.discovered_port.protocol }}</code>
+              {% if object.discovered_port.service_name %}
+                — {{ object.discovered_port.service_name }}
+              {% endif %}
+            {% else %}
+              <em>Host-scope script</em> (no specific port)
+            {% endif %}
+          </div>
+
+          {% if host.scan %}
+            <div style="opacity:.6">Scan:</div>
+            <div>
+              <a href="{{ host.scan.get_absolute_url }}">{{ host.scan.profile.name }}</a>
+              <span style="opacity:.6">at {{ host.scan.completed_at|date:"Y-m-d H:i" }}</span>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    {# ---------- Full output ---------- #}
+    <div class="panel panel-default">
+      <div class="panel-heading">
+        <strong>Script output</strong>
+        <small class="text-muted" style="margin-left:.5rem">raw NSE text</small>
+      </div>
+      <div class="panel-body" style="padding:0">
+        <pre style="margin:0;padding:1rem;background:#1a1a1a;color:#e0e0e0;border:0;border-radius:0;font-size:.85em;white-space:pre-wrap;word-break:break-word">{{ object.output }}</pre>
+      </div>
+    </div>
+
+    {# ---------- References (if any) ---------- #}
+    <div class="panel panel-default">
+      <div class="panel-heading">
+        <strong>References</strong>
+        <small class="text-muted" style="margin-left:.5rem">{{ object.references|length }} link{{ object.references|length|pluralize }}</small>
+      </div>
+      <div class="panel-body">
+        {% if object.references %}
+          <ul style="margin:0;padding-left:1.2rem">
+            {% for ref in object.references %}
+              <li><a href="{{ ref }}" target="_blank" rel="noopener noreferrer"><code>{{ ref }}</code></a></li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <span style="opacity:.5">No references parsed from this finding. NSE scripts that emit CVE links or vendor advisories populate this list automatically; informational scripts (<code>fingerprint-strings</code>, <code>ssl-cert</code>, etc.) typically have none.</span>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
