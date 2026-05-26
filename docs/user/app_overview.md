@@ -55,24 +55,44 @@ details.
 
 ## Scan lifecycle
 
-```
-                      LocalBackend                  RemoteBackend
-                      (synchronous)                 (asynchronous)
-                          │                              │
-   RunScan Job  ──→  Scan(status=running)  ──→  Scan(status=pending,
-                          │                            ingestion_token=<uuid>)
-                          │                              │
-                   nmap subprocess                Agent polls /pending-scans/,
-                   parser.parse_xml               runs nmap,
-                   parser.persist                 POSTs results to /ingest/
-                          │                              │
-                  Scan(status=completed)         Scan(status=completed,
-                                                       ingestion_token=null)
+```mermaid
+stateDiagram-v2
+    direction TB
+    [*] --> running: LocalBackend dispatch<br/>(synchronous, in Celery worker)
+    [*] --> pending: RemoteBackend dispatch<br/>(asynchronous, returns immediately)
+
+    pending --> running: agent claims via<br/>/pending-scans/ poll
+
+    running --> completed: parser.persist OK
+    running --> failed: nmap nonzero exit<br/>or parser raises
+    running --> cancelled: cancel_requested=True<br/>honored between hosts
+    pending --> cancelled: cancel_requested set<br/>before agent claimed it
+
+    completed --> [*]
+    failed --> [*]
+    cancelled --> [*]
+
+    note right of pending
+        ingestion_token (UUID) allocated
+        at dispatch — one-shot bearer
+        credential the agent presents
+        to POST /ingest/
+    end note
+
+    note right of completed
+        Remote: ingestion_token cleared
+        on the successful /ingest/ POST
+        — see ADR-005 (race protection)
+    end note
 ```
 
-Lifecycle states (`pending`, `running`, `completed`, `failed`,
-`cancelled`) are first-class enum values — see
-[`ScanStateChoices`](../models/scan.md).
+All five lifecycle states (`pending`, `running`, `completed`, `failed`,
+`cancelled`) are first-class enum values on
+[`ScanStateChoices`](../models/scan.md). The state machine is the
+*authoritative* shape — every transition is gated by `select_for_update`
++ status check in [ADR-005](../dev/architecture.md#adr-005-ingest-race-protection-one-shot-token-select_for_update),
+so two concurrent agents trying to claim the same `pending` scan still
+result in exactly one winner.
 
 ## Read-only enrichment, with a promotion escape hatch
 
