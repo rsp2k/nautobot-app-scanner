@@ -127,7 +127,7 @@ Empty array means "no work". Poll again later.
 ### `POST /scans/<uuid>/ingest/`
 
 Uploads nmap XML for a previously-picked-up scan. The server parses the
-XML, materializes `DiscoveredHost` / `DiscoveredPort` / `VulnerabilityFinding`
+XML, materializes `DiscoveredHost` / `DiscoveredPort` / `NseFinding`
 / `TraceRouteHop` records, gzips the raw XML to storage, and transitions
 the scan to `completed`.
 

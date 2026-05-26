@@ -74,6 +74,6 @@ on `DiscoveredPort` would mean N copies of the same value per host.
 Yes — `Scan`, `DiscoveredHost`, `ScannerAgent`, and `ScanProfile` are
 all `PrimaryModel` with `@extras_features(... "webhooks" ...)`. Edits
 appear in the object's history tab. Child records (`DiscoveredPort`,
-`VulnerabilityFinding`, `TraceRouteHop`) are `BaseModel` and don't get
+`NseFinding`, `TraceRouteHop`) are `BaseModel` and don't get
 their own change log — they're considered immutable scan output once
 persisted.

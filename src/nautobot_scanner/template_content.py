@@ -93,9 +93,13 @@ class IPAddressScans(TemplateExtension):  # pylint: disable=abstract-method
             discovered_host__in=qs,
             state="open",
         ).count()
-        vuln_count = models.VulnerabilityFinding.objects.filter(
-            discovered_port__discovered_host__in=qs,
-        ).count()
+        # Counts both port-scope findings (vulners on a port) and host-scope
+        # findings (smb-os-discovery on the host). The "vuln" naming is kept
+        # for template compat; semantically it's "NSE findings of any kind".
+        vuln_count = (
+            models.NseFinding.objects.filter(discovered_port__discovered_host__in=qs).count()
+            + models.NseFinding.objects.filter(discovered_host__in=qs).count()
+        )
 
         return self.render(
             "nautobot_scanner/inc/ipaddress_scans.html",

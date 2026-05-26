@@ -30,7 +30,7 @@ individual model pages under [Data Models](../models/index.md).
   discovered host. Fingerprint fields (`product`, `version`,
   `extra_info`, `cpe`) live here directly — no separate
   `ServiceFingerprint` model.
-- **[`VulnerabilityFinding`](../models/vulnerabilityfinding.md)** —
+- **[`NseFinding`](../models/nsefinding.md)** —
   one NSE-script finding on a port. `severity` defaults to `unknown`
   (never null).
 - **[`TraceRouteHop`](../models/traceroutehop.md)** — one hop in
@@ -45,7 +45,7 @@ individual model pages under [Data Models](../models/index.md).
 | `Scan` | `PrimaryModel` | Same — auditability, custom fields, GraphQL |
 | `DiscoveredHost` | `PrimaryModel` | Has its own page, gets the **Promote** action |
 | `DiscoveredPort` | `BaseModel` | Only exists in context of its host; rendered nested |
-| `VulnerabilityFinding` | `BaseModel` | Same — rendered nested on the port |
+| `NseFinding` | `BaseModel` | Same — rendered nested on the port |
 | `TraceRouteHop` | `BaseModel` | Same — rendered nested on the host |
 
 All `PrimaryModel`s have the standard `@extras_features(...)` set —

@@ -138,6 +138,6 @@ class FlagHostsWithOpenSMB(Job):
   (see ADR-002). Custom auth is possible but requires writing a DRF
   authentication class and is not supported.
 - **Mutating scan results post-ingest** — by design, `DiscoveredPort`
-  / `VulnerabilityFinding` / `TraceRouteHop` are immutable scan
+  / `NseFinding` / `TraceRouteHop` are immutable scan
   output. If you need to annotate them, use a `_custom_field_data`
   custom field on `DiscoveredHost`.

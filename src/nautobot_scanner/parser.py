@@ -64,6 +64,12 @@ class ParsedPort:
     extra_info: str = ""
     cpe: list[str] = field(default_factory=list)
     vulnerabilities: list[ParsedVulnerability] = field(default_factory=list)
+    # Richer per-port data nmap exposes alongside state:
+    state_reason: str = ""               # "syn-ack", "no-response", "port-unreach", "tcp-rst"
+    state_reason_ttl: int | None = None  # TTL of the responding packet
+    state_reason_ip: str | None = None   # IP that responded (often a firewall); None when missing
+    tunnel: str = ""                     # "ssl" for TLS-wrapped services, empty otherwise
+    service_fp: str = ""                 # raw nmap service fingerprint string
 
 
 @dataclass
@@ -90,6 +96,14 @@ class ParsedHost:
     os_accuracy: int | None = None
     ports: list[ParsedPort] = field(default_factory=list)
     traceroute_hops: list[ParsedHop] = field(default_factory=list)
+    # Host-scope NSE findings (smb-os-discovery, snmp-info, ssh-hostkey).
+    # Separate from ParsedPort.vulnerabilities because these have no port.
+    host_findings: list[ParsedVulnerability] = field(default_factory=list)
+    # Topology + uptime hints that nmap surfaces on every host:
+    distance_hops: int | None = None       # network distance (hops to target)
+    uptime_seconds: int | None = None      # boot inference from TCP timestamps (-O runs)
+    last_boot_at: object = None            # datetime, derived from uptime; populated in persist()
+    tcp_sequence_class: str = ""           # ISN class, e.g. "random positive increments"
 
 
 # ----------------------------------------------------------------------------
@@ -181,6 +195,47 @@ def _convert_host(nmap_host) -> ParsedHost:
     hops = _extract_traceroute(nmap_host)
 
     mac = nmap_host.mac or ""
+
+    # Topology / uptime hints. All of these come from runs we already do —
+    # `distance` is set whenever traceroute or even ping runs, `uptime` and
+    # `tcpsequence` get populated when -O ran. Pull them best-effort; the
+    # attribute access can return None or empty dicts depending on libnmap
+    # version, so we guard each lookup.
+    distance_hops: int | None = None
+    try:
+        distance_hops = int(nmap_host.distance) if nmap_host.distance else None
+    except (AttributeError, TypeError, ValueError):
+        pass
+
+    uptime_seconds: int | None = None
+    try:
+        # libnmap exposes uptime as a dict {"seconds": int, "lastboot": str}.
+        # The "seconds" field is what we want; lastboot is nmap's human
+        # rendering of when the host booted, which we'll re-derive ourselves
+        # at persist time from the scan's completion time minus uptime.
+        up = nmap_host.uptime
+        if isinstance(up, dict) and up.get("seconds"):
+            uptime_seconds = int(up["seconds"])
+    except (AttributeError, TypeError, ValueError):
+        pass
+
+    tcp_sequence_class = ""
+    try:
+        # tcpsequence is {"class": str, "values": str, "difficulty": str}
+        seq = nmap_host.tcpsequence
+        if isinstance(seq, dict):
+            tcp_sequence_class = seq.get("class", "") or ""
+    except (AttributeError, TypeError):
+        pass
+
+    # Host-scope NSE script results. libnmap exposes these via
+    # `nmap_host.scripts_results` as a list of dicts shaped like
+    # `{"id": str, "output": str, ...}` — identical shape to per-port
+    # script results, so we can reuse `_convert_script` directly.
+    host_findings = [
+        _convert_script(sr) for sr in (getattr(nmap_host, "scripts_results", None) or [])
+    ]
+
     return ParsedHost(
         ip_address=nmap_host.address,
         host_state=state,
@@ -192,6 +247,13 @@ def _convert_host(nmap_host) -> ParsedHost:
         os_accuracy=os_accuracy,
         ports=ports,
         traceroute_hops=hops,
+        host_findings=host_findings,
+        distance_hops=distance_hops,
+        uptime_seconds=uptime_seconds,
+        tcp_sequence_class=tcp_sequence_class,
+        # last_boot_at left as None at parse time; persist() derives it
+        # from scan.completed_at - uptime_seconds so the displayed time
+        # matches when the *scan ran*, not when parse-time happens to be.
     )
 
 
@@ -222,6 +284,25 @@ def _convert_port(nmap_service, nmap_host) -> ParsedPort:
     for script in nmap_service.scripts_results or []:
         vulns.append(_convert_script(script))
 
+    # Richer state-reason data. libnmap exposes these as attributes when the
+    # XML has them; older nmap output (or some scan types) may not populate
+    # all three, so we guard each access. The `reason` field is universal —
+    # every port report includes one.
+    state_reason = getattr(nmap_service, "reason", "") or ""
+    state_reason_ttl: int | None = None
+    try:
+        ttl = getattr(nmap_service, "reason_ttl", None)
+        if ttl:
+            state_reason_ttl = int(ttl)
+    except (TypeError, ValueError):
+        pass
+    # state_reason_ip is VarbinaryIPField (null=True) — coerce empty/missing to
+    # None, not "". Empty string is not a valid IP and the field rejects it.
+    _raw_reason_ip = getattr(nmap_service, "reason_ip", None)
+    state_reason_ip: str | None = _raw_reason_ip if _raw_reason_ip else None
+    tunnel = service_dict.get("tunnel", "") or ""
+    service_fp = getattr(nmap_service, "servicefp", "") or ""
+
     return ParsedPort(
         port=nmap_service.port,
         protocol=protocol_map.get(nmap_service.protocol, ProtocolChoices.TCP),
@@ -233,6 +314,11 @@ def _convert_port(nmap_service, nmap_host) -> ParsedPort:
         extra_info=service_dict.get("extrainfo", ""),
         cpe=cpe_list,
         vulnerabilities=vulns,
+        state_reason=state_reason,
+        state_reason_ttl=state_reason_ttl,
+        state_reason_ip=state_reason_ip,
+        tunnel=tunnel,
+        service_fp=service_fp,
     )
 
 
@@ -358,7 +444,7 @@ def persist(scan: Scan, parsed: list[ParsedHost]) -> dict:
         DiscoveredHost,
         DiscoveredPort,
         TraceRouteHop,
-        VulnerabilityFinding,
+        NseFinding,
     )
 
     summary = {
@@ -380,6 +466,13 @@ def persist(scan: Scan, parsed: list[ParsedHost]) -> dict:
         bounds="[)",
     )
 
+    # Derive a stable "as of" moment for last_boot_at calculations: prefer
+    # the scan's completion time, fall back to its start time, last resort
+    # is "now". This anchors uptime → boot-time deterministically based on
+    # WHEN the scan ran, not when the parser happens to run.
+    import datetime as _dt
+    boot_anchor = scan.completed_at or scan.started_at or _dt.datetime.now(_dt.timezone.utc)
+
     for ph in parsed:
         # Auto-resolve linked Device by primary IP match.
         # We look at primary_ip4 OR primary_ip6 since the discovered host
@@ -387,6 +480,15 @@ def persist(scan: Scan, parsed: list[ParsedHost]) -> dict:
         linked_device = (
             Device.objects.filter(primary_ip4__host=ph.ip_address).first()
             or Device.objects.filter(primary_ip6__host=ph.ip_address).first()
+        )
+
+        # Derive last_boot_at if we got uptime info. Storing the absolute
+        # boot time means filters/sorts work in the DB ("hosts booted in
+        # the last hour") without needing to subtract uptime at query time.
+        last_boot_at = (
+            boot_anchor - _dt.timedelta(seconds=ph.uptime_seconds)
+            if ph.uptime_seconds
+            else None
         )
 
         host = DiscoveredHost.objects.create(
@@ -400,6 +502,10 @@ def persist(scan: Scan, parsed: list[ParsedHost]) -> dict:
             os_accuracy=ph.os_accuracy,
             host_state=ph.host_state,
             linked_device=linked_device,
+            distance_hops=ph.distance_hops,
+            uptime_seconds=ph.uptime_seconds,
+            last_boot_at=last_boot_at,
+            tcp_sequence_class=ph.tcp_sequence_class,
             valid_during=valid_during,
             # recorded_during defaults to [now(), None) via the model default
             # entry_id defaults to a fresh uuid4 via the model default
@@ -422,12 +528,17 @@ def persist(scan: Scan, parsed: list[ParsedHost]) -> dict:
                 version=pp.version,
                 extra_info=pp.extra_info,
                 cpe=pp.cpe,
+                state_reason=pp.state_reason,
+                state_reason_ttl=pp.state_reason_ttl,
+                state_reason_ip=pp.state_reason_ip,
+                tunnel=pp.tunnel,
+                service_fp=pp.service_fp,
             )
             if pp.state == PortStateChoices.OPEN:
                 summary["ports_open"] += 1
 
             for pv in pp.vulnerabilities:
-                VulnerabilityFinding.objects.create(
+                NseFinding.objects.create(
                     discovered_port=port,
                     nse_script=pv.nse_script,
                     output=pv.output,
@@ -435,6 +546,18 @@ def persist(scan: Scan, parsed: list[ParsedHost]) -> dict:
                     references=pv.references,
                 )
                 summary["vulnerabilities"] += 1
+
+        # Host-scope NSE findings (smb-os-discovery, snmp-info, ssh-hostkey, ...).
+        # No port FK on these — the CheckConstraint requires exactly one parent.
+        for hf in ph.host_findings:
+            NseFinding.objects.create(
+                discovered_host=host,
+                nse_script=hf.nse_script,
+                output=hf.output,
+                severity=hf.severity,
+                references=hf.references,
+            )
+            summary["vulnerabilities"] += 1
 
         for hop in ph.traceroute_hops:
             TraceRouteHop.objects.create(

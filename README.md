@@ -15,7 +15,7 @@
 |---|---|
 | **Targets you already have** | Scans `ipam.Prefix` and `ipam.IPAddress` records — no separate target list to maintain. |
 | **Two execution models** | Run nmap inside the Nautobot worker (`LocalBackend`), or off-load to one or many remote agents (`RemoteBackend`) for DMZ / OT / branch segments Nautobot can't reach. |
-| **Read-only by default** | Scan output lives in *separate* `DiscoveredHost` / `DiscoveredPort` / `VulnerabilityFinding` models. Promote-to-IPAddress and Promote-to-Device are explicit, permission-gated escape hatches. |
+| **Read-only by default** | Scan output lives in *separate* `DiscoveredHost` / `DiscoveredPort` / `NseFinding` models. Promote-to-IPAddress and Promote-to-Device are explicit, permission-gated escape hatches. |
 | **Where you'll look anyway** | A `TemplateExtension` injects scanner panels onto Device / IPAddress / Prefix detail pages, so you find scan data where you find everything else. |
 | **Real nmap, not a wrapper** | Profiles are nmap argument strings (`-sS -sV -O --top-ports 1000` etc.). The seeded catalog covers discovery, port-scan, OS fingerprint, full-TCP, vuln, traceroute, and UDP. Write your own in 30 seconds. |
 | **First-class job machinery** | Scans dispatch via Nautobot Jobs — scheduling, audit trail, log streaming, retry, JobResult page all come free. |
@@ -47,7 +47,7 @@ flowchart TD
 
     host[(DiscoveredHost)]
     port[(DiscoveredPort)]
-    vuln[(VulnerabilityFinding)]
+    vuln[(NseFinding)]
     trace[(TraceRouteHop)]
 
     localDone --> host

@@ -3,7 +3,7 @@
 Each PrimaryModel gets a Table with leading ToggleColumn (bulk select),
 LinkColumn (navigation), and trailing ButtonsColumn (edit/delete actions).
 
-BaseModel children (DiscoveredPort, VulnerabilityFinding, TraceRouteHop)
+BaseModel children (DiscoveredPort, NseFinding, TraceRouteHop)
 get tables too — but those render nested in the parent's detail page,
 not as standalone list views.
 """
@@ -118,15 +118,20 @@ class DiscoveredPortTable(BaseTable):
     product = tables.Column()
     version = tables.Column()
     extra_info = tables.Column(verbose_name="Extra")
+    state_reason = tables.Column(verbose_name="Reason")
+    tunnel = tables.Column(verbose_name="TLS")
 
     class Meta(BaseTable.Meta):
         model = models.DiscoveredPort
-        fields = ("port", "protocol", "state", "service_name", "product", "version", "extra_info")
+        fields = (
+            "port", "protocol", "state", "service_name",
+            "product", "version", "extra_info", "state_reason", "tunnel",
+        )
         default_columns = ("port", "protocol", "state", "service_name", "product", "version")
 
 
-class VulnerabilityFindingTable(BaseTable):
-    """Nested-only table for VulnerabilityFinding, rendered in DiscoveredHost detail."""
+class NseFindingTable(BaseTable):
+    """Nested-only table for NseFinding, rendered in DiscoveredHost detail."""
 
     discovered_port = tables.Column(verbose_name="Port")
     nse_script = tables.Column(verbose_name="Script")
@@ -134,7 +139,7 @@ class VulnerabilityFindingTable(BaseTable):
     output = tables.Column()
 
     class Meta(BaseTable.Meta):
-        model = models.VulnerabilityFinding
+        model = models.NseFinding
         fields = ("discovered_port", "nse_script", "severity", "output")
         default_columns = ("discovered_port", "nse_script", "severity")
 

@@ -4,7 +4,7 @@ Each PrimaryModel gets a NautobotUIViewSet that bundles list, detail,
 create, edit, delete, and bulk-action views together. Each viewset also
 declares `object_detail_content` — the panel layout for the detail page.
 
-BaseModel children (DiscoveredPort, VulnerabilityFinding, TraceRouteHop)
+BaseModel children (DiscoveredPort, NseFinding, TraceRouteHop)
 don't get standalone viewsets; they render nested in DiscoveredHost detail
 via ObjectsTablePanel.
 
@@ -453,6 +453,8 @@ class DiscoveredHostUIViewSet(NautobotUIViewSet):
                 fields=[
                     "scan", "ip_address", "hostname", "mac_address", "mac_vendor",
                     "host_state", "os_family", "os_type", "os_accuracy",
+                    "tcp_sequence_class", "distance_hops",
+                    "uptime_seconds", "last_boot_at",
                     "linked_ipaddress", "linked_device",
                 ],
             ),
@@ -467,14 +469,25 @@ class DiscoveredHostUIViewSet(NautobotUIViewSet):
                 table_filter="discovered_host",
                 table_title="Open Ports",
             ),
-            # Two-hop filter: VulnerabilityFinding → DiscoveredPort → DiscoveredHost.
-            # Avoids denormalizing a host FK onto VulnerabilityFinding just to render this panel.
+            # Two-hop filter: NseFinding → DiscoveredPort → DiscoveredHost.
+            # Per-port NSE findings (vulners, ssl-cert, http-title) live here.
             ObjectsTablePanel(
                 section=SectionChoices.RIGHT_HALF,
                 weight=150,
-                table_class=tables.VulnerabilityFindingTable,
+                table_class=tables.NseFindingTable,
                 table_filter="discovered_port__discovered_host",
-                table_title="Vulnerabilities",
+                table_title="Port Findings",
+            ),
+            # Direct filter: NseFinding → DiscoveredHost.
+            # Host-scope NSE findings (smb-os-discovery, snmp-info, ssh-hostkey)
+            # attach directly to the host with no port. Same NseFinding table
+            # class — the underlying rows differ only in which FK is set.
+            ObjectsTablePanel(
+                section=SectionChoices.RIGHT_HALF,
+                weight=175,
+                table_class=tables.NseFindingTable,
+                table_filter="discovered_host",
+                table_title="Host Findings",
             ),
             ObjectsTablePanel(
                 section=SectionChoices.RIGHT_HALF,

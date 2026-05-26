@@ -1,7 +1,7 @@
 """Scan result models — what nmap actually found.
 
 `DiscoveredHost` is a PrimaryModel (gets its own page, can be promoted to an
-IPAM IPAddress). `DiscoveredPort`, `VulnerabilityFinding`, and
+IPAM IPAddress). `DiscoveredPort`, `NseFinding`, and
 `TraceRouteHop` are BaseModel child records — they only exist in the context
 of their parent and don't need standalone UI/API surfaces (they're rendered
 nested in the host's detail page).
@@ -170,6 +170,41 @@ class DiscoveredHost(PrimaryModel):
     )
 
     # ------------------------------------------------------------------
+    # Topology + uptime hints that nmap exposes alongside every host scan.
+    # All nullable — populated only when the underlying probe gathered them
+    # (distance from traceroute or even ping, uptime + tcp_sequence_class
+    # from -O runs). Cheap data for the win.
+    # ------------------------------------------------------------------
+    distance_hops = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        help_text="Network hops to this host (matches len(traceroute_hops) when -O traceroute ran).",
+    )
+    uptime_seconds = models.PositiveBigIntegerField(
+        null=True,
+        blank=True,
+        help_text="Seconds since last boot, derived from TCP timestamps during nmap -O.",
+    )
+    last_boot_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text=(
+            "Absolute boot timestamp = (scan.completed_at - uptime_seconds). "
+            "Stored so DB filters like 'booted in last hour' work without "
+            "subtracting at query time."
+        ),
+    )
+    tcp_sequence_class = models.CharField(
+        max_length=64,
+        blank=True,
+        help_text=(
+            "TCP ISN classification from nmap -O (e.g. 'random positive increments', "
+            "'trivial time dependency'). OS-family signal independent of os_family."
+        ),
+    )
+
+    # ------------------------------------------------------------------
     # Bitemporal axes (tier-4 pattern from l2trace.warehack.ing).
     # ------------------------------------------------------------------
     valid_during = DateTimeRangeField(
@@ -240,14 +275,21 @@ class DiscoveredHost(PrimaryModel):
 
     @property
     def vulnerability_count(self) -> int:
-        """Count of vulnerability findings across all ports on this host."""
+        """Count of NSE findings (port-scope + host-scope) for this host.
+
+        Counts both per-port findings (vulners, ssl-cert, http-title) AND
+        host-scope findings (smb-os-discovery, snmp-info). The name stays
+        ``vulnerability_count`` for column-label backward compatibility,
+        but the count reflects every NSE finding regardless of severity.
+        """
         cached = getattr(self, "_vulnerability_count", None)
         if cached is not None:
             return cached
-        # Count VulnerabilityFinding records by walking through ports.
-        from nautobot_scanner.models import VulnerabilityFinding
+        from nautobot_scanner.models import NseFinding
 
-        return VulnerabilityFinding.objects.filter(discovered_port__discovered_host=self).count()
+        port_scope = NseFinding.objects.filter(discovered_port__discovered_host=self).count()
+        host_scope = NseFinding.objects.filter(discovered_host=self).count()
+        return port_scope + host_scope
 
 
 class DiscoveredPort(BaseModel):
@@ -283,6 +325,53 @@ class DiscoveredPort(BaseModel):
         help_text="List of CPE strings emitted by nmap -sV (e.g. ['cpe:/a:apache:httpd:2.4.41']).",
     )
 
+    # ------------------------------------------------------------------
+    # Richer state-reason data nmap exposes per port. These distinguish
+    # "host is silent" from "firewall is blocking us" — invaluable when
+    # debugging why a scan reports filtered/closed/no-response on a port
+    # that the operator KNOWS is open inside the segment.
+    # ------------------------------------------------------------------
+    state_reason = models.CharField(
+        max_length=64,
+        blank=True,
+        db_index=True,
+        help_text=(
+            "Why nmap chose this state — 'syn-ack' (open), 'no-response' "
+            "(filtered, no packet back), 'port-unreach' (closed via ICMP), "
+            "'tcp-rst' (closed via RST), etc. Filterable to slice firewall vs "
+            "true-closed populations."
+        ),
+    )
+    state_reason_ttl = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        help_text="TTL of the responding packet. Mismatched TTLs hint at firewall interposition.",
+    )
+    state_reason_ip = VarbinaryIPField(
+        null=True,
+        blank=True,
+        help_text=(
+            "IP that actually sent the response — often differs from the target IP when "
+            "an intermediate firewall is rewriting/responding on the host's behalf."
+        ),
+    )
+    tunnel = models.CharField(
+        max_length=16,
+        blank=True,
+        help_text=(
+            "'ssl' for TLS-wrapped services (HTTPS on 443, SMTPS on 465, IMAPS on 993). "
+            "Empty for plain services. Drives 'is this port speaking TLS?' filters "
+            "without parsing the service_name string."
+        ),
+    )
+    service_fp = models.TextField(
+        blank=True,
+        help_text=(
+            "Raw nmap service fingerprint string. Useful when service_name is generic "
+            "('unknown') and you want to submit the fingerprint to nmap upstream."
+        ),
+    )
+
     class Meta:
         """Meta options."""
 
@@ -296,24 +385,44 @@ class DiscoveredPort(BaseModel):
         return f"{self.port}/{self.protocol} {self.state}"
 
 
-class VulnerabilityFinding(BaseModel):
-    """One vulnerability or interesting NSE-script output for a port.
+class NseFinding(BaseModel):
+    """One NSE-script finding (vulnerability OR informational).
 
-    Severity is required and defaults to `unknown` (never null) so filter and
-    table code never has to branch on missing values. Producer (typically an
-    NSE script like `vulners` or `http-headers`) is recorded in `nse_script`.
+    Renamed from ``VulnerabilityFinding`` in migration 0009 — the original
+    name implied this was strictly vulnerability data, but nmap's NSE
+    catalog produces a lot of informational output too (ssl-cert,
+    http-title, smb-os-discovery) that doesn't have a CVE attached. The
+    ``severity`` field (``info``/``low``/.../``critical``) is what
+    actually distinguishes the two.
+
+    Findings attach to **either** a ``DiscoveredPort`` (per-port scripts
+    like ``vulners``, ``ssl-cert``, ``http-title``) **or** a
+    ``DiscoveredHost`` (host-scope scripts like ``smb-os-discovery``,
+    ``snmp-info``, ``ssh-hostkey``). A CheckConstraint enforces that
+    exactly one of the two FKs is set per row.
     """
 
     discovered_port = models.ForeignKey(
         to="nautobot_scanner.DiscoveredPort",
         on_delete=models.CASCADE,
         related_name="vulnerabilities",
+        null=True,
+        blank=True,
+        help_text="Set when this finding came from a per-port NSE script. Mutually exclusive with discovered_host.",
+    )
+    discovered_host = models.ForeignKey(
+        to="nautobot_scanner.DiscoveredHost",
+        on_delete=models.CASCADE,
+        related_name="host_findings",
+        null=True,
+        blank=True,
+        help_text="Set when this finding came from a host-scope NSE script. Mutually exclusive with discovered_port.",
     )
     nse_script = models.CharField(
         max_length=128,
-        help_text="Name of the NSE script that produced the finding (e.g. 'vulners', 'ssl-cert').",
+        help_text="Name of the NSE script that produced the finding (e.g. 'vulners', 'ssl-cert', 'smb-os-discovery').",
     )
-    output = models.TextField(help_text="Raw script output — may contain CVE IDs, scores, exploit URLs.")
+    output = models.TextField(help_text="Raw script output — may contain CVE IDs, scores, exploit URLs, or just informational text.")
     severity = models.CharField(
         max_length=16,
         choices=SeverityChoices,
@@ -330,8 +439,20 @@ class VulnerabilityFinding(BaseModel):
         """Meta options."""
 
         ordering = ("-severity", "nse_script")
-        verbose_name = "vulnerability finding"
-        verbose_name_plural = "vulnerability findings"
+        verbose_name = "NSE finding"
+        verbose_name_plural = "NSE findings"
+        constraints = [
+            # Exactly-one-parent: exposes the design contract at the schema
+            # level so future bugs that try to set both FKs (or neither) fail
+            # at insert rather than producing orphan or duplicate-parent rows.
+            models.CheckConstraint(
+                check=(
+                    models.Q(discovered_port__isnull=False, discovered_host__isnull=True)
+                    | models.Q(discovered_port__isnull=True, discovered_host__isnull=False)
+                ),
+                name="nsefinding_exactly_one_parent",
+            ),
+        ]
 
     def __str__(self) -> str:
         """Display string."""

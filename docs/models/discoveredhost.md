@@ -99,14 +99,14 @@ DiscoveredHost.objects.for_wire_time(timezone.datetime(2026, 5, 26, 2, 30))
 | FK out | `linked_device` | `dcim.Device` (auto-resolved at ingest) |
 | Reverse FK | `ports` | `DiscoveredPort` |
 | Reverse FK | `traceroute_hops` | `TraceRouteHop` |
-| Reverse two-hop | `ports.vulnerabilities` | `VulnerabilityFinding` (rendered as a panel on the host detail page via `discovered_port__discovered_host` table filter) |
+| Reverse two-hop | `ports.vulnerabilities` | `NseFinding` (rendered as a panel on the host detail page via `discovered_port__discovered_host` table filter) |
 
 ## Computed properties
 
 | Property | Returns |
 |---|---|
 | `open_port_count` | Number of `DiscoveredPort` rows on this host where `state="open"`. Reads from `_open_port_count` if the queryset was annotated (the list view does this to avoid N+1), otherwise falls back to a per-row count query. |
-| `vulnerability_count` | Total `VulnerabilityFinding` rows across all ports on this host. Same annotation-or-fallback pattern. |
+| `vulnerability_count` | Total `NseFinding` rows across all ports on this host. Same annotation-or-fallback pattern. |
 
 Both properties power the badges on the scanner panels embedded in
 Device / IPAddress / Prefix detail pages — using `_count` annotations

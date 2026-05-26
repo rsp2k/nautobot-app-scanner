@@ -1,11 +1,11 @@
-# VulnerabilityFinding
+# NseFinding
 
 One vulnerability or interesting NSE-script output for a
 `DiscoveredPort`.
 
 <figure markdown>
 ![DiscoveredHost detail showing nested Vulnerabilities panel](../images/discoveredhost-with-vulns.png)
-<figcaption>VulnerabilityFinding rows surface as a nested panel on the parent `DiscoveredHost` detail page. Each row shows the producing NSE script, severity badge, and a truncated output preview — click into the row for the full output and references list.</figcaption>
+<figcaption>NseFinding rows surface as a nested panel on the parent `DiscoveredHost` detail page. Each row shows the producing NSE script, severity badge, and a truncated output preview — click into the row for the full output and references list.</figcaption>
 </figure>
 
 | Field | Description |
@@ -38,6 +38,6 @@ The parser populates severity by:
 |-----------|-------|--------|
 | FK out | `discovered_port` | `DiscoveredPort` |
 
-::: nautobot_scanner.models.VulnerabilityFinding
+::: nautobot_scanner.models.NseFinding
     options:
       show_root_heading: false

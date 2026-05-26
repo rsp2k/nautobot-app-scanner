@@ -11,7 +11,9 @@ router.register("profiles", views.ScanProfileAPIViewSet)
 router.register("scans", views.ScanAPIViewSet)
 router.register("discovered-hosts", views.DiscoveredHostAPIViewSet)
 router.register("discovered-ports", views.DiscoveredPortAPIViewSet)
-router.register("vulnerabilities", views.VulnerabilityFindingAPIViewSet)
+# `vulnerabilities` endpoint kept for backwards-compatible URL — model
+# renamed to NseFinding (covers host-scope + port-scope NSE output).
+router.register("vulnerabilities", views.NseFindingAPIViewSet)
 router.register("traceroute-hops", views.TraceRouteHopAPIViewSet)
 
 app_name = "nautobot_scanner-api"

@@ -130,7 +130,7 @@ nav:
     - "Results":
       - "DiscoveredHost": "models/discoveredhost.md"
       - "DiscoveredPort": "models/discoveredport.md"
-      - "VulnerabilityFinding": "models/vulnerabilityfinding.md"
+      - "NseFinding": "models/nsefinding.md"
       - "TraceRouteHop": "models/traceroutehop.md"
   - "Administrator Guide":
     - "Install": "admin/install.md"

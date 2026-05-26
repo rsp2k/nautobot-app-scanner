@@ -51,9 +51,9 @@ class DiscoveredPortSerializer(NautobotModelSerializer):
         fields = "__all__"
 
 
-class VulnerabilityFindingSerializer(NautobotModelSerializer):
+class NseFindingSerializer(NautobotModelSerializer):
     class Meta:
-        model = models.VulnerabilityFinding
+        model = models.NseFinding
         fields = "__all__"
 
 

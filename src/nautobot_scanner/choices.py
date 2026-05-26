@@ -132,7 +132,7 @@ class HostStateChoices(ChoiceSet):
 
 
 class SeverityChoices(ChoiceSet):
-    """Severity for VulnerabilityFinding.
+    """Severity for NseFinding.
 
     Default is `unknown` (not nullable) so filter/table code never has to
     branch on missing values.

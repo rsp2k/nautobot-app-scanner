@@ -22,7 +22,7 @@ model for field-level reference.
 |-------|------|---------|
 | [`DiscoveredHost`](discoveredhost.md) | `PrimaryModel` | One host nmap reported |
 | [`DiscoveredPort`](discoveredport.md) | `BaseModel` | One port on a discovered host |
-| [`VulnerabilityFinding`](vulnerabilityfinding.md) | `BaseModel` | One NSE finding on a port |
+| [`NseFinding`](nsefinding.md) | `BaseModel` | One NSE finding on a port |
 | [`TraceRouteHop`](traceroutehop.md) | `BaseModel` | One hop in a host's traceroute path |
 
 ## Relationship diagram
@@ -30,7 +30,7 @@ model for field-level reference.
 ```
 ScannerAgent ──┐
                │
-               ├──FK──→ Scan ──FK──→ DiscoveredHost ──FK──→ DiscoveredPort ──FK──→ VulnerabilityFinding
+               ├──FK──→ Scan ──FK──→ DiscoveredHost ──FK──→ DiscoveredPort ──FK──→ NseFinding
                │         │             │                              
 ScanProfile ───┘         │             └──FK──→ TraceRouteHop
                          │

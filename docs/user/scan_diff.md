@@ -123,7 +123,7 @@ profile names in the header strip and adjust their interpretation.
   through `xmldiff` yourself.
 - **Not a vulnerability-finding diff.** If the same `vulners` finding
   appears on both scans, the diff sees `vulnerability_count` as unchanged
-  even if the individual `VulnerabilityFinding.output` strings differ.
+  even if the individual `NseFinding.output` strings differ.
   Per-finding deltas are a future enhancement — for now, click into the
   host detail page to compare findings directly.
 - **Not cross-agent.** Diffing two scans on *different* agents is

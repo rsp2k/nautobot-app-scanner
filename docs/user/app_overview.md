@@ -13,7 +13,7 @@ vulnerability findings, and traceroute hops attached.
 
 ```
 ScannerAgent ──┐
-               ├──→ Scan ──→ DiscoveredHost ──┬──→ DiscoveredPort ──→ VulnerabilityFinding
+               ├──→ Scan ──→ DiscoveredHost ──┬──→ DiscoveredPort ──→ NseFinding
 ScanProfile ───┘             (linked_ipaddress, └──→ TraceRouteHop
                               linked_device)
 ```
@@ -22,7 +22,7 @@ ScanProfile ───┘             (linked_ipaddress, └──→ TraceRouteH
 |-------|--------|---------|
 | **Identity** | `ScannerAgent`, `ScanProfile` | Who runs scans, with what nmap config |
 | **Execution** | `Scan` | One scan run — agent + profile + IPAM targets + lifecycle state + raw XML |
-| **Results** | `DiscoveredHost`, `DiscoveredPort`, `VulnerabilityFinding`, `TraceRouteHop` | What nmap actually found |
+| **Results** | `DiscoveredHost`, `DiscoveredPort`, `NseFinding`, `TraceRouteHop` | What nmap actually found |
 
 See the [Data Models reference](../models/index.md) for field-by-field
 details.

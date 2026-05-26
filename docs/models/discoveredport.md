@@ -30,7 +30,7 @@ host per scan.
 | Direction | Field | Target |
 |-----------|-------|--------|
 | FK out | `discovered_host` | `DiscoveredHost` |
-| Reverse FK | `vulnerabilities` | `VulnerabilityFinding` |
+| Reverse FK | `vulnerabilities` | `NseFinding` |
 
 ::: nautobot_scanner.models.DiscoveredPort
     options:

@@ -36,9 +36,9 @@ DiscoveredPort.objects.filter(
 ## "What CVEs did vulners flag against this VLAN's web servers?"
 
 ```python
-from nautobot_scanner.models import VulnerabilityFinding
+from nautobot_scanner.models import NseFinding
 
-VulnerabilityFinding.objects.filter(
+NseFinding.objects.filter(
     severity__in=["high", "critical"],
     discovered_port__discovered_host__scan__target_prefixes__prefix="10.20.0.0/24",
     discovered_port__service_name__icontains="http",

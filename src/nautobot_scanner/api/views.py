@@ -59,7 +59,7 @@ class DiscoveredHostAPIViewSet(NautobotModelViewSet):
     filterset_class = filters.DiscoveredHostFilterSet
 
 
-# DiscoveredPort / VulnerabilityFinding / TraceRouteHop don't currently
+# DiscoveredPort / NseFinding / TraceRouteHop don't currently
 # have FilterSets (BaseModel children, only rendered nested), so they get
 # the default no-filter viewset. Phase 7 may add filtersets if the
 # Nautobot SDK clients ask for them.
@@ -68,9 +68,9 @@ class DiscoveredPortAPIViewSet(NautobotModelViewSet):
     serializer_class = serializers.DiscoveredPortSerializer
 
 
-class VulnerabilityFindingAPIViewSet(NautobotModelViewSet):
-    queryset = models.VulnerabilityFinding.objects.all()
-    serializer_class = serializers.VulnerabilityFindingSerializer
+class NseFindingAPIViewSet(NautobotModelViewSet):
+    queryset = models.NseFinding.objects.all()
+    serializer_class = serializers.NseFindingSerializer
 
 
 class TraceRouteHopAPIViewSet(NautobotModelViewSet):

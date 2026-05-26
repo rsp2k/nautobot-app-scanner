@@ -149,7 +149,7 @@ class DiscoveredHostFilterForm(NautobotFilterForm):
 
     q = forms.CharField(required=False, label="Search")
     host_state = forms.MultipleChoiceField(choices=HostStateChoices, required=False)
-    # Re-declare ChoiceSet filters so DiscoveredPort/VulnerabilityFinding/etc.
+    # Re-declare ChoiceSet filters so DiscoveredPort/NseFinding/etc.
     # multi-select work on the standalone host list filter sidebar.
     port_state = forms.MultipleChoiceField(choices=PortStateChoices, required=False)
     protocol = forms.MultipleChoiceField(choices=ProtocolChoices, required=False)

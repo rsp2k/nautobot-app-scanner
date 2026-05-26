@@ -11,7 +11,7 @@ from nautobot_scanner.models.results import (
     DiscoveredHost,
     DiscoveredPort,
     TraceRouteHop,
-    VulnerabilityFinding,
+    NseFinding,
 )
 from nautobot_scanner.models.scans import Scan
 
@@ -22,5 +22,5 @@ __all__ = [
     "ScanProfile",
     "ScannerAgent",
     "TraceRouteHop",
-    "VulnerabilityFinding",
+    "NseFinding",
 ]
