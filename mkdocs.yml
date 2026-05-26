@@ -115,6 +115,7 @@ nav:
     - "Scan Profiles": "user/scan_profiles.md"
     - "Running Scans": "user/running_scans.md"
     - "Comparing Scans": "user/scan_diff.md"
+    - "Pentest Mode": "user/pentest_mode.md"
     - "Promote to Device/IPAddress": "user/promotion.md"
     - "Use Cases": "user/use_cases.md"
     - "Models": "user/models.md"

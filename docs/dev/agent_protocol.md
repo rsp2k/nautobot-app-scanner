@@ -107,10 +107,12 @@ Empty array means "no work". Poll again later.
 
 ### `POST /scans/<uuid>/ingest/`
 
-Uploads nmap XML for a previously-picked-up scan. The server parses the
-XML, materializes `DiscoveredHost` / `DiscoveredPort` / `NseFinding`
-/ `TraceRouteHop` records, gzips the raw XML to storage, and transitions
-the scan to `completed`.
+Uploads tool output (nmap XML, dig text, masscan JSON, …) for a
+previously-picked-up scan. The server dispatches to the parser
+registered for the tool, materializes
+`DiscoveredHost` / `DiscoveredPort` / `NseFinding` /
+`TraceRouteHop` records, gzips the raw output to storage, and
+transitions the scan to `completed`.
 
 **Critical**: the `X-Ingestion-Token` header must match the
 `ingestion_token` you received from `/pending-scans/`. The server clears
@@ -118,18 +120,39 @@ the token on successful ingest, so a second POST with the same token
 gets `403`. This is the retry-after-504 defense — a network blip
 between you and Nautobot won't cause double-insertion of host records.
 
-**Request**
+**Multi-tool dispatch (Phase G).** The `X-Tool` request header tells
+the server which parser to invoke (`nmap` / `dig` / `masscan` / …).
+Omitting `X-Tool` defaults to `nmap` for back-compat with pre-Phase-G
+agents. Non-nmap output goes into `Scan.raw_output` (gzipped) instead
+of `Scan.raw_xml`. See [ADR-013](architecture.md#adr-013-pluggable-parser-dispatch-multi-tool-agent-foundation)
+for the dispatch design.
+
+**Request (nmap)**
 
 ```http
 POST /api/plugins/scanner/scans/f89f3738-7394-4eba-bd7f-be216ee18d40/ingest/
 Authorization: Token <key>
 Content-Type: application/xml
 X-Ingestion-Token: a4c8b1d2-e9f4-4a5b-9c7d-3e2f1a8b5c6d
+X-Tool: nmap
 
 <?xml version="1.0" encoding="UTF-8"?>
 <nmaprun ...>
   ...
 </nmaprun>
+```
+
+**Request (dig)** — the same endpoint, different headers + body:
+
+```http
+POST /api/plugins/scanner/scans/981f26d0-aaaa-bbbb-cccc-ddddeeeeffff/ingest/
+Authorization: Token <key>
+Content-Type: text/plain
+X-Ingestion-Token: 7b9c8d1e-2f3a-4b5c-9d8e-1a2b3c4d5e6f
+X-Tool: dig
+
+example.com. 3600 IN A 93.184.216.34
+example.com. 3600 IN MX 0 .
 ```
 
 **Response 200**
@@ -152,7 +175,7 @@ X-Ingestion-Token: a4c8b1d2-e9f4-4a5b-9c7d-3e2f1a8b5c6d
 
 | Status | Cause |
 |---|---|
-| `400` | Missing/malformed `X-Ingestion-Token`, or unparseable nmap XML |
+| `400` | Missing/malformed `X-Ingestion-Token`, unrecognized `X-Tool` value, or unparseable body for the chosen tool |
 | `401` | Token missing or invalid |
 | `403` | Token-agent doesn't own this scan; OR token has already been consumed (replay) |
 | `404` | Scan UUID doesn't exist |

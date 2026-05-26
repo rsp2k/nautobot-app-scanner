@@ -60,6 +60,44 @@ in the UI to slow it down for stealthier contexts.
     `tls-audit` to inventory TLS endpoints, then `vuln` against the
     same range to flag known-CVE OpenSSL versions found there.
 
+### Non-nmap profiles (Phase G)
+
+Migration `0015` seeded the first non-nmap profile to prove the
+[multi-tool dispatch path](../models/scanprofile.md):
+
+| Name | Tool | `tool_arguments` | What it produces |
+|---|---|---|---|
+| `dns-recon` | `dig` | `+noall +answer ANY` | Per-target DNS record snapshot. The agent runs `dig` against each target, gzips the answer body to `Scan.raw_output`, and the server materializes one host-scope `NseFinding` per target with the records in `elements`. |
+
+<figure markdown>
+![dns-recon Scan detail showing Tool used=dig + a host-scope NseFinding rendering the parsed dig answer](../images/dig-scan-detail.jpeg)
+<figcaption>A completed `dns-recon` scan. **Tool used: dig** badge, raw output stored as `.txt.gz` (not `.xml.gz`), and the Host Findings table shows the parsed dig answer rendered as one host-scope `NseFinding` row — no new templates needed because the existing finding-rendering machinery handles it.</figcaption>
+</figure>
+
+<figure markdown>
+![NseFinding detail page showing structured elements rendering for a dig finding](../images/dig-finding-structured-data.jpeg)
+<figcaption>Drilling into the dig finding's detail page: the structured `elements` JSONField renders via the type-aware partial — DNS records appear as a clean list rather than buried inside raw text. Same partial works for ssl-cert validity windows, smb-os-discovery OS strings, http-headers maps.</figcaption>
+</figure>
+
+Add your own non-nmap profile via **Scanner → Scan Profiles → Add**:
+set `tool` to one of `dig` / `masscan` / `curl` / `mtr` /
+`openssl-s_client`, fill in `tool_arguments`, save. The agent's
+capability probe declares which of these tools the host actually has
+on startup, so an unrecognized tool fails the dispatch cleanly with
+the missing-tool name in `Scan.error_message`.
+
+### Pentest profiles (Phase I)
+
+Migration `0016` seeds one demonstration profile that exercises the
+pentest-mode fields. **Dispatching any pentest profile requires the
+`nautobot_scanner.use_pentest_profiles` permission** — see
+[Pentest Mode](pentest_mode.md) for the legal-authorization notice
+and permission setup.
+
+| Name | nmap args | Pentest flags set | What it demonstrates |
+|---|---|---|---|
+| `demo-pentest` | `-sS --top-ports 100` | `decoy_addresses`, `fragment_packets`, `source_port` | Three evasion flags on top of a top-100 SYN scan. Use as a starting point for your own pentest profiles; the audit row stamps `Scan.was_pentest_mode=True` regardless of who later edits the profile. |
+
 !!! info "OS fingerprint data missing?"
     Only profiles with `-O` populate the `os_family` / `os_type` /
     `os_accuracy` fields on `DiscoveredHost`. `os-detect` and the

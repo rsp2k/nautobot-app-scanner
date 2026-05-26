@@ -22,6 +22,8 @@ than on a separate `ServiceFingerprint` model — see
 | `state_reason_ip` | VarbinaryIPField (nullable) — IP that actually sent the response. Differs from the target IP when an intermediate firewall rewrites/responds on behalf of the host. |
 | `tunnel` | CharField(16) — `ssl` for TLS-wrapped services (HTTPS on 443, SMTPS on 465, IMAPS on 993), empty for plain. Drives "is this port speaking TLS?" filters without parsing the service_name string — useful because nmap sometimes mis-labels the service while still correctly tagging the tunnel. |
 | `service_fp` | TextField — raw nmap service fingerprint string. Useful when `service_name` is generic (`unknown`) and you want to submit the fingerprint upstream to nmap's signature database. |
+| `service_method` | CharField(16) — how nmap identified the service: `table` (looked up the port number in `nmap-services` — fast but often wrong for non-standard ports), `probed` (actually fingerprinted via `-sV`). Calibrates how much to trust `service_name`. |
+| `service_conf` | PositiveSmallIntegerField (nullable) — nmap's 1-10 confidence score for the service identification. Low values indicate the match was port-table-only or a partial fingerprint. Filterable to triage "definitely this service" (8-10) vs "guessing" (1-3). |
 
 **Base class:** `BaseModel` (lightweight — no status/tags/change-log).
 

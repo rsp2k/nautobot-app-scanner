@@ -120,6 +120,30 @@ picking the new agent as the executor.
 
 ## Operational notes
 
+### Base image: `nicolaka/netshoot` (Phase G)
+
+The agent image extends `nicolaka/netshoot:v0.13` rather than a minimal
+Alpine+nmap base. netshoot bundles ~50 networking tools (dig, masscan,
+hping3, openssl, mtr, curl, scapy, …) — all reachable by the agent
+when a `ScanProfile` selects them via the `tool` field. The Dockerfile
+additionally `apk add`s `masscan` and `hping3` (not in netshoot stock),
+and runs `setcap` on `nmap` / `masscan` / `hping3` so each can use raw
+sockets without `--privileged`.
+
+**Image size tradeoff.** netshoot is ~600 MB vs ~30 MB for a minimal
+nmap-only build. For agents on flaky / metered links (satellite,
+cellular, branch with thin pipes), the larger initial pull is real
+cost. The benefit: a single image supports every probe tool the app
+dispatches (`tool=nmap` / `dig` / `masscan` / `curl` / `mtr` /
+`openssl-s_client`) so you don't have to manage one image per tool.
+
+**Per-tool capability probe.** On startup, the agent inspects each
+tool's version and posts the inventory in its `/checkin/` capabilities
+payload — Nautobot sees which tools the agent actually has and can
+dispatch accordingly. A profile that asks for a tool the agent doesn't
+have results in a scan that immediately moves to `status=failed` with
+the missing-tool name in `error_message`.
+
 ### CAP_NET_RAW for ARP discovery
 
 nmap's `-PR` (ARP ping) and OS-fingerprint (`-O`) need raw sockets. Both

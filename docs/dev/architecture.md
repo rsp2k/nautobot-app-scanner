@@ -317,3 +317,109 @@ list view's `get_queryset()` combines them too so the **Vulns**
 column stays accurate without a per-row fallback. Existing
 `vulners`-only deployments behave identically — host-scope findings
 simply remain empty if you never run a host-scope-script profile.
+
+## ADR-013: Pluggable parser dispatch (multi-tool agent foundation)
+
+Until Phase G, every code path assumed "the tool is nmap" — the
+parser was libnmap-only, the agent's `build_argv()` hardcoded
+`[nmap, -oX, -, …]`, the ingest endpoint accepted only XML. This
+locked out everything the agent's host machine could do beyond nmap.
+
+The fix: a **dispatch dict** mapping tool name to parser callable
+(`parser.PARSERS = {"nmap": parse_nmap, "dig": parse_dig, …}`) with
+a `dispatch_parser(tool_name) → callable` helper. ScanProfile gains
+a `tool` field; the agent's `TOOL_REGISTRY` maps tool name to
+`(argv_builder, content_type)`; the ingest endpoint reads the
+`X-Tool` request header to pick which parser runs.
+
+**The polymorphic-class alternative considered:** a `ToolBackend`
+abstract base class with `build_argv() / parse_output()` methods,
+one subclass per tool. Cleaner inheritance, more Java-shaped.
+
+**Why dispatch dict instead:**
+
+- **Parsers are pure functions.** They take raw bytes, return a
+  list of `ParsedHost` dataclasses. No state, no setup, no teardown.
+  A class adds zero behavior over a top-level `def`.
+- **Adding a tool is 3 changes, not 3 files.** Append to `PARSERS`,
+  append to `TOOL_REGISTRY` on the agent, add a `choices` value.
+  A polymorphic hierarchy would require a new module per subclass
+  plus registration glue.
+- **Dispatch is `O(1)` dict lookup.** `isinstance()` chains in a
+  registry walker would be `O(n)` and a future maintainer would
+  reasonably wonder why we chose them.
+- **Field validation lives where the data lives.** `tool_arguments`
+  validation happens in the per-tool `argv_builder` function on the
+  agent — no need to push validation up into the model when the
+  agent is going to revalidate anyway.
+
+**Back-compat.** `ScanProfile.tool` defaults to `nmap`. Every
+pre-Phase-G seeded profile (migrations 0002, 0005, 0010) creates
+nmap-shaped profiles that simply inherit the default and keep
+working. Pre-Phase-G agents that don't send `X-Tool` get treated
+as nmap submissions.
+
+**Raw output storage.** `Scan.raw_xml` stays as the nmap field;
+`Scan.raw_output` is the parallel for non-XML tools (gzipped to
+`media/scanner/output/YYYY/MM/`). Mutually exclusive — exactly one
+is populated per scan, indicated by `tool_used`. Could have been
+collapsed into a single field with file-extension discrimination,
+but separate fields make "give me every nmap scan's XML" a clean
+queryset filter instead of a path-suffix string match.
+
+## ADR-014: Pentest mode permission gating + immutable audit flag
+
+Phase I adds five pentest-class fields to `ScanProfile`
+(`decoy_addresses` / `fragment_packets` / `mtu` / `source_port` /
+`idle_scan_zombie`). Each maps to one nmap evasion flag. Setting
+any one flips the profile into "pentest mode," and:
+
+1. **Dispatch is gated by a new permission**
+   (`nautobot_scanner.use_pentest_profiles`). Without it, dispatch
+   raises `PermissionDenied` with the legal-authorization notice
+   in the message. Editing or viewing pentest profiles is *not*
+   gated — only dispatch.
+2. **`Scan.was_pentest_mode` is stamped True at dispatch** and
+   never updated afterward.
+
+**The derived-at-render alternative considered:** compute
+"is_pentest" by reading the linked profile's flags whenever the UI
+renders a scan. Simpler schema (no extra column), no migration.
+
+**Why stamp instead:**
+
+- **Profiles get edited.** An operator could dispatch with three
+  pentest flags set, then later edit the profile to clean
+  configuration. The historical answer to "was THIS scan dispatched
+  in pentest mode?" must stay correct forever — for audit, for
+  compliance review, for incident response — regardless of
+  subsequent profile edits. Derived-at-render returns whatever
+  the profile *currently* says.
+- **Filterability.** With a stored, db-indexed Boolean, the question
+  "show me every pentest scan from the last quarter" is a
+  one-clause queryset filter. Derived from the profile, it would
+  require joining and walking five nullable fields in WHERE.
+- **Audit trail without webhook gymnastics.** The stamped value
+  flows through change-log, GraphQL, exports, and webhooks without
+  any custom serializer code.
+
+**Why permission gating in `utils.check_pentest_permission()`, not
+per-view.** Three dispatch sites exist: `jobs.RunScan`,
+`jobs.ScanPrefix`, `views.DiscoveredHostRescanView`. Inlining the
+permission check in each would mean three places to forget to
+update when adding a fourth dispatch site. The centralized helper
+also returns the `is_pentest` flag, so the caller can stamp
+`was_pentest_mode` in one call:
+
+```python
+was_pentest = check_pentest_permission(request.user, scan.profile)
+scan.was_pentest_mode = was_pentest
+scan.save()
+```
+
+**Form-side legal-warning banner.** The pentest fields render under
+a yellow legal-authorization banner on the `ScanProfile` add/edit
+form (operators can't claim they didn't know). The
+[Pentest Mode user docs](../user/pentest_mode.md) carry the
+detailed permission-setup walkthrough so this banner doesn't need
+to explain everything inline.

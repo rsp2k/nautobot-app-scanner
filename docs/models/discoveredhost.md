@@ -34,6 +34,9 @@ historical per-scan state is preserved.
 | `os_gen` | CharField(32) — OS generation/version string from nmap's `osclass` `osgen` (e.g. `10`, `7`, `2.4.X`). Coarser than `os_type` — useful for rolling up "Windows 10 family" without caring which specific build. |
 | `os_cpe` | JSONField (list of strings) — CPE strings nmap associates with the OS match (e.g. `['cpe:/o:microsoft:windows_10']`). The **bridge to CVE databases** — feed these into your vuln-tracking system to correlate OS-level CVEs. |
 | `os_alternative_matches` | JSONField (list of dicts) — alternative OS guesses beyond the top match, as `[{'name': str, 'accuracy': int}, ...]`. Tells operators whether the top guess was 95% top / 92% next (close call worth eyeballing) vs 90% top / 50% next (clear winner). |
+| `hostnames` | JSONField (list of strings) — full list of hostnames nmap reported (PTR records + user-supplied). The denormalized first entry stays in `hostname` for table-cell display; this carries the rest. Useful when a host has multiple PTRs (`device1.example.com`, `mgmt.device1.example.com`). |
+| `ip_sequence_class` | CharField(64) — IP ID sequence class from nmap's IP-sequence-prediction step (e.g. `All zeros`, `Incremental`, `Randomized`). OS-fingerprinting signal complementary to `tcp_sequence_class` — same row purpose, different probe surface. |
+| `extraports` | JSONField (dict) — nmap's "extraports" summary: when most scanned ports share one state (`Not shown: 997 filtered tcp ports`), nmap collapses them rather than emitting 997 individual rows. Shape: `{state, count, reasons: [{reason, count}, ...]}`. Lets you know "997 filtered" without 997 `DiscoveredPort` rows polluting the host detail page. |
 
 <figure markdown>
 ![DiscoveredHost detail page for firewall-01 showing populated Os Family=FortiOS, Os Accuracy=100, Distance Hops=1](../images/walkthrough-host-detail-populated.png)

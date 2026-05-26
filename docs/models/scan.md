@@ -21,8 +21,12 @@ colliding with Nautobot's `extras.jobs.Job` namespace.
 | `completed_at` | DateTime, nullable |
 | `summary` | JSONField — counts populated at ingest (hosts, ports, vulns) |
 | `ingestion_token` | UUID (unique, nullable) — one-shot; required on POST `/ingest/`. Cleared after ingest |
-| `raw_xml` | FileField — gzipped nmap XML stored under `media/scanner/xml/YYYY/MM/` |
+| `raw_xml` | FileField — gzipped nmap XML stored under `media/scanner/xml/YYYY/MM/`. Only populated when `tool_used='nmap'` |
 | `raw_xml_size` | PositiveIntegerField — uncompressed XML size in bytes |
+| `tool_used` | CharField(24, db_indexed) — which probe tool produced this scan's output (`nmap`, `dig`, `masscan`, …). Stamped at ingest from the agent's `X-Tool` header. Empty for pre-Phase-G scans. |
+| `raw_output` | FileField — gzipped non-XML output from non-nmap tools (dig text, masscan JSON, …) stored under `media/scanner/output/YYYY/MM/`. **Mutually exclusive with `raw_xml`**: nmap scans use `raw_xml`, everything else uses `raw_output`. |
+| `raw_output_size` | PositiveIntegerField — uncompressed `raw_output` size in bytes |
+| `was_pentest_mode` | BooleanField (db_indexed) — **stamped True at dispatch** when the chosen profile had any pentest-class flag set (decoys / fragmentation / idle scan / custom MTU / source-port). Persists forever per [ADR-014](../dev/architecture.md#adr-014-pentest-mode-permission-gating-immutable-audit-flag) — answers "was THIS scan a pentest run?" even after the profile is edited. |
 | `job_result` | FK to `extras.JobResult` (SET_NULL) — back-link to dispatching Job run |
 | `error_message` | TextField — populated when `status=failed` |
 
