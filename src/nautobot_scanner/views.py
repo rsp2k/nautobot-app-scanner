@@ -607,10 +607,17 @@ class DiscoveredHostRescanView(LoginRequiredMixin, PermissionRequiredMixin, View
         host = get_object_or_404(models.DiscoveredHost, pk=pk)
         parent = host.scan
 
+        # Phase I: re-check pentest permission on rescan. The parent
+        # scan may have been authorized for a different user; the
+        # rescan must be authorized for THIS request.user.
+        from nautobot_scanner.utils import check_pentest_permission
+        was_pentest_mode = check_pentest_permission(request.user, parent.profile)
+
         new_scan = models.Scan.objects.create(
             agent=parent.agent,
             profile=parent.profile,
             target_raw_ips=[str(host.ip_address)],
+            was_pentest_mode=was_pentest_mode,
         )
 
         from nautobot_scanner.backends import get_backend

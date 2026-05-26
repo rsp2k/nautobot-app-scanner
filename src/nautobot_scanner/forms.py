@@ -60,14 +60,75 @@ class ScannerAgentFilterForm(NautobotFilterForm):
 # ScanProfile
 # -----------------------------------------------------------------------------
 class ScanProfileForm(NautobotModelForm):
-    """Create/edit form for ScanProfile."""
+    """Create/edit form for ScanProfile.
+
+    Phase G added ``tool`` + ``tool_arguments`` for non-nmap profiles.
+    Phase I added the pentest-mode fields (decoys, fragmentation,
+    idle scan, MTU, source port). The pentest fields render under a
+    yellow legal-warning banner; see the template override in
+    ``templates/nautobot_scanner/scanprofile_edit.html``.
+    """
+
+    # Custom help-bearing widget for the pentest section. The form
+    # accepts these fields normally; the banner + grouping is purely
+    # presentational. Server-side dispatch is what actually gates them
+    # via utils.check_pentest_permission, not the form layer.
+    decoy_addresses = forms.CharField(
+        widget=forms.Textarea(attrs={"rows": 2, "placeholder": "192.0.2.1,ME,192.0.2.3"}),
+        required=False,
+        help_text="nmap -D: spoofed source IPs. Use 'ME' to place the real one in the list.",
+    )
+    mtu = forms.IntegerField(
+        required=False,
+        min_value=8,
+        max_value=65528,
+        help_text="nmap --mtu N: must be a multiple of 8. Overrides 'fragment packets' when set.",
+    )
 
     class Meta:
         model = models.ScanProfile
         fields = (
-            "name", "scan_type", "nmap_arguments", "timing_template",
-            "enabled_scripts", "description", "tags",
+            # Phase G fields first — what kind of probe is this?
+            "name", "tool", "scan_type",
+            "nmap_arguments", "tool_arguments",
+            "timing_template", "enabled_scripts", "description",
+            # Phase I pentest fields — gated server-side
+            "decoy_addresses", "fragment_packets", "mtu",
+            "source_port", "idle_scan_zombie",
+            "tags",
         )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Phase G: nmap_arguments is no longer required (non-nmap
+        # profiles leave it blank). Mirror the model's blank=True.
+        if "nmap_arguments" in self.fields:
+            self.fields["nmap_arguments"].required = False
+        # Phase I: the help-text on the first pentest field carries the
+        # legal-authorization warning. Rendered as HTML for visibility;
+        # mark_safe is intentional — the string is a literal we control.
+        from django.utils.safestring import mark_safe
+        from nautobot_scanner.utils import PENTEST_LEGAL_NOTICE
+        if "decoy_addresses" in self.fields:
+            self.fields["decoy_addresses"].help_text = mark_safe(
+                '<div style="margin:.5rem 0;padding:.6rem .9rem;'
+                'background:rgba(180,140,0,.18);border-left:3px solid #d9a300;'
+                'border-radius:4px;font-size:.9em">'
+                '<strong>⚠ Pentest mode — authorization required.</strong><br>'
+                + PENTEST_LEGAL_NOTICE
+                + ' Dispatching a profile with any of the fields below set '
+                'requires the <code>nautobot_scanner.use_pentest_profiles</code> '
+                'permission.'
+                '</div>'
+                '<small>nmap -D: spoofed source IPs. Use \'ME\' to place the real one in the list.</small>',
+            )
+
+    def clean_mtu(self):
+        """Enforce nmap's multiple-of-8 constraint at the form layer."""
+        value = self.cleaned_data.get("mtu")
+        if value is not None and value % 8 != 0:
+            raise forms.ValidationError("MTU must be a multiple of 8 (nmap requirement).")
+        return value
 
 
 class ScanProfileFilterForm(NautobotFilterForm):

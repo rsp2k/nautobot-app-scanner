@@ -168,6 +168,52 @@ class ScanProfile(PrimaryModel):
     )
     description = models.CharField(max_length=CHARFIELD_MAX_LENGTH, blank=True)
 
+    # ----- Phase I: pentest / red-team mode fields -----
+    # Each maps directly to an nmap flag. All have empty/false defaults
+    # so the existing seeded profiles are unaffected. Dispatching ANY
+    # profile that sets one or more of these flags requires the new
+    # ``use_pentest_profiles`` permission — see _is_pentest_mode() below.
+    decoy_addresses = models.TextField(
+        blank=True,
+        help_text=(
+            "nmap -D: comma-separated IPs to spoof as additional source "
+            "addresses alongside the agent's real address. Use 'ME' to "
+            "position the real address in the decoy list. Example: "
+            "'192.0.2.1,192.0.2.2,ME,192.0.2.3'. PENTEST MODE."
+        ),
+    )
+    fragment_packets = models.BooleanField(
+        default=False,
+        help_text="nmap -f: fragment outgoing packets to confuse simple IDS rules. PENTEST MODE.",
+    )
+    mtu = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        help_text=(
+            "nmap --mtu N: fragment with custom MTU (must be a multiple "
+            "of 8). Overrides -f when set. PENTEST MODE."
+        ),
+    )
+    source_port = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        help_text=(
+            "nmap --source-port N: spoof a specific source port for "
+            "outgoing probes. Useful for bypassing rules that allow "
+            "traffic from common-service source ports (53, 88, 443). "
+            "PENTEST MODE."
+        ),
+    )
+    idle_scan_zombie = models.CharField(
+        max_length=64,
+        blank=True,
+        help_text=(
+            "nmap -sI <ip>: idle scan via a zombie host. Routes all "
+            "probes through the zombie so the target sees the zombie "
+            "as the attacker. Only one zombie per profile. PENTEST MODE."
+        ),
+    )
+
     natural_key_field_names = ["name"]
 
     class Meta:
@@ -176,7 +222,37 @@ class ScanProfile(PrimaryModel):
         ordering = ("name",)
         verbose_name = "scan profile"
         verbose_name_plural = "scan profiles"
+        # Phase I: gate dispatch of pentest-flagged profiles behind an
+        # explicit Django permission. The dispatch path checks this
+        # against the user that triggered the scan; without it, the
+        # scan is rejected before any nmap argv is constructed.
+        permissions = [
+            (
+                "use_pentest_profiles",
+                "Can dispatch scan profiles using pentest flags "
+                "(decoys, fragmentation, idle scan, custom MTU/source-port). "
+                "Restricted because these flags are dual-use and "
+                "misuse can violate scanning authorization.",
+            ),
+        ]
 
     def __str__(self) -> str:
         """Display string."""
         return self.name
+
+    @property
+    def is_pentest_mode(self) -> bool:
+        """True when any pentest-class flag is set.
+
+        Used by dispatch + UI gating: pentest-mode profiles render a
+        yellow banner, require ``nautobot_scanner.use_pentest_profiles``
+        to dispatch, and stamp Scan.was_pentest_mode = True at runtime
+        for filterable audit queries.
+        """
+        return bool(
+            self.decoy_addresses
+            or self.fragment_packets
+            or self.mtu
+            or self.source_port
+            or self.idle_scan_zombie,
+        )

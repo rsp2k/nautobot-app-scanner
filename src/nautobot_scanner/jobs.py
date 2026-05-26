@@ -26,6 +26,7 @@ from nautobot.ipam.models import IPAddress, Prefix
 from nautobot_scanner.backends import get_backend
 from nautobot_scanner.choices import ScanStateChoices
 from nautobot_scanner.models import Scan, ScannerAgent, ScanProfile
+from nautobot_scanner.utils import check_pentest_permission
 
 logger = logging.getLogger(__name__)
 
@@ -124,10 +125,18 @@ class RunScan(Job):
             )
             raise ValueError("Overlapping scan in progress on this agent.")
 
+        # Phase I: pentest-mode profiles require an explicit permission.
+        # check_pentest_permission raises PermissionDenied on failure;
+        # the bool return value is stamped on Scan.was_pentest_mode so
+        # the audit answer to "was THIS scan a pentest run?" is rowed-up
+        # and won't change if someone edits the profile later.
+        was_pentest_mode = check_pentest_permission(self.user, profile)
+
         scan = Scan.objects.create(
             agent=agent,
             profile=profile,
             job_result=self.job_result,
+            was_pentest_mode=was_pentest_mode,
         )
         scan.target_prefixes.set(target_prefixes)
         scan.target_ipaddresses.set(target_ipaddresses)
@@ -200,7 +209,11 @@ class ScanPrefix(Job):
                 self.logger.error("No ScanProfile records exist — create one before scanning.")
                 raise ValueError("No profile available.")
 
-        scan = Scan.objects.create(agent=agent, profile=profile, job_result=self.job_result)
+        was_pentest_mode = check_pentest_permission(self.user, profile)
+        scan = Scan.objects.create(
+            agent=agent, profile=profile, job_result=self.job_result,
+            was_pentest_mode=was_pentest_mode,
+        )
         scan.target_prefixes.add(prefix)
         self.logger.info("ScanPrefix dispatching %s on agent %s", prefix.prefix, agent.name)
         get_backend(agent).dispatch(scan)

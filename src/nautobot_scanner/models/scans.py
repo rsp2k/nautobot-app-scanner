@@ -124,6 +124,22 @@ class Scan(PrimaryModel):
         default=0,
         help_text="Uncompressed size of raw_output in bytes.",
     )
+    # Phase I: stamped True at dispatch time when the profile had any
+    # pentest-class flag set (decoys, fragmentation, idle scan, etc.).
+    # Stored on the Scan (not derived from the profile at query time)
+    # because the profile can be edited after the scan; we need the
+    # historical answer to "was THIS scan a pentest-mode run?" for
+    # audit queries like "show every pentest scan run last quarter."
+    was_pentest_mode = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text=(
+            "True if this scan dispatched with any pentest-class flags "
+            "(decoys, fragmentation, idle scan, custom MTU/source-port). "
+            "Stamped at dispatch time from the profile's state; the "
+            "profile can be edited later without changing this value."
+        ),
+    )
     job_result = models.ForeignKey(
         to="extras.JobResult",
         on_delete=models.SET_NULL,

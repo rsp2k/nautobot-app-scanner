@@ -156,6 +156,18 @@ class AgentPendingScansView(_AgentEndpointMixin, APIView):
                             "tool_arguments": scan.profile.tool_arguments or "",
                             "timing_template": scan.profile.timing_template,
                             "enabled_scripts": scan.profile.enabled_scripts or [],
+                            # Phase I: pentest flags. Older agents (pre-Phase-I)
+                            # silently ignore unknown fields; newer agents
+                            # translate each populated field into the matching
+                            # nmap flag. The fields are also gated server-side
+                            # so an unauthorized profile never makes it this far.
+                            "pentest": {
+                                "decoy_addresses": scan.profile.decoy_addresses or "",
+                                "fragment_packets": bool(scan.profile.fragment_packets),
+                                "mtu": scan.profile.mtu,
+                                "source_port": scan.profile.source_port,
+                                "idle_scan_zombie": scan.profile.idle_scan_zombie or "",
+                            },
                         },
                         "targets": {
                             "prefixes": [str(p.prefix) for p in scan.target_prefixes.all()],

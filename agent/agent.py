@@ -180,7 +180,13 @@ def _all_targets(scan: dict) -> list[str]:
 
 
 def build_nmap_argv(scan: dict) -> list[str]:
-    """Compose nmap argv from a pending-scan payload."""
+    """Compose nmap argv from a pending-scan payload.
+
+    Includes Phase I pentest flags when present. The server gates these
+    fields behind the ``use_pentest_profiles`` permission, so if they
+    arrive in the payload at all, dispatch has been authorized — the
+    agent does not re-check.
+    """
     profile = scan["profile"]
     nmap_bin = os.environ.get("NMAP_BIN", "/usr/bin/nmap")
     argv = [nmap_bin, "-oX", "-"]
@@ -189,6 +195,24 @@ def build_nmap_argv(scan: dict) -> list[str]:
     scripts = profile.get("enabled_scripts") or []
     if scripts:
         argv.extend(["--script", ",".join(scripts)])
+
+    # Phase I: pentest flags. Each maps directly to an nmap argument.
+    # Older agent versions (pre-Phase-I) silently skip this block; older
+    # server versions don't include the "pentest" sub-dict, so .get()
+    # returns an empty dict and nothing is appended.
+    pentest = profile.get("pentest") or {}
+    if pentest.get("decoy_addresses"):
+        argv.extend(["-D", str(pentest["decoy_addresses"])])
+    if pentest.get("mtu"):
+        # --mtu N overrides -f; nmap requires a multiple of 8 (validated server-side)
+        argv.extend(["--mtu", str(int(pentest["mtu"]))])
+    elif pentest.get("fragment_packets"):
+        argv.append("-f")
+    if pentest.get("source_port"):
+        argv.extend(["--source-port", str(int(pentest["source_port"]))])
+    if pentest.get("idle_scan_zombie"):
+        argv.extend(["-sI", str(pentest["idle_scan_zombie"])])
+
     argv.extend(_all_targets(scan))
     return argv
 
