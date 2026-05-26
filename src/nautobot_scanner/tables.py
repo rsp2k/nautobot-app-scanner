@@ -127,6 +127,10 @@ class DiscoveredPortTable(BaseTable):
         fields = (
             "port", "protocol", "state", "service_name",
             "product", "version", "extra_info", "state_reason", "tunnel",
+            # Phase F: available-but-not-default columns. Operators that
+            # care about whether a service was guessed vs. probed (and how
+            # confidently) opt in via the table Configure menu.
+            "service_method", "service_conf",
         )
         default_columns = ("port", "protocol", "state", "service_name", "product", "version")
 

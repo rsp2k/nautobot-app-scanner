@@ -472,14 +472,17 @@ class DiscoveredHostUIViewSet(NautobotUIViewSet):
                 section=SectionChoices.LEFT_HALF,
                 weight=100,
                 fields=[
-                    "scan", "ip_address", "hostname", "mac_address", "mac_vendor",
+                    "scan", "ip_address", "hostname", "hostnames",
+                    "mac_address", "mac_vendor",
                     "host_state",
                     # OS classification — top-line + depth (Phase E)
                     "os_family", "os_type", "os_accuracy",
                     "os_vendor", "os_device_type", "os_gen", "os_cpe",
                     "os_alternative_matches",
-                    "tcp_sequence_class", "distance_hops",
-                    "uptime_seconds", "last_boot_at",
+                    # Topology + OS-fingerprint signals
+                    "tcp_sequence_class", "ip_sequence_class",
+                    "distance_hops", "uptime_seconds", "last_boot_at",
+                    "extraports",
                     "linked_ipaddress", "linked_device",
                 ],
             ),

@@ -195,6 +195,37 @@ class DiscoveredHost(PrimaryModel):
             "vs 90% top / 50% next (clear)."
         ),
     )
+    # ----- Phase F completeness sweep -----
+    # Full PTR list (we keep ``hostname`` as the denormalized first-one for
+    # table cells); ipsequence is the OS-fingerprinting companion to the
+    # TCP sequence class we already capture; extraports is nmap's bulk
+    # "997 ports filtered (no-response)" summary line.
+    hostnames = models.JSONField(
+        default=list,
+        blank=True,
+        help_text=(
+            "Full list of hostnames nmap reported (PTR + user-supplied). "
+            "The denormalized first one stays in `hostname` for table display."
+        ),
+    )
+    ip_sequence_class = models.CharField(
+        max_length=64,
+        blank=True,
+        help_text=(
+            "IP ID sequence class from nmap's IP sequence prediction "
+            "(e.g. 'All zeros', 'Incremental', 'Randomized'). OS "
+            "fingerprinting signal complementary to tcp_sequence_class."
+        ),
+    )
+    extraports = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text=(
+            "nmap's 'extraports' summary line — when most scanned ports "
+            "share a single state ('Not shown: 997 filtered tcp ports'), "
+            "nmap collapses them. Shape: {state, count, reasons: [{reason, count}, ...]}."
+        ),
+    )
     host_state = models.CharField(
         max_length=16,
         choices=HostStateChoices,
@@ -420,6 +451,27 @@ class DiscoveredPort(BaseModel):
         help_text=(
             "Raw nmap service fingerprint string. Useful when service_name is generic "
             "('unknown') and you want to submit the fingerprint to nmap upstream."
+        ),
+    )
+    # Phase F: how nmap identified the service + with what confidence.
+    # Distinguishes "looked up port number in nmap-services" (cheap, often
+    # wrong) from "actually fingerprinted the service" (slow but reliable).
+    service_method = models.CharField(
+        max_length=16,
+        blank=True,
+        help_text=(
+            "How nmap identified the service: 'table' (looked up port number "
+            "in nmap-services — fast but often wrong for non-standard ports), "
+            "'probed' (sent -sV probes and parsed responses — reliable)."
+        ),
+    )
+    service_conf = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        help_text=(
+            "nmap's confidence in the service identification (1-10). "
+            "Low values indicate the match was port-table-only or a "
+            "weak fingerprint match."
         ),
     )
 

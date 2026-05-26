@@ -75,6 +75,9 @@ class ParsedPort:
     state_reason_ip: str | None = None   # IP that responded (often a firewall); None when missing
     tunnel: str = ""                     # "ssl" for TLS-wrapped services, empty otherwise
     service_fp: str = ""                 # raw nmap service fingerprint string
+    # Phase F: how + how-confidently nmap identified the service
+    service_method: str = ""             # "table" (port-number lookup) vs "probed" (-sV)
+    service_conf: int | None = None      # 1..10 confidence score
 
 
 @dataclass
@@ -117,6 +120,10 @@ class ParsedHost:
     os_gen: str = ""                           # '10', '7', '2.4.X', ...
     os_cpe: list[str] = field(default_factory=list)  # CPE strings for the top OS match
     os_alternative_matches: list[dict] = field(default_factory=list)  # [{'name': str, 'accuracy': int}, ...]
+    # Phase F completeness sweep:
+    hostnames: list[str] = field(default_factory=list)  # full PTR list; `hostname` denormalized first
+    ip_sequence_class: str = ""                         # OS-fingerprint companion to TCP seq class
+    extraports: dict = field(default_factory=dict)      # {state, count, reasons:[{reason,count}]}
 
 
 @dataclass
@@ -243,6 +250,10 @@ def _convert_host(nmap_host) -> ParsedHost:
     # nmap exposes hostname() as a single string (first hostname in the report).
     # hostnames is a list when there are multiple PTRs.
     hostname = nmap_host.hostnames[0] if nmap_host.hostnames else ""
+    # Phase F: keep the full list too. Some hosts have user-supplied + PTR
+    # + secondary PTRs; the denormalized single one stays in `hostname` for
+    # table cells, the rest go into `hostnames` for full-text search.
+    hostnames = list(nmap_host.hostnames or [])
 
     # OS detection: libnmap exposes os_match_probabilities() returning a list
     # of NmapOSMatch objects sorted by accuracy. We take the top guess for
@@ -320,6 +331,44 @@ def _convert_host(nmap_host) -> ParsedHost:
     except (AttributeError, TypeError):
         pass
 
+    # Phase F: companion IP ID sequence class (libnmap exposes it as a
+    # plain string OR dict depending on version — handle both).
+    ip_sequence_class = ""
+    try:
+        ipseq = getattr(nmap_host, "ipsequence", None)
+        if isinstance(ipseq, dict):
+            ip_sequence_class = ipseq.get("class", "") or ""
+        elif isinstance(ipseq, str):
+            ip_sequence_class = ipseq
+    except (AttributeError, TypeError):
+        pass
+
+    # Phase F: extraports summary ("997 filtered ports (no-response)").
+    # libnmap exposes `extraports_state` as a NESTED dict — keys "state"
+    # AND "count" both point to the SAME inner dict shape
+    # {'state': str, 'count': str}. Quirk of libnmap; we unwrap once.
+    # `extraports_reasons` is a list of {reason, count, proto, ports} dicts.
+    extraports: dict = {}
+    try:
+        ep_state = getattr(nmap_host, "extraports_state", None)
+        ep_reasons = getattr(nmap_host, "extraports_reasons", None) or []
+        # Walk one level in if the value is itself a dict (libnmap quirk).
+        inner = ep_state
+        if isinstance(inner, dict) and isinstance(inner.get("state"), dict):
+            inner = inner["state"]
+        if isinstance(inner, dict) and inner.get("count"):
+            extraports = {
+                "state": inner.get("state", "") or "",
+                "count": int(inner.get("count", 0)),
+                "reasons": [
+                    {"reason": r.get("reason", ""), "count": int(r.get("count", 0))}
+                    for r in ep_reasons
+                    if isinstance(r, dict)
+                ],
+            }
+    except (AttributeError, TypeError, ValueError):
+        pass
+
     # Host-scope NSE script results. libnmap exposes these via
     # `nmap_host.scripts_results` as a list of dicts shaped like
     # `{"id": str, "output": str, ...}` — identical shape to per-port
@@ -332,6 +381,7 @@ def _convert_host(nmap_host) -> ParsedHost:
         ip_address=nmap_host.address,
         host_state=state,
         hostname=hostname,
+        hostnames=hostnames,
         mac_address=mac,
         mac_vendor=resolve_mac_vendor(mac),
         os_family=os_family,
@@ -348,6 +398,8 @@ def _convert_host(nmap_host) -> ParsedHost:
         distance_hops=distance_hops,
         uptime_seconds=uptime_seconds,
         tcp_sequence_class=tcp_sequence_class,
+        ip_sequence_class=ip_sequence_class,
+        extraports=extraports,
         # last_boot_at left as None at parse time; persist() derives it
         # from scan.completed_at - uptime_seconds so the displayed time
         # matches when the *scan ran*, not when parse-time happens to be.
@@ -399,6 +451,18 @@ def _convert_port(nmap_service, nmap_host) -> ParsedPort:
     state_reason_ip: str | None = _raw_reason_ip if _raw_reason_ip else None
     tunnel = service_dict.get("tunnel", "") or ""
     service_fp = getattr(nmap_service, "servicefp", "") or ""
+    # Phase F: how nmap identified this service + confidence (1..10).
+    # "method" lives in service_dict — values are "table" (just looked up
+    # the port in nmap-services) or "probed" (actually fingerprinted with
+    # -sV). "conf" is libnmap's confidence score.
+    service_method = service_dict.get("method", "") or ""
+    service_conf: int | None = None
+    try:
+        c = service_dict.get("conf")
+        if c is not None and str(c) != "":
+            service_conf = int(c)
+    except (TypeError, ValueError):
+        pass
 
     return ParsedPort(
         port=nmap_service.port,
@@ -416,6 +480,8 @@ def _convert_port(nmap_service, nmap_host) -> ParsedPort:
         state_reason_ip=state_reason_ip,
         tunnel=tunnel,
         service_fp=service_fp,
+        service_method=service_method,
+        service_conf=service_conf,
     )
 
 
@@ -604,6 +670,7 @@ def persist(scan: Scan, parsed: list[ParsedHost], report: ParsedReport | None = 
             mac_address=ph.mac_address,
             mac_vendor=ph.mac_vendor,
             hostname=ph.hostname,
+            hostnames=ph.hostnames,
             os_family=ph.os_family,
             os_type=ph.os_type,
             os_accuracy=ph.os_accuracy,
@@ -618,6 +685,8 @@ def persist(scan: Scan, parsed: list[ParsedHost], report: ParsedReport | None = 
             uptime_seconds=ph.uptime_seconds,
             last_boot_at=last_boot_at,
             tcp_sequence_class=ph.tcp_sequence_class,
+            ip_sequence_class=ph.ip_sequence_class,
+            extraports=ph.extraports,
             valid_during=valid_during,
             # recorded_during defaults to [now(), None) via the model default
             # entry_id defaults to a fresh uuid4 via the model default
@@ -645,6 +714,8 @@ def persist(scan: Scan, parsed: list[ParsedHost], report: ParsedReport | None = 
                 state_reason_ip=pp.state_reason_ip,
                 tunnel=pp.tunnel,
                 service_fp=pp.service_fp,
+                service_method=pp.service_method,
+                service_conf=pp.service_conf,
             )
             if pp.state == PortStateChoices.OPEN:
                 summary["ports_open"] += 1
