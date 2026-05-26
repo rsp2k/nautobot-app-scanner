@@ -34,6 +34,7 @@ from django.utils import timezone
 from nautobot.apps.constants import CHARFIELD_MAX_LENGTH
 from nautobot.apps.models import BaseModel, PrimaryModel
 from nautobot.extras.utils import extras_features
+from nautobot.core.models.querysets import RestrictedQuerySet
 from nautobot.ipam.fields import VarbinaryIPField
 from psycopg2.extras import DateTimeTZRange
 
@@ -45,8 +46,15 @@ def _open_belief_window() -> DateTimeTZRange:
     return DateTimeTZRange(lower=timezone.now(), upper=None, bounds="[)")
 
 
-class DiscoveredHostQuerySet(models.QuerySet):
+class DiscoveredHostQuerySet(RestrictedQuerySet):
     """Bitemporal query helpers for DiscoveredHost.
+
+    Inherits from Nautobot's RestrictedQuerySet (not plain models.QuerySet)
+    so .restrict(user, "view") works — that's the method Nautobot's
+    ObjectsTablePanel calls on every nested queryset to apply
+    permission-based row filtering. Forgetting this inheritance breaks
+    every panel that renders DiscoveredHost rows (Scan detail, Device
+    detail, IPAddress detail) with a 500.
 
     ``objects`` (the default manager) still returns *all* rows including
     superseded beliefs — matches Django's "manager.all() returns all rows"
