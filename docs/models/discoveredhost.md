@@ -14,6 +14,7 @@ historical per-scan state is preserved.
 | `scan` | FK to `Scan` (CASCADE) |
 | `ip_address` | `VarbinaryIPField` (db_indexed) — IPv4 or IPv6 as reported by nmap |
 | `mac_address` | CharField(17) — L2 MAC if nmap resolved it (ARP for v4, NDP for v6) |
+| `mac_vendor` | CharField(128, db_indexed) — IEEE-registered manufacturer resolved from the MAC's OUI via `netaddr`'s bundled registry. Filled at ingest; empty when `mac_address` is blank or the OUI isn't in the registry (typically locally-administered VM/container MACs). |
 | `hostname` | CharField |
 | `os_family` | CharField — high-level OS guess (Linux, Windows, BSD) from `-O` |
 | `os_type` | CharField — specific OS string (e.g. `Linux 5.x`, `Windows Server 2019`) |
@@ -21,6 +22,9 @@ historical per-scan state is preserved.
 | `host_state` | CharField (choices=`HostStateChoices`, db_indexed) — `up` / `down` / `unknown` / `skipped` |
 | `linked_ipaddress` | FK to `ipam.IPAddress` (SET_NULL, db_indexed) — populated by the **Promote to IPAddress** action |
 | `linked_device` | FK to `dcim.Device` (SET_NULL, db_indexed) — auto-resolved at ingest by matching IP against `Device.primary_ip4/6` |
+| `valid_during` | DateTimeRangeField (nullable) — *wire time*: the window during which nmap actually observed this host. Typically `[scan.started_at, scan.completed_at]`. NULL for legacy/malformed rows. |
+| `recorded_during` | DateTimeRangeField (required, defaults to `[now(), ∞)`) — *belief time*: when scanner-app believed this row was the current state of `(scan, ip)`. Upper bound closes when a re-parse supersedes the row. |
+| `entry_id` | UUIDField (db_indexed, default=`uuid4`) — distinguishes successive beliefs about the same `(scan, ip)` observation. |
 
 **Base class:** `PrimaryModel`.
 
@@ -29,7 +33,58 @@ export_templates, graphql, relationships, webhooks.
 
 ## Unique constraint
 
-`(scan, ip_address)` — one host per scan.
+`(scan, ip_address)` — *partial* unique index, enforced only on rows
+where `recorded_during__upper IS NULL` (the currently-held belief).
+Multiple historical-belief rows for the same `(scan, ip)` are expected
+and supported, distinguished by `entry_id`. The partial-unique pattern
+was chosen over PostgreSQL `ExclusionConstraint` because the only
+failure mode that actually arises is "two CURRENT beliefs collide on
+insert" — amendment paths always close the prior belief atomically,
+so overlapping belief windows would only arise from buggy amendments,
+which the simpler partial unique catches at insert time anyway.
+
+## Bitemporality
+
+The model carries two independent time dimensions — this is the
+"tier-4" bitemporal pattern, modeled after l2trace.warehack.ing.
+
+| Axis | Field | What it means |
+|------|-------|---------------|
+| **Valid time** (wire time) | `valid_during` | When nmap actually observed this host — typically the parent scan's `[started_at, completed_at]` window. |
+| **Recorded time** (belief time) | `recorded_during` | When scanner-app believed this row was the current state of `(scan, ip)`. `[ingest_time, ∞)` while it's the current belief; `[ingest_time, supersede_time)` after a re-parse closes it. |
+
+Re-parsing an old scan after a parser bugfix doesn't destroy the prior
+belief — it closes the old row's `recorded_during` window and inserts
+a new row with a fresh `entry_id` and an open-ended `recorded_during`.
+The diff view's `?as_of=<datetime>` hook (machinery exists; UI surface
+deferred) reproduces past beliefs by filtering on this axis.
+
+### QuerySet helpers
+
+The default manager returns **all rows including superseded beliefs** —
+this matches Django's `manager.all() returns all rows` contract, which
+Nautobot internals (admin, serializers, list viewsets) rely on. Three
+chainable methods scope by time:
+
+| Method | Returns |
+|--------|---------|
+| `.current()` | Rows whose `recorded_during` contains `now()` — i.e., the currently-held belief about each `(scan, ip)`. The default for user-facing list views. |
+| `.as_of(dt)` | Rows whose `recorded_during` contains the given recorded-time `dt`. Replays "what we believed at time T." |
+| `.for_wire_time(dt)` | Rows whose `valid_during` contains the given wire-time `dt`. Returns ALL beliefs (current + historical) for any observation that included `dt`; chain with `.current()` or `.as_of(T)` to scope by recording-time. |
+
+```python
+from nautobot_scanner.models import DiscoveredHost
+from django.utils import timezone
+
+# Current belief about every host across all scans
+DiscoveredHost.objects.current()
+
+# What did we believe at the start of last quarter
+DiscoveredHost.objects.as_of(timezone.datetime(2026, 1, 1))
+
+# Every host that was observed at 2:30am UTC today, all beliefs
+DiscoveredHost.objects.for_wire_time(timezone.datetime(2026, 5, 26, 2, 30))
+```
 
 ## Indexes
 
@@ -75,6 +130,7 @@ for both flows.
 
 - [App Overview](../user/app_overview.md)
 - [Promote to IPAddress](../user/promotion.md)
+- [Comparing Scans](../user/scan_diff.md) — uses `.as_of()` to anchor diffs at a specific belief time
 
 ::: nautobot_scanner.models.DiscoveredHost
     options:

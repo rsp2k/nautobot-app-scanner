@@ -104,3 +104,22 @@ log stream.
 ![JobResult detail for Mark Stale Agents Offline showing Status=Completed and Result Data=0](../images/jobresult-mark-stale-agents.png)
 <figcaption>A completed `MarkStaleAgents` JobResult. The **Result Data** value (`"0"` here) is the count of agents flipped this run — when an agent is already `Offline`, the query correctly excludes it, so a follow-up sweep is a no-op.</figcaption>
 </figure>
+
+## Comparing scans — drift detection
+
+Once you have two or more completed scans on the same agent, the
+**Compare with previous scan on \<agent\>** button on any completed
+scan's detail page surfaces a side-by-side diff: added hosts, removed
+hosts, changed hosts (with per-field deltas), and an unchanged count.
+
+<figure markdown>
+![Scan diff summary tiles showing 0 added, 0 removed, 27 changed, 3 unchanged](../images/scan-diff-summary.png)
+<figcaption>Diff summary tiles for a same-agent comparison. `vuln` → `os-detect` on 30 hosts: zero churned in or out, 27 had observable field changes (OS fingerprints newly populated, vuln counts dropped because the second profile doesn't run `vulners`), 3 unchanged. See [Comparing Scans](scan_diff.md) for the full walkthrough.</figcaption>
+</figure>
+
+The diff is computed via the pure-function machinery in
+`nautobot_scanner.diff` — accessible programmatically too (`from
+nautobot_scanner.diff import diff_scans`) for reporting, webhooks, or
+alerting. See [Comparing Scans](scan_diff.md) for the data model,
+which fields count as "changed," the bitemporal anchoring story, and
+the `?vs=<other_scan_pk>` URL parameter for non-default comparisons.

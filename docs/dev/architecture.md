@@ -184,3 +184,84 @@ duplicate that.
 useful for rogue-host detection. But the right place for that is a
 dedicated time-series table or external SIEM — not first-class in this
 schema.
+
+## ADR-010: Bitemporal `DiscoveredHost` (valid time + recorded time)
+
+Each `DiscoveredHost` row carries two independent time dimensions —
+`valid_during` (wire time: when nmap observed the host) and
+`recorded_during` (belief time: when scanner-app believed this row was
+the current state of `(scan, ip)`). This is the "tier-4" bitemporal
+pattern, ported from `l2trace.warehack.ing`.
+
+**The single-temporal alternative:** keep one row per `(scan, ip)`,
+overwrite on re-parse. Simpler schema, simpler queries, no `entry_id`
+field, no partial-unique index, no `current()` / `as_of()` methods.
+
+**Why we pay the cost anyway:** the operational scenarios that
+single-temporal can't handle are real and recurring.
+
+- **Re-parsing without rewriting history.** Parser bugs ship. When you
+  fix one and re-process the stored XML, single-temporal silently
+  changes what every prior report would have said. Bitemporal closes
+  the old belief's `recorded_during` window and inserts a new row —
+  the old answer remains queryable for anyone who needs to reproduce a
+  report against last week's belief.
+- **Diff reproducibility.** [Comparing Scans](../user/scan_diff.md)
+  accepts `as_of=<datetime>` to anchor the diff at a recorded-time
+  other than `now()`. A colleague's "Tuesday saw X" claim stays
+  verifiable on Friday even after a re-parse.
+- **Audit trail without a separate model.** Single-temporal would need
+  an `AuditLog` table to capture "what did this row look like before
+  the re-parse." Bitemporal makes the same answer a queryset method.
+
+**Constraint change.** The original `unique_together = (("scan",
+"ip_address"))` would reject the second-belief row at insert. Replaced
+with a **partial unique index** that only enforces uniqueness on rows
+where `recorded_during__upper IS NULL` (current belief). Historical
+beliefs distinguished by `entry_id`.
+
+**Why partial unique over PostgreSQL `ExclusionConstraint`:** simpler,
+and catches the only failure mode that actually arises (two CURRENT
+beliefs colliding on insert). Amendment paths always close the prior
+belief atomically — overlapping belief windows would only arise from
+buggy amendments, which the partial unique catches at insert time.
+
+**Default manager contract.** `objects.all()` deliberately returns
+*all* beliefs (current + historical). This matches Django's
+"manager.all() returns all rows" expectation, which Nautobot internals
+(admin, serializers, list viewsets) rely on. Callers that want
+"current beliefs only" use `.current()`; the user-facing list viewset
+applies this scoping in its `get_queryset()` so the UI defaults to
+current-only.
+
+## ADR-011: Resolve MAC OUI → vendor at ingest time, not on render
+
+`DiscoveredHost.mac_vendor` is populated by the parser via
+`netaddr`'s bundled IEEE OUI registry, at ingest time. Empty string for
+locally-administered MACs and unknown OUIs.
+
+**The lazy alternative:** compute the vendor on every render via a
+template tag or model property. No `mac_vendor` field, no migration,
+the lookup table is bundled with `netaddr` anyway so the work is local.
+
+**Why we materialize:** three properties of how the vendor gets used.
+
+- **Filterable.** With a stored field, the DiscoveredHost list view
+  can offer "Filter by Vendor" without scanning every row at query
+  time. The `db_index=True` makes this O(log n).
+- **Diff-comparable.** [Comparing Scans](../user/scan_diff.md) treats
+  `mac_vendor` as one of the `_COMPARED_FIELDS` that defines "host
+  has observably changed." Lazy computation makes the diff slow
+  (re-resolve every MAC on both sides) and means a vendor-DB update
+  silently retroactively-changes historical diffs.
+- **Auto-fill at Promote.** When a discovered host is promoted to a
+  full `dcim.Device`, the form pre-selects a Nautobot
+  `Manufacturer` matching `mac_vendor` if one exists. Computing
+  this from scratch in the form view would require a join the
+  filter-by-vendor query already has cached.
+
+**Why `netaddr`, not an external API.** Two reasons: no network
+round-trip cost at ingest (the registry is bundled with `netaddr`'s
+wheel), and no dependency on a third-party service that could
+rate-limit or disappear. Quarterly `pip install -U netaddr` picks up
+the latest IEEE registry — no app-side work needed.

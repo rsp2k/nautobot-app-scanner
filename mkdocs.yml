@@ -114,6 +114,7 @@ nav:
     - "Scanner Agents": "user/agents.md"
     - "Scan Profiles": "user/scan_profiles.md"
     - "Running Scans": "user/running_scans.md"
+    - "Comparing Scans": "user/scan_diff.md"
     - "Promote to IPAddress": "user/promotion.md"
     - "Use Cases": "user/use_cases.md"
     - "Models": "user/models.md"

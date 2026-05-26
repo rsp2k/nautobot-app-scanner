@@ -126,10 +126,24 @@ back. No half-promoted Devices.
    - **Interface name**: `mgmt0`
    - **IPAddress namespace**: `Global`
    - **IPAddress status**: `Active`
+   - **Manufacturer**: from the discovered MAC's OUI vendor, when a
+     matching Nautobot `Manufacturer` exists. See the note below.
 4. You fill in the heavier required fields (Location, Role, Device Type)
    plus optional Platform / Tenant
 5. Submit. You're redirected to the new Device's detail page, where the
    **Scanner** panel will surface this scan's results
+
+!!! tip "Manufacturer auto-fill from the MAC OUI"
+    The parser resolves the OUI of every discovered MAC to its
+    IEEE-registered vendor at ingest time (stored on
+    `DiscoveredHost.mac_vendor`). The Promote-to-Device form looks for
+    a Nautobot `dcim.Manufacturer` whose name matches that vendor — if
+    one exists, it pre-selects the **Manufacturer** dropdown, which
+    then filters the **Device Type** dropdown to just that vendor's
+    models. Doesn't replace your judgment; just saves a couple of
+    clicks when the vendor is unambiguous. Empty when the MAC is
+    locally-administered (typical for VMs/containers) or the OUI
+    isn't in `netaddr`'s registry.
 
 <figure markdown>
 ![Promote to Device form with metadata box and required fields](../images/promote-to-device-form.png)
