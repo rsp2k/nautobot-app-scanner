@@ -25,6 +25,10 @@ historical per-scan state is preserved.
 | `valid_during` | DateTimeRangeField (nullable) — *wire time*: the window during which nmap actually observed this host. Typically `[scan.started_at, scan.completed_at]`. NULL for legacy/malformed rows. |
 | `recorded_during` | DateTimeRangeField (required, defaults to `[now(), ∞)`) — *belief time*: when scanner-app believed this row was the current state of `(scan, ip)`. Upper bound closes when a re-parse supersedes the row. |
 | `entry_id` | UUIDField (db_indexed, default=`uuid4`) — distinguishes successive beliefs about the same `(scan, ip)` observation. |
+| `distance_hops` | PositiveSmallIntegerField (nullable) — network hops to this host, from ping/traceroute. Matches `len(traceroute_hops)` when an `-O` + traceroute scan ran. |
+| `uptime_seconds` | PositiveBigIntegerField (nullable) — seconds since last boot, derived by nmap from TCP timestamps during `-O`. Populated when nmap can read TCP timestamps off at least one open port. |
+| `last_boot_at` | DateTimeField (nullable, db_indexed) — absolute boot timestamp = `scan.completed_at - uptime_seconds`. Stored materialized so filters like *"hosts that rebooted in the last hour"* work without subtracting at query time. |
+| `tcp_sequence_class` | CharField(64) — TCP ISN classification from `-O` (e.g. `random positive increments`, `trivial time dependency`). OS-family signal independent of `os_family` — useful when `-O` returns a low-confidence fingerprint but the ISN class is clearly Linux-style vs Windows-style. |
 
 **Base class:** `PrimaryModel`.
 
@@ -99,14 +103,15 @@ DiscoveredHost.objects.for_wire_time(timezone.datetime(2026, 5, 26, 2, 30))
 | FK out | `linked_device` | `dcim.Device` (auto-resolved at ingest) |
 | Reverse FK | `ports` | `DiscoveredPort` |
 | Reverse FK | `traceroute_hops` | `TraceRouteHop` |
-| Reverse two-hop | `ports.vulnerabilities` | `NseFinding` (rendered as a panel on the host detail page via `discovered_port__discovered_host` table filter) |
+| Reverse FK | `host_findings` | `NseFinding` (host-scope NSE script output — direct `discovered_host` FK; rendered as the **Host Findings** panel on the host detail page) |
+| Reverse two-hop | `ports.vulnerabilities` | `NseFinding` (per-port NSE script output — rendered as the **Port Findings** panel via `discovered_port__discovered_host` table filter) |
 
 ## Computed properties
 
 | Property | Returns |
 |---|---|
 | `open_port_count` | Number of `DiscoveredPort` rows on this host where `state="open"`. Reads from `_open_port_count` if the queryset was annotated (the list view does this to avoid N+1), otherwise falls back to a per-row count query. |
-| `vulnerability_count` | Total `NseFinding` rows across all ports on this host. Same annotation-or-fallback pattern. |
+| `vulnerability_count` | Total `NseFinding` rows on this host, summing **both** port-scope (via `ports.vulnerabilities`) and host-scope (direct `host_findings`). Same annotation-or-fallback pattern — the list view annotates `_vulnerability_count` with a combined count so the column stays accurate without per-row queries. |
 
 Both properties power the badges on the scanner panels embedded in
 Device / IPAddress / Prefix detail pages — using `_count` annotations

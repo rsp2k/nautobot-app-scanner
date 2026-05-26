@@ -265,3 +265,55 @@ round-trip cost at ingest (the registry is bundled with `netaddr`'s
 wheel), and no dependency on a third-party service that could
 rate-limit or disappear. Quarterly `pip install -U netaddr` picks up
 the latest IEEE registry — no app-side work needed.
+
+## ADR-012: Generalize Finding model from port-scope-only to port-OR-host scope
+
+The original `VulnerabilityFinding` model required a `DiscoveredPort`
+FK — every finding had to attach to a specific port. Migration `0009`
+generalizes this: the model is renamed to `NseFinding`,
+`discovered_port` becomes nullable, a new `discovered_host` nullable
+FK is added, and a `CheckConstraint` enforces that exactly one of the
+two is set per row.
+
+**The strictly-port-scoped alternative:** keep `discovered_port`
+required. Simpler schema, no XOR check, no two-panel UI on the host
+detail page.
+
+**Why we generalize:** the strict-port shape silently dropped real data.
+
+- **Host-scope NSE scripts produce real findings.** `smb-os-discovery`,
+  `snmp-info`, `snmp-sysdescr`, `ssh-hostkey`, `ssh-auth-methods` all
+  fire once per host, not per port. Pre-`0009`, the parser had no
+  ingest path for `nmap_host.scripts_results` — those findings hit
+  the floor. After: 5 host-scope `NseFinding` rows on a typical
+  `smb-recon` run; SMBv1 dialect annotations on Win XP machines
+  surface as drift.
+- **The rename matches what's actually stored.** `vulners` IS NSE, but
+  so is `http-title` and `ssl-cert` — informational scripts without
+  CVEs. The `severity` field (`info` / `low` / ... / `critical`)
+  already distinguishes vulnerability findings from informational
+  ones; the old `VulnerabilityFinding` name implied the model
+  rejected the informational case, which it never did.
+- **Two parallel models would have been worse.** The alternative —
+  add a separate `HostScopeFinding` model — would duplicate the
+  `nse_script` / `output` / `severity` / `references` schema and
+  force every consumer (serializers, tables, summary rollups) to
+  union across two models. A single model with two nullable parent
+  FKs is one query, one serializer, one table.
+
+**Why a CheckConstraint, not just `clean()` validation.**
+Schema-level constraints fail closed. `bulk_create`, raw SQL, ORM
+patches that bypass `full_clean()`, and buggy future parser changes
+all get caught at insert time rather than producing orphan or
+double-parent rows that pollute downstream rollups (the
+`vulnerability_count` aggregation, for example, double-counts a
+finding that somehow had both parents set).
+
+**Knock-on changes.** The host detail page now renders **two**
+finding panels — `host_findings` (direct FK) and `ports.vulnerabilities`
+(two-hop). The `DiscoveredHost.vulnerability_count` property sums
+across both scopes. The `_vulnerability_count` annotation in the
+list view's `get_queryset()` combines them too so the **Vulns**
+column stays accurate without a per-row fallback. Existing
+`vulners`-only deployments behave identically — host-scope findings
+simply remain empty if you never run a host-scope-script profile.

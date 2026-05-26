@@ -11,9 +11,12 @@ The same profile can be re-used by any agent for any target.
 
 ## Shipped profiles
 
-Seven profiles ship by default — seeded by data migrations the first
-time you `nautobot-server migrate` after install. Most operators won't
-need to write their own; pick the closest fit and dispatch.
+**12 profiles** ship by default — 7 general-purpose plus 5 service-focused
+NSE recon profiles. All are seeded by data migrations the first time you
+`nautobot-server migrate` after install. Most operators won't need to
+write their own; pick the closest fit and dispatch.
+
+### Discovery + port-scan baseline (7 profiles)
 
 | Name | nmap args | Use case |
 |---|---|---|
@@ -25,8 +28,32 @@ need to write their own; pick the closest fit and dispatch.
 | `topology` | `-sn --traceroute` | Discovery + traceroute for layer-3 path mapping. Populates `TraceRouteHop` records. |
 | `udp-common` | `-sU --top-ports 50` | The only UDP profile shipped. Catches DNS / SNMP / NTP / DHCP / syslog without taking hours (UDP scanning is ~50× slower than TCP). |
 
-All seven use timing template `T4` (aggressive, fast). Edit any profile
+### Service-focused NSE recon (5 profiles)
+
+Added in migration `0010` once the [NseFinding model was generalized
+to support host-scope output](../models/nsefinding.md#port-scope-vs-host-scope).
+Each profile narrows nmap to a single service category and exercises
+the NSE scripts that produce findings landing on the host or its ports.
+
+| Name | nmap args + NSE scripts | What it produces |
+|---|---|---|
+| `web-recon` | `-sV --top-ports 100 --script http-title,http-headers,http-methods,http-server-header` | Per-port `NseFinding` rows on every HTTP/HTTPS port with the page title, response headers, allowed methods, and `Server:` banner. Useful before a pen-test pass to inventory the web surface. |
+| `tls-audit` | `-sV --top-ports 100 --script ssl-cert,ssl-enum-ciphers` | Cert subject/issuer/expiry on every TLS port plus the enumerated cipher suites. Real finding from running this against a home LAN in testing: a printer's mgmt cert was RSA-1024 + MD5 + dated 2012. Compliance audit fodder. |
+| `smb-recon` | `-sV -p 139,445 --script smb-os-discovery,smb-protocols` | Host-scope `NseFinding` rows describing the SMB stack + offered protocol versions. nmap annotates SMBv1 as "dangerous, but default" — that's still surfacing real EternalBlue-vulnerable hosts in 2026. |
+| `snmp-recon` | `-sU -p 161 --script snmp-info,snmp-sysdescr` | UDP-only profile — community-string-guessed SNMP info and sysDescr. Lands as host-scope findings. |
+| `ssh-recon` | `-sV -p 22 --script ssh-hostkey,ssh-auth-methods` | Host key fingerprints + accepted auth methods (password / publickey / keyboard-interactive). Detect SSH hosts still accepting password auth. |
+
+All 12 use timing template `T4` (aggressive, fast). Edit any profile
 in the UI to slow it down for stealthier contexts.
+
+!!! tip "NSE recon profiles produce findings, not vulnerabilities"
+    The 5 recon profiles surface their output as `NseFinding` rows
+    with `severity='info'` — they're informational, not
+    vulnerability findings. The `vuln` profile is the only shipped
+    profile that produces CVE-bearing `severity='high'` / `critical`
+    findings (via the `vulners` script). Combine them: run
+    `tls-audit` to inventory TLS endpoints, then `vuln` against the
+    same range to flag known-CVE OpenSSL versions found there.
 
 !!! info "OS fingerprint data missing?"
     Only profiles with `-O` populate the `os_family` / `os_type` /
