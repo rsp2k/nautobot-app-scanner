@@ -1,8 +1,11 @@
 {% extends "base.html" %}
 
-{# Per-finding detail page. The NseFinding table on host/scan pages truncates
-   `output` to ~150 chars; this view renders the full script output verbatim
-   along with parsed references and a breadcrumb to the parent host/port. #}
+{% comment %}
+Per-finding detail page. The NseFinding table on host/scan pages
+truncates `output` to ~150 chars; this view renders the full script
+output verbatim along with parsed references and a breadcrumb to the
+parent host/port.
+{% endcomment %}
 
 {% block title %}{{ object.nse_script }} on {{ host.ip_address }}{% endblock %}
 

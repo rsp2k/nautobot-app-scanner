@@ -193,6 +193,39 @@
         {% if object.ports_scanned %}<span style="opacity:.6">— {{ object.ports_scanned }} ports/host</span>{% endif %}
       </dd>
     {% endif %}
+
+    {% comment %}
+    Phase G: which tool produced this scan's output. Always render
+    so non-nmap scans (dig, masscan, etc.) are unambiguous. Skipped
+    for pre-Phase-G scans where the field is empty.
+    {% endcomment %}
+    {% if object.tool_used %}
+      <dt>Tool used</dt>
+      <dd>
+        <code>{{ object.tool_used }}</code>
+        {% if object.raw_output %}
+          <span style="opacity:.6">—
+            <a href="{{ object.raw_output.url }}" download>raw output</a>
+            ({{ object.raw_output_size|filesizeformat }} uncompressed)
+          </span>
+        {% endif %}
+      </dd>
+    {% endif %}
+
+    {% comment %}
+    Phase I: pentest-mode audit badge — only renders for scans that
+    actually dispatched with pentest flags. Yellow + uppercase so
+    it's impossible to miss in compliance/audit review.
+    {% endcomment %}
+    {% if object.was_pentest_mode %}
+      <dt>Mode</dt>
+      <dd>
+        <span style="display:inline-block;padding:.2rem .6rem;background:rgba(180,140,0,.25);border:1px solid #d9a300;border-radius:4px;font-size:.85em;font-weight:600;letter-spacing:.04em">
+          ⚠ PENTEST MODE
+        </span>
+        <span style="opacity:.6;margin-left:.4rem">dispatched with pentest-class flags (audit-stamped)</span>
+      </dd>
+    {% endif %}
   </dl>
 
   {% if object.error_message %}

@@ -365,8 +365,16 @@ class ScanProfileUIViewSet(NautobotUIViewSet):
                 section=SectionChoices.LEFT_HALF,
                 weight=100,
                 fields=[
-                    "name", "scan_type", "timing_template",
-                    "nmap_arguments", "enabled_scripts", "description",
+                    # Phase G: tool + tool_arguments first so operators
+                    # see at a glance whether this is nmap or something else.
+                    "name", "tool", "scan_type", "timing_template",
+                    "nmap_arguments", "tool_arguments",
+                    "enabled_scripts", "description",
+                    # Phase I: pentest fields — only the ones with non-default
+                    # values render visibly via the renderer's null handling,
+                    # so non-pentest profiles stay uncluttered.
+                    "decoy_addresses", "fragment_packets", "mtu",
+                    "source_port", "idle_scan_zombie",
                 ],
             ),
             ObjectsTablePanel(

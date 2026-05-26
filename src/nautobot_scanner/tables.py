@@ -41,14 +41,19 @@ class ScanProfileTable(BaseTable):
 
     pk = ToggleColumn()
     name = tables.LinkColumn()
+    tool = tables.Column(verbose_name="Tool")
     scan_type = tables.Column(verbose_name="Type")
     timing_template = tables.Column(verbose_name="Timing")
     actions = ButtonsColumn(models.ScanProfile)
 
     class Meta(BaseTable.Meta):
         model = models.ScanProfile
-        fields = ("pk", "name", "scan_type", "timing_template", "nmap_arguments", "description", "actions")
-        default_columns = ("pk", "name", "scan_type", "timing_template", "description", "actions")
+        # Phase G: tool column is now in default_columns so the list
+        # view tells operators at a glance which row uses nmap vs dig
+        # vs masscan vs ... — was a usability gap caught during the
+        # Phase G+I walkthrough.
+        fields = ("pk", "name", "tool", "scan_type", "timing_template", "nmap_arguments", "description", "actions")
+        default_columns = ("pk", "name", "tool", "scan_type", "timing_template", "description", "actions")
 
 
 class ScanTable(BaseTable):
@@ -57,6 +62,7 @@ class ScanTable(BaseTable):
     pk = ToggleColumn()
     agent = tables.Column(linkify=True)
     profile = tables.Column(linkify=True)
+    tool_used = tables.Column(verbose_name="Tool")
     status = tables.Column()
     started_at = tables.DateTimeColumn(short=False, verbose_name="Started")
     completed_at = tables.DateTimeColumn(short=False, verbose_name="Completed")
@@ -65,7 +71,16 @@ class ScanTable(BaseTable):
 
     class Meta(BaseTable.Meta):
         model = models.Scan
-        fields = ("pk", "agent", "profile", "status", "started_at", "completed_at", "summary", "actions")
+        # Phase G/I: surface tool_used + was_pentest_mode as optional
+        # columns. Defaults stay backward-compatible (no Tool column by
+        # default — operators with mostly-nmap fleets don't need it
+        # cluttering the table; they enable via Configure when they
+        # start mixing tools).
+        fields = (
+            "pk", "agent", "profile", "tool_used", "status",
+            "started_at", "completed_at", "summary",
+            "was_pentest_mode", "actions",
+        )
         default_columns = ("pk", "agent", "profile", "status", "started_at", "completed_at", "actions")
 
 
