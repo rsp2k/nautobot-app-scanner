@@ -115,7 +115,7 @@ nav:
     - "Scan Profiles": "user/scan_profiles.md"
     - "Running Scans": "user/running_scans.md"
     - "Comparing Scans": "user/scan_diff.md"
-    - "Promote to IPAddress": "user/promotion.md"
+    - "Promote to Device/IPAddress": "user/promotion.md"
     - "Use Cases": "user/use_cases.md"
     - "Models": "user/models.md"
     - "External Interactions": "user/external_interactions.md"

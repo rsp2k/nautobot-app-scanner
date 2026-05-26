@@ -128,6 +128,13 @@ services:
       caddy: ${DOMAIN}
       caddy.reverse_proxy: "{{upstreams 8080}}"
       caddy.encode: "gzip zstd"
+      # Use the local rfc2136 TSIG path for ACME DNS-01 challenges.
+      # The snippet (defined in the global Caddyfile) points at
+      # dell01:5353 directly via TSIG and uses public resolvers for
+      # propagation checks — bypasses the dell01:53 connection-refused
+      # path that breaks the default DNS-01 flow for *.l.warehack.ing
+      # hostnames. Same pattern as blender-mcp-prod and friends.
+      caddy.tls.import: rfc2136_local
 
   nautobot-worker:
     <<: *nautobot-common
