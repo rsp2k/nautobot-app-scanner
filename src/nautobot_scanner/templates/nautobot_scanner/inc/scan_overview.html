@@ -179,6 +179,20 @@
         <span style="opacity:0.6">— {{ object.raw_xml_size|filesizeformat }} uncompressed</span>
       {% else %}—{% endif %}
     </dd>
+
+    {# Scan provenance (Phase E): only render the row when nmap captured it. #}
+    {% if object.nmap_command %}
+      <dt>nmap command</dt>
+      <dd><code style="font-size:.85em; word-break:break-all">{{ object.nmap_command }}</code></dd>
+    {% endif %}
+    {% if object.nmap_version or object.ports_scanned %}
+      <dt>nmap version</dt>
+      <dd>
+        {% if object.nmap_version %}<code>{{ object.nmap_version }}</code>{% else %}<span style="opacity:.5">—</span>{% endif %}
+        {% if object.xml_version %}<span style="opacity:.6">(XML schema {{ object.xml_version }})</span>{% endif %}
+        {% if object.ports_scanned %}<span style="opacity:.6">— {{ object.ports_scanned }} ports/host</span>{% endif %}
+      </dd>
+    {% endif %}
   </dl>
 
   {% if object.error_message %}

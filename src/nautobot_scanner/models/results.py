@@ -152,6 +152,49 @@ class DiscoveredHost(PrimaryModel):
         blank=True,
         help_text="0-100 confidence in OS guess (nmap's accuracy attribute).",
     )
+    # ----- OS classification depth -----
+    # `os_family` + `os_type` keep the top-line summary; these expose what
+    # nmap's NmapOSClass actually carries. `os_cpe` is the bridge to CVE
+    # databases; `os_device_type` powers the "show me all printers" filter.
+    os_vendor = models.CharField(
+        max_length=64,
+        blank=True,
+        db_index=True,
+        help_text="OS vendor from nmap's osclass (Microsoft, Apple, Linux, Cisco, ...).",
+    )
+    os_device_type = models.CharField(
+        max_length=32,
+        blank=True,
+        db_index=True,
+        help_text=(
+            "Device class from nmap's osclass type attribute: "
+            "'general purpose', 'router', 'printer', 'firewall', "
+            "'switch', 'storage-misc', 'webcam', etc."
+        ),
+    )
+    os_gen = models.CharField(
+        max_length=32,
+        blank=True,
+        help_text="OS generation/version string from nmap's osclass osgen (e.g. '10', '7', '2.4.X').",
+    )
+    os_cpe = models.JSONField(
+        default=list,
+        blank=True,
+        help_text=(
+            "List of CPE strings nmap associates with the OS match "
+            "(e.g. ['cpe:/o:microsoft:windows_10']). Bridges to CVE databases."
+        ),
+    )
+    os_alternative_matches = models.JSONField(
+        default=list,
+        blank=True,
+        help_text=(
+            "Alternative OS guesses beyond the top match, as "
+            "[{'name': str, 'accuracy': int}, ...]. Tells operators "
+            "whether the top guess was 95% top / 92% next (close call) "
+            "vs 90% top / 50% next (clear)."
+        ),
+    )
     host_state = models.CharField(
         max_length=16,
         choices=HostStateChoices,

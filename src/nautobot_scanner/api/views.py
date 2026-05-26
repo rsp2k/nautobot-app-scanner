@@ -200,7 +200,7 @@ class ScanIngestView(_AgentEndpointMixin, APIView):
         # the row lock across it. If parse fails we return 400 without ever
         # touching the Scan row.
         try:
-            parsed_hosts = parser.parse_xml(raw_xml)
+            parsed_report, parsed_hosts = parser.parse_xml_with_report(raw_xml)
         except ValueError as exc:
             return Response(
                 {"detail": f"Invalid nmap XML: {exc}"},
@@ -233,7 +233,10 @@ class ScanIngestView(_AgentEndpointMixin, APIView):
                 )
 
             # Persist + transition. Token cleared inside the lock = one-shot.
-            summary = parser.persist(scan, parsed_hosts)
+            # Pass the parsed_report so persist() stamps nmap_command /
+            # nmap_version / xml_version / ports_scanned via a separate
+            # update() (so it doesn't clobber the status/summary save below).
+            summary = parser.persist(scan, parsed_hosts, report=parsed_report)
             scan.summary = summary
             scan.status = ScanStateChoices.COMPLETED
             scan.completed_at = timezone.now()

@@ -24,7 +24,7 @@ from django.utils import timezone
 
 from nautobot_scanner.backends.base import ScannerBackend
 from nautobot_scanner.choices import ScanStateChoices
-from nautobot_scanner.parser import parse_xml, persist
+from nautobot_scanner.parser import parse_xml_with_report, persist
 
 if TYPE_CHECKING:
     from nautobot_scanner.models import Scan
@@ -77,14 +77,14 @@ class LocalBackend(ScannerBackend):
             return
 
         try:
-            parsed = parse_xml(result.stdout)
+            parsed_report, parsed = parse_xml_with_report(result.stdout)
         except ValueError as exc:
             self._fail(scan, f"Parser rejected nmap output: {exc}")
             self._save_raw_xml(scan, result.stdout)  # keep XML for debugging
             return
 
         self._save_raw_xml(scan, result.stdout)
-        summary = persist(scan, parsed)
+        summary = persist(scan, parsed, report=parsed_report)
         scan.summary = summary
         scan.status = ScanStateChoices.COMPLETED
         scan.completed_at = timezone.now()

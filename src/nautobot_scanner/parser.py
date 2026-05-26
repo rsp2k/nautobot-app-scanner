@@ -109,6 +109,30 @@ class ParsedHost:
     uptime_seconds: int | None = None      # boot inference from TCP timestamps (-O runs)
     last_boot_at: object = None            # datetime, derived from uptime; populated in persist()
     tcp_sequence_class: str = ""           # ISN class, e.g. "random positive increments"
+    # OS classification depth — nmap exposes more than the top match's name
+    # and family. vendor + device_type + CPE strings are the bridge to CVE
+    # correlation and "show me all printers" filters.
+    os_vendor: str = ""                        # Microsoft, Apple, Linux, Cisco, ...
+    os_device_type: str = ""                   # 'general purpose', 'router', 'printer', 'firewall', ...
+    os_gen: str = ""                           # '10', '7', '2.4.X', ...
+    os_cpe: list[str] = field(default_factory=list)  # CPE strings for the top OS match
+    os_alternative_matches: list[dict] = field(default_factory=list)  # [{'name': str, 'accuracy': int}, ...]
+
+
+@dataclass
+class ParsedReport:
+    """Scan-level metadata pulled from the NmapReport top-level fields.
+
+    Captured at parse time so persist() can stamp the Scan row with the
+    actual command nmap ran, the binary version that produced the XML, the
+    XML schema version, and how many ports were scanned per host. All four
+    answer "what did nmap actually do?" without unpacking the XML by hand.
+    """
+
+    nmap_command: str = ""
+    nmap_version: str = ""
+    xml_version: str = ""
+    ports_scanned: int | None = None
 
 
 # ----------------------------------------------------------------------------
@@ -145,6 +169,10 @@ def resolve_mac_vendor(mac: str) -> str:
 def parse_xml(raw: str) -> list[ParsedHost]:
     """Parse raw nmap XML into a list of `ParsedHost` dataclasses.
 
+    Back-compat shim — most call sites (tests, older code) only care about
+    hosts. New ingest paths should call `parse_xml_with_report()` to also
+    capture the report-level provenance (command, version, ports-scanned).
+
     Args:
         raw: nmap XML output (the contents of a `-oX -` dump). May be empty.
 
@@ -154,8 +182,21 @@ def parse_xml(raw: str) -> list[ParsedHost]:
     Raises:
         ValueError: if XML is malformed or libnmap rejects it.
     """
+    _, hosts = parse_xml_with_report(raw)
+    return hosts
+
+
+def parse_xml_with_report(raw: str) -> tuple[ParsedReport, list[ParsedHost]]:
+    """Parse raw nmap XML into report metadata + host list.
+
+    Returns a tuple — the report half stamps Scan provenance fields
+    (command-line, nmap version, ports-scanned), the host half feeds
+    the per-host persistence loop.
+
+    Empty/blank input returns an empty `ParsedReport` and `[]`.
+    """
     if not raw or not raw.strip():
-        return []
+        return ParsedReport(), []
 
     # Import inside the function so the module loads even if libnmap is
     # somehow unavailable at app-config time (e.g., during introspection).
@@ -166,7 +207,27 @@ def parse_xml(raw: str) -> list[ParsedHost]:
     except NmapParserException as exc:
         raise ValueError(f"Invalid nmap XML: {exc}") from exc
 
-    return [_convert_host(h) for h in report.hosts]
+    # Report-level metadata — defensive getattr/conversion because older
+    # nmap XML may not include every field, and libnmap returns sentinel
+    # values like -1 / "" when a field is absent.
+    ports_scanned: int | None = None
+    try:
+        ns = getattr(report, "numservices", -1)
+        if isinstance(ns, int) and ns > 0:
+            ports_scanned = ns
+        elif isinstance(ns, str) and ns.isdigit():
+            ports_scanned = int(ns)
+    except (AttributeError, TypeError, ValueError):
+        pass
+
+    parsed_report = ParsedReport(
+        nmap_command=getattr(report, "commandline", "") or "",
+        nmap_version=str(getattr(report, "version", "") or "")[:32],
+        xml_version=str(getattr(report, "xmlversion", "") or "")[:16],
+        ports_scanned=ports_scanned,
+    )
+
+    return parsed_report, [_convert_host(h) for h in report.hosts]
 
 
 def _convert_host(nmap_host) -> ParsedHost:
@@ -184,17 +245,43 @@ def _convert_host(nmap_host) -> ParsedHost:
     hostname = nmap_host.hostnames[0] if nmap_host.hostnames else ""
 
     # OS detection: libnmap exposes os_match_probabilities() returning a list
-    # of NmapOSMatch objects sorted by accuracy. We take the top guess.
+    # of NmapOSMatch objects sorted by accuracy. We take the top guess for
+    # the headline fields, then walk osclasses[0] for vendor/type/gen/CPE
+    # (Phase E depth) and osmatches[1:] for alternatives.
     os_family = ""
     os_type = ""
     os_accuracy: int | None = None
+    os_vendor = ""
+    os_device_type = ""
+    os_gen = ""
+    os_cpe: list[str] = []
+    os_alternative_matches: list[dict] = []
     if nmap_host.os_fingerprinted and nmap_host.os_match_probabilities():
-        top = nmap_host.os_match_probabilities()[0]
+        matches = nmap_host.os_match_probabilities()
+        top = matches[0]
         os_type = top.name
         os_accuracy = int(top.accuracy)
-        # os_class_probabilities()[0].osfamily is the canonical family string.
+        # osclasses[0] carries vendor/family/type/osgen/cpelist for the top
+        # match. Defensive: not every match has an osclass attached.
         if top.osclasses:
-            os_family = top.osclasses[0].osfamily
+            cls = top.osclasses[0]
+            os_family = cls.osfamily or ""
+            os_vendor = getattr(cls, "vendor", "") or ""
+            os_device_type = getattr(cls, "type", "") or ""
+            os_gen = getattr(cls, "osgen", "") or ""
+            # cpelist contains CPE objects; coerce to strings for JSON storage.
+            try:
+                os_cpe = [str(c) for c in (getattr(cls, "cpelist", None) or [])]
+            except (TypeError, AttributeError):
+                os_cpe = []
+        # Alternative matches beyond the top. Capped at top 4 alternatives
+        # because the long tail (5%-accuracy guesses) is rarely useful and
+        # bloats the row.
+        for alt in matches[1:5]:
+            os_alternative_matches.append({
+                "name": alt.name,
+                "accuracy": int(alt.accuracy),
+            })
 
     ports = [_convert_port(s, nmap_host) for s in nmap_host.services]
     hops = _extract_traceroute(nmap_host)
@@ -250,6 +337,11 @@ def _convert_host(nmap_host) -> ParsedHost:
         os_family=os_family,
         os_type=os_type,
         os_accuracy=os_accuracy,
+        os_vendor=os_vendor,
+        os_device_type=os_device_type,
+        os_gen=os_gen,
+        os_cpe=os_cpe,
+        os_alternative_matches=os_alternative_matches,
         ports=ports,
         traceroute_hops=hops,
         host_findings=host_findings,
@@ -434,12 +526,16 @@ def _extract_traceroute(nmap_host) -> list[ParsedHop]:
 # ----------------------------------------------------------------------------
 
 
-def persist(scan: Scan, parsed: list[ParsedHost]) -> dict:
+def persist(scan: Scan, parsed: list[ParsedHost], report: ParsedReport | None = None) -> dict:
     """Write parsed hosts/ports/etc to the ORM, attached to `scan`.
 
     Auto-resolves `linked_device` by matching each discovered IP against
     `Device.primary_ip4/6`. Does NOT touch `linked_ipaddress` — that's
     only set by the Promote-to-IPAddress action.
+
+    When `report` is provided, the Scan row is stamped with the report-level
+    provenance (nmap_command / nmap_version / xml_version / ports_scanned).
+    Optional for back-compat — older code paths pass hosts only.
 
     Returns a summary dict suitable for `Scan.summary`:
         {"hosts_up": N, "hosts_down": N, "ports_open": N,
@@ -511,6 +607,11 @@ def persist(scan: Scan, parsed: list[ParsedHost]) -> dict:
             os_family=ph.os_family,
             os_type=ph.os_type,
             os_accuracy=ph.os_accuracy,
+            os_vendor=ph.os_vendor,
+            os_device_type=ph.os_device_type,
+            os_gen=ph.os_gen,
+            os_cpe=ph.os_cpe,
+            os_alternative_matches=ph.os_alternative_matches,
             host_state=ph.host_state,
             linked_device=linked_device,
             distance_hops=ph.distance_hops,
@@ -581,5 +682,23 @@ def persist(scan: Scan, parsed: list[ParsedHost]) -> dict:
                 rtt_ms=hop.rtt_ms,
             )
             summary["traceroute_hops"] += 1
+
+    # Stamp report-level provenance on the Scan row, if the caller provided
+    # it. The ingest path (api/views.py:ScanIngestView) flips status +
+    # completed_at + summary + ingestion_token=None in its own save() call,
+    # so we use a separate update() here to avoid clobbering those fields.
+    if report is not None:
+        updates = {}
+        if report.nmap_command:
+            updates["nmap_command"] = report.nmap_command
+        if report.nmap_version:
+            updates["nmap_version"] = report.nmap_version
+        if report.xml_version:
+            updates["xml_version"] = report.xml_version
+        if report.ports_scanned is not None:
+            updates["ports_scanned"] = report.ports_scanned
+        if updates:
+            from nautobot_scanner.models import Scan as _Scan
+            _Scan.objects.filter(pk=scan.pk).update(**updates)
 
     return summary

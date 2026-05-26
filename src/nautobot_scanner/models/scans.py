@@ -105,6 +105,34 @@ class Scan(PrimaryModel):
         blank=True,
         help_text="Populated when status=failed; ingest/dispatch error details.",
     )
+    # ----- Scan provenance, captured from the nmap XML at ingest time -----
+    # Why: scans are bitemporal and long-lived. Operators do go back to old
+    # scans to ask "what did nmap actually run?" — without these fields the
+    # answer requires unpacking the gzipped XML by hand. Storing them on the
+    # row makes the audit trail one query away instead of one shell pivot.
+    nmap_command = models.TextField(
+        blank=True,
+        help_text="Full nmap command-line as reported by the XML (provenance + reproduction).",
+    )
+    nmap_version = models.CharField(
+        max_length=32,
+        blank=True,
+        help_text="nmap binary version that produced this scan (e.g. '7.94').",
+    )
+    xml_version = models.CharField(
+        max_length=16,
+        blank=True,
+        help_text="nmap XML schema version (forensic value when parsers drift between nmap releases).",
+    )
+    ports_scanned = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text=(
+            "Number of ports scanned per host as reported by nmap (the "
+            "denominator for ports_open). Distinguishes 'scanned 1000 found "
+            "10 open' from 'scanned 100 found 10 open'."
+        ),
+    )
 
     class Meta:
         """Meta options."""

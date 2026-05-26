@@ -47,4 +47,7 @@ class DiscoveredHostFilterSet(NautobotFilterSet):
         fields = [
             "scan", "ip_address", "mac_address", "hostname",
             "os_family", "host_state", "linked_ipaddress", "linked_device",
+            # Phase E OS depth: enables ?os_vendor=Apple, ?os_device_type=printer.
+            # Both fields are db_indexed so list-view filtering stays fast.
+            "os_vendor", "os_device_type",
         ]
