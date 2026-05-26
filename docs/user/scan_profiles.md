@@ -35,6 +35,11 @@ to support host-scope output](../models/nsefinding.md#port-scope-vs-host-scope).
 Each profile narrows nmap to a single service category and exercises
 the NSE scripts that produce findings landing on the host or its ports.
 
+<figure markdown>
+![Scans list view showing recent runs of smb-recon, ssh-recon, and tls-audit alongside the older general-purpose profiles](../images/walkthrough-scans-list-nse-recon.png)
+<figcaption>The Scans list with NSE recon profiles in active rotation against an example `dmz-agent`. The annotated overlay calls out which scripts each new profile fires (`tls-audit` → `ssl-cert` + `ssl-enum-ciphers`, `ssh-recon` → `ssh-hostkey` + `ssh-auth-methods`, `smb-recon` → `smb-os-discovery` + `smb-protocols`). `web-recon` and `snmp-recon` exist as profiles but hadn't been dispatched yet at capture time.</figcaption>
+</figure>
+
 | Name | nmap args + NSE scripts | What it produces |
 |---|---|---|
 | `web-recon` | `-sV --top-ports 100 --script http-title,http-headers,http-methods,http-server-header` | Per-port `NseFinding` rows on every HTTP/HTTPS port with the page title, response headers, allowed methods, and `Server:` banner. Useful before a pen-test pass to inventory the web surface. |

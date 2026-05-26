@@ -30,6 +30,11 @@ historical per-scan state is preserved.
 | `last_boot_at` | DateTimeField (nullable, db_indexed) — absolute boot timestamp = `scan.completed_at - uptime_seconds`. Stored materialized so filters like *"hosts that rebooted in the last hour"* work without subtracting at query time. |
 | `tcp_sequence_class` | CharField(64) — TCP ISN classification from `-O` (e.g. `random positive increments`, `trivial time dependency`). OS-family signal independent of `os_family` — useful when `-O` returns a low-confidence fingerprint but the ISN class is clearly Linux-style vs Windows-style. |
 
+<figure markdown>
+![DiscoveredHost detail page for firewall-01 showing populated Os Family=FortiOS, Os Accuracy=100, Distance Hops=1](../images/walkthrough-host-detail-populated.png)
+<figcaption>The same panel layout from the [NseFinding host-scope demo](nsefinding.md#port-scope-vs-host-scope), but from an `os-detect` scan where the `-O` probes actually ran. `firewall-01` (a FortiGate) yields **Os Family** = FortiOS, **Os Type** = Fortinet FortiOS 6.2 - 7.2, **Os Accuracy** = 100 (perfect match), **Distance Hops** = 1. The annotation notes that `Uptime Seconds` + `Tcp Sequence Class` stay empty under `--osscan-limit` — drop that flag to populate them.</figcaption>
+</figure>
+
 **Base class:** `PrimaryModel`.
 
 **`@extras_features`:** custom_fields, custom_links, custom_validators,

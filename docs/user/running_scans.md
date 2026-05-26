@@ -105,11 +105,21 @@ log stream.
 <figcaption>A completed `MarkStaleAgents` JobResult. The **Result Data** value (`"0"` here) is the count of agents flipped this run — when an agent is already `Offline`, the query correctly excludes it, so a follow-up sweep is a no-op.</figcaption>
 </figure>
 
+## Reading a scan detail page
+
+Each scan's detail page surfaces three operationally important things
+beyond the basics (status, profile, target ranges):
+
+<figure markdown>
+![Scan detail page for an smb-recon run showing the discovered-hosts table with a Vendor column and a Compare-with-previous-scan button](../images/walkthrough-scan-detail-vendor-compare.png)
+<figcaption>A completed `smb-recon` scan. The annotation calls out: (1) the **Vendor** column on the discovered-hosts table, populated by resolving every MAC's OUI against the IEEE registry at ingest time (`mac_vendor` field on `DiscoveredHost`); (2) the **Compare with previous scan** button that opens the [scan diff view](scan_diff.md); (3) a row like `winxp-01` (`.98`) that's about to be drilled into in the next view to see both port-scope and host-scope NSE findings on the same host.</figcaption>
+</figure>
+
 ## Comparing scans — drift detection
 
 Once you have two or more completed scans on the same agent, the
-**Compare with previous scan on \<agent\>** button on any completed
-scan's detail page surfaces a side-by-side diff: added hosts, removed
+**Compare with previous scan on \<agent\>** button (visible in the
+shot above) surfaces a side-by-side diff: added hosts, removed
 hosts, changed hosts (with per-field deltas), and an unchanged count.
 
 <figure markdown>

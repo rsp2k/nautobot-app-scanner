@@ -47,6 +47,11 @@ results never landed anywhere. The schema change adds the
 `_convert_host` now pulls `nmap_host.scripts_results` alongside the
 per-port iteration.
 
+<figure markdown>
+![DiscoveredHost detail page for winxp-01 showing Port Findings empty and Host Findings populated with smb-os-discovery and smb-protocols](../images/walkthrough-host-detail-host-findings.png)
+<figcaption>A `winxp-01` host detail page after an `smb-recon` scan. The split is visible: **Port Findings** is empty (smb-recon's NSE scripts are host-scope, not per-port), while **Host Findings** carries the two `Informational` rows (`smb-os-discovery` and `smb-protocols`) attached via the direct `discovered_host` FK. The Phase-A fields panel on the left reads `—` for `Mac Vendor` / `Tcp Sequence Class` / `Distance Hops` / `Uptime Seconds` / `Last Boot At` because `smb-recon` doesn't run `-O`; see [DiscoveredHost](discoveredhost.md) for what populates them.</figcaption>
+</figure>
+
 ## Constraint: exactly one parent
 
 A `CheckConstraint` named `nsefinding_exactly_one_parent` enforces at
