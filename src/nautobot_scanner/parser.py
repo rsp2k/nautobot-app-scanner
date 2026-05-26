@@ -242,6 +242,31 @@ def parse_xml_with_report(raw: str) -> tuple[ParsedReport, list[ParsedHost]]:
 # ----------------------------------------------------------------------------
 
 
+def _parse_dns_answer_records(body: str) -> list[dict]:
+    """Extract `name TTL IN TYPE value` records from dig/drill text output.
+
+    Both tools format answer-section lines identically:
+        example.com.    3600    IN  A   93.184.216.34
+    Lines starting with ``;`` (drill section headers, dig comments) and
+    blank lines are skipped. Returns the records as plain dicts ready
+    to land in an NseFinding.elements JSONField.
+    """
+    records: list[dict] = []
+    for line in body.splitlines():
+        line = line.strip()
+        if not line or line.startswith(";"):
+            continue
+        parts = line.split(None, 4)
+        if len(parts) == 5 and parts[2] == "IN":
+            records.append({
+                "name": parts[0],
+                "ttl": parts[1],
+                "type": parts[3],
+                "value": parts[4],
+            })
+    return records
+
+
 def parse_dig_text(raw: str, targets: list[str]) -> tuple[ParsedReport, list[ParsedHost]]:
     """Minimal dig parser — one ParsedHost per target, dig text as a finding.
 
@@ -260,23 +285,7 @@ def parse_dig_text(raw: str, targets: list[str]) -> tuple[ParsedReport, list[Par
     out: list[ParsedHost] = []
     body = (raw or "").strip()
 
-    # Split lines into "answer" records (lines that look like
-    # `name. TTL IN TYPE value`). Used only for the elements dict —
-    # the original text is preserved in `output`.
-    records = []
-    for line in body.splitlines():
-        line = line.strip()
-        if not line or line.startswith(";"):
-            continue
-        parts = line.split(None, 4)
-        if len(parts) == 5 and parts[2] == "IN":
-            records.append({
-                "name": parts[0],
-                "ttl": parts[1],
-                "type": parts[3],
-                "value": parts[4],
-            })
-
+    records = _parse_dns_answer_records(body)
     finding_elements = {"records": records, "record_count": len(records)}
     has_answers = bool(records)
 
@@ -298,6 +307,87 @@ def parse_dig_text(raw: str, targets: list[str]) -> tuple[ParsedReport, list[Par
     return ParsedReport(), out
 
 
+def parse_drill_text(raw: str, targets: list[str]) -> tuple[ParsedReport, list[ParsedHost]]:
+    """drill parser — like dig, plus DNSSEC validation status from flags.
+
+    drill emits the same ``name TTL IN TYPE value`` answer-section lines
+    that dig does (so we reuse ``_parse_dns_answer_records``), but it
+    ALSO includes a ``flags:`` header where ``ad`` (Authenticated Data)
+    means the DNSSEC chain validated all the way to a trust anchor.
+    That bit is the whole reason to prefer drill over dig for a DNSSEC
+    audit, so we surface it as a top-level element on the finding:
+
+        elements = {
+            "records": [...],
+            "record_count": N,
+            "dnssec_authenticated": True | False | None,
+            "rcode": "NOERROR" | "NXDOMAIN" | ...,
+        }
+
+    The severity escalates to ``MEDIUM`` when the operator asked for
+    DNSSEC chain validation (``-D`` or ``-DT`` in tool_arguments) and
+    the chain did NOT validate — that's the actionable signal worth
+    flagging visibly on the finding list.
+    """
+    out: list[ParsedHost] = []
+    body = (raw or "").strip()
+
+    records = _parse_dns_answer_records(body)
+
+    # Scan for the flags line — only present once per response.
+    # Format: ";; flags: qr rd ra ad ; QUERY: 1, ANSWER: 3, ..."
+    dnssec_authenticated: bool | None = None
+    rcode: str = ""
+    for line in body.splitlines():
+        line = line.strip()
+        if line.startswith(";; flags:"):
+            # Tokenize between "flags:" and the trailing ";"
+            after_flags = line.split("flags:", 1)[1].split(";", 1)[0].strip()
+            flag_set = set(after_flags.split())
+            dnssec_authenticated = "ad" in flag_set
+        elif line.startswith(";; ->>HEADER<<-"):
+            # Format: ";; ->>HEADER<<- opcode: QUERY, rcode: NOERROR, id: 35349"
+            for part in line.split(","):
+                part = part.strip()
+                if part.startswith("rcode:"):
+                    rcode = part.split(":", 1)[1].strip()
+
+    finding_elements: dict = {
+        "records": records,
+        "record_count": len(records),
+        "dnssec_authenticated": dnssec_authenticated,
+        "rcode": rcode,
+    }
+    has_answers = bool(records)
+
+    # Severity heuristic: if the operator asked for DNSSEC validation
+    # (the dnssec_authenticated bit got set either True or False) and
+    # it came back False, that's worth flagging as MEDIUM. Otherwise
+    # informational.
+    severity = (
+        SeverityChoices.MEDIUM
+        if dnssec_authenticated is False
+        else SeverityChoices.INFO
+    )
+
+    for tgt in targets:
+        ph = ParsedHost(
+            ip_address=tgt,
+            host_state=HostStateChoices.UP if has_answers else HostStateChoices.UNKNOWN,
+            host_findings=[
+                ParsedVulnerability(
+                    nse_script="drill-answer",
+                    output=body or "(no output)",
+                    severity=severity,
+                    elements=finding_elements,
+                ),
+            ],
+        )
+        out.append(ph)
+
+    return ParsedReport(), out
+
+
 # Map ToolChoices values → parser function. The dispatch picks one
 # at ingest based on the agent's X-Tool header (or the scan's profile).
 # Adding a new tool: write a parse_<tool>_<format>() returning the same
@@ -309,6 +399,7 @@ def parse_dig_text(raw: str, targets: list[str]) -> tuple[ParsedReport, list[Par
 PARSERS: dict[str, object] = {
     "nmap": parse_xml_with_report,
     "dig": parse_dig_text,
+    "drill": parse_drill_text,
 }
 
 

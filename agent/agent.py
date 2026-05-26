@@ -235,11 +235,29 @@ def build_dig_argv(scan: dict) -> list[str]:
     return argv
 
 
+def build_drill_argv(scan: dict) -> list[str]:
+    """Compose drill argv from a pending-scan payload.
+
+    drill (NLnet Labs / ldns) is similar to dig in shape but has
+    first-class DNSSEC support — `drill -DT example.com` does a full
+    DNSSEC trace+chase in one shot, surfacing chain breaks that dig's
+    verbose flags make hard to read. Same target-list-as-positional
+    pattern as dig.
+    """
+    profile = scan["profile"]
+    drill_bin = os.environ.get("DRILL_BIN", "/usr/bin/drill")
+    argv = [drill_bin]
+    argv.extend(shlex.split(profile.get("tool_arguments", "") or ""))
+    argv.extend(_all_targets(scan))
+    return argv
+
+
 # (argv_builder, content_type) per tool. Server's X-Tool header
 # dispatches the parser; here we pick the right binary + headers.
 TOOL_REGISTRY = {
     "nmap": (build_nmap_argv, "application/xml"),
     "dig": (build_dig_argv, "text/plain"),
+    "drill": (build_drill_argv, "text/plain"),
 }
 
 

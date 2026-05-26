@@ -38,6 +38,7 @@ class ToolChoices(ChoiceSet):
     NMAP = "nmap"
     MASSCAN = "masscan"
     DIG = "dig"
+    DRILL = "drill"
     CURL = "curl"
     MTR = "mtr"
     OPENSSL_SCLIENT = "openssl-s_client"
@@ -46,6 +47,10 @@ class ToolChoices(ChoiceSet):
         (NMAP, "nmap — port/service/OS discovery (default)"),
         (MASSCAN, "masscan — fast IP-range sweep (10M pps)"),
         (DIG, "dig — DNS record snapshot"),
+        # drill complements dig — better DNSSEC chain-validation output via -DT.
+        # Use dig for "what records does this domain have?" and drill for
+        # "is the DNSSEC chain valid all the way to the root?"
+        (DRILL, "drill — DNS recon with DNSSEC validation"),
         (CURL, "curl — HTTP request/response capture"),
         (MTR, "mtr — path + latency baseline"),
         (OPENSSL_SCLIENT, "openssl s_client — deep TLS enumeration"),
