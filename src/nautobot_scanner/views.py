@@ -416,6 +416,27 @@ class ScanUIViewSet(NautobotUIViewSet):
                 table_title="Discovered Hosts",
                 exclude_columns=["scan"],
             ),
+            # Per-port NSE findings for this scan: 3-hop filter
+            # NseFinding → DiscoveredPort → DiscoveredHost → Scan.
+            # Anyone reading a scan detail wants to see "what did the NSE
+            # scripts find?" without drilling into each host individually.
+            ObjectsTablePanel(
+                section=SectionChoices.RIGHT_HALF,
+                weight=200,
+                table_class=tables.NseFindingTable,
+                table_filter="discovered_port__discovered_host__scan",
+                table_title="Port Findings",
+            ),
+            # Host-scope NSE findings (smb-os-discovery, snmp-info, etc.):
+            # 2-hop filter NseFinding → DiscoveredHost → Scan. Separate
+            # panel because the port column reads "—" here.
+            ObjectsTablePanel(
+                section=SectionChoices.RIGHT_HALF,
+                weight=250,
+                table_class=tables.NseFindingTable,
+                table_filter="discovered_host__scan",
+                table_title="Host Findings",
+            ),
         ),
     )
 
