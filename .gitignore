@@ -20,6 +20,12 @@
 artifacts/
 
 # Python build artifacts
+# uv.lock: this app is a Nautobot plugin (consumed by Nautobot's own
+# dependency resolver), so the lock file is dev-cache rather than
+# reproducibility truth — keep it out of git to avoid lockfile drift
+# between contributors using different Python versions.
+uv.lock
+
 __pycache__/
 *.pyc
 *.pyo

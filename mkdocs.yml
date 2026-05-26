@@ -144,4 +144,5 @@ nav:
     - "Architecture Decisions": "dev/architecture.md"
     - "Agent Protocol": "dev/agent_protocol.md"
     - "Extending": "dev/extending.md"
+    - "Screenshot Sanitization": "dev/screenshot_sanitization.md"
   - "Nautobot Docs Home ↗︎": "https://docs.nautobot.com"
