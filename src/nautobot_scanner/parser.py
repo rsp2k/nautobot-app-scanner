@@ -388,18 +388,467 @@ def parse_drill_text(raw: str, targets: list[str]) -> tuple[ParsedReport, list[P
     return ParsedReport(), out
 
 
+# ----------------------------------------------------------------------------
+# Phase J — curl / mtr / masscan / openssl-s_client parsers
+# ----------------------------------------------------------------------------
+
+
+def parse_curl_text(raw: str, targets: list[str]) -> tuple[ParsedReport, list[ParsedHost]]:
+    """Parse curl headers + summary line into structured elements.
+
+    Wire format from ``build_curl_argv``: response headers (one per
+    line, ``Key: Value``), a blank line marking HTTP boundary, then a
+    summary line:
+        ``---CURL-SUMMARY--- STATUS=200 SIZE=528 TIME=0.075 REDIRECTS=0 URL=https://...``
+
+    With multiple targets, curl writes the full headers+summary block
+    per URL in sequence — we split on the ``---CURL-SUMMARY---`` token
+    so each chunk contains exactly one URL's headers + its summary.
+
+    Severity heuristic:
+      - status >= 500: medium (server error)
+      - status >= 400: info (client error — often expected from probes)
+      - num_redirects > 0 and final URL off-original-domain: medium
+        (open-redirect surface; flagged so it's visible in lists)
+      - otherwise: info
+    """
+    body = (raw or "").strip()
+    out: list[ParsedHost] = []
+    if not body or not targets:
+        return ParsedReport(), out
+
+    # Split into per-URL chunks. Every chunk contains a headers block
+    # and a single summary line. First chunk has no leading marker;
+    # split() yields it as the prefix.
+    chunks = body.split("---CURL-SUMMARY---")
+    # Drop the trailing empty string if the output ended with a summary.
+    summaries = chunks[1:]
+    headers_blocks = chunks[:-1] if len(chunks) > 1 else chunks
+
+    # Pair (headers_block, summary_line) per target. If counts don't
+    # line up (rare — curl glitched), zip stops at the shorter.
+    for i, tgt in enumerate(targets):
+        headers_block = headers_blocks[i] if i < len(headers_blocks) else ""
+        summary_line = summaries[i].strip() if i < len(summaries) else ""
+
+        # Parse summary line: tokens like STATUS=200 SIZE=528 ...
+        summary: dict = {}
+        for token in summary_line.split():
+            if "=" in token:
+                k, v = token.split("=", 1)
+                summary[k] = v
+
+        # Parse headers — first line is the status line (HTTP/1.1 200 OK),
+        # subsequent are Key: Value pairs. Take the LAST status line in
+        # the block (chases redirects).
+        headers: dict = {}
+        status_line = ""
+        for line in headers_block.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            if line.startswith("HTTP/"):
+                status_line = line
+                continue
+            if ":" in line:
+                k, v = line.split(":", 1)
+                headers[k.strip()] = v.strip()
+
+        try:
+            status_code = int(summary.get("STATUS", "0"))
+        except (TypeError, ValueError):
+            status_code = 0
+        try:
+            num_redirects = int(summary.get("REDIRECTS", "0"))
+        except (TypeError, ValueError):
+            num_redirects = 0
+        try:
+            time_total_s = float(summary.get("TIME", "0"))
+            time_total_ms = round(time_total_s * 1000, 2)
+        except (TypeError, ValueError):
+            time_total_ms = 0.0
+
+        elements = {
+            "status_code": status_code,
+            "status_line": status_line,
+            "response_size": int(summary.get("SIZE", "0") or "0"),
+            "time_total_ms": time_total_ms,
+            "num_redirects": num_redirects,
+            "url_effective": summary.get("URL", ""),
+            "server": headers.get("server", "") or headers.get("Server", ""),
+            "content_type": headers.get("content-type", "") or headers.get("Content-Type", ""),
+            "headers": headers,
+        }
+
+        if status_code >= 500:
+            severity = SeverityChoices.MEDIUM
+        elif num_redirects > 0:
+            # Detect off-domain redirect (open-redirect surface).
+            # Crude check: if the URL host differs from the target host
+            # by more than the obvious "added port" / "lowercased" cases.
+            url = elements["url_effective"]
+            tgt_host = tgt.split(":", 1)[0].lower() if tgt else ""
+            redirected_off_domain = bool(
+                tgt_host and url and tgt_host not in url.lower(),
+            )
+            severity = SeverityChoices.MEDIUM if redirected_off_domain else SeverityChoices.INFO
+        else:
+            severity = SeverityChoices.INFO
+
+        out.append(ParsedHost(
+            ip_address=tgt.split(":", 1)[0] or tgt,  # host part for the model
+            host_state=HostStateChoices.UP if status_code else HostStateChoices.UNKNOWN,
+            host_findings=[ParsedVulnerability(
+                nse_script="curl-probe",
+                output=f"{status_line}\n{headers_block}\n{summary_line}",
+                severity=severity,
+                elements=elements,
+            )],
+        ))
+    return ParsedReport(), out
+
+
+def parse_mtr_json(raw: str, targets: list[str]) -> tuple[ParsedReport, list[ParsedHost]]:
+    """Parse mtr -j JSON output into per-hop path/latency findings.
+
+    JSON shape (one report per invocation; mtr emits one report at a
+    time so the file IS the report):
+        {"report": {"mtr": {src, dst, ...},
+                    "hubs": [{count, host, "Loss%", Snt, Last, Avg,
+                              Best, Wrst, StDev}, ...]}}
+
+    Severity:
+      - target hop Loss% > 50: high (target unreachable / >half loss)
+      - any-hop Loss% > 10: medium (intermittent path issue)
+      - otherwise: info (clean baseline)
+
+    Drift detection (avg-RTT change > 50ms from previous scan) is
+    server-side bitemporal-diff territory — not part of the parser.
+    """
+    import json as _json
+    out: list[ParsedHost] = []
+    body = (raw or "").strip()
+    if not body or not targets:
+        return ParsedReport(), out
+
+    try:
+        data = _json.loads(body)
+    except _json.JSONDecodeError as exc:
+        raise ValueError(f"Invalid mtr JSON: {exc}") from exc
+
+    report = data.get("report", {}) if isinstance(data, dict) else {}
+    raw_hubs = report.get("hubs", []) if isinstance(report, dict) else []
+    dst = (report.get("mtr") or {}).get("dst", "") if isinstance(report, dict) else ""
+
+    hops: list[dict] = []
+    max_loss_any = 0.0
+    target_loss = 0.0
+    for hub in raw_hubs:
+        if not isinstance(hub, dict):
+            continue
+        try:
+            loss = float(hub.get("Loss%", 0))
+        except (TypeError, ValueError):
+            loss = 0.0
+        hops.append({
+            "ttl": hub.get("count"),
+            "host": hub.get("host", ""),
+            "loss_pct": loss,
+            "sent": hub.get("Snt"),
+            "last_ms": hub.get("Last"),
+            "avg_ms": hub.get("Avg"),
+            "best_ms": hub.get("Best"),
+            "worst_ms": hub.get("Wrst"),
+            "jitter_ms": hub.get("StDev"),
+        })
+        if loss > max_loss_any:
+            max_loss_any = loss
+    if hops:
+        target_loss = hops[-1]["loss_pct"]
+
+    # Severity heuristic
+    if target_loss > 50.0:
+        severity = SeverityChoices.HIGH
+    elif max_loss_any > 10.0:
+        severity = SeverityChoices.MEDIUM
+    else:
+        severity = SeverityChoices.INFO
+
+    target_reached = bool(hops) and target_loss < 100.0
+    elements = {
+        "target": dst,
+        "hops": hops,
+        "target_reached": target_reached,
+        "max_hops_seen": len(hops),
+        "max_loss_pct_any_hop": max_loss_any,
+        "target_loss_pct": target_loss,
+    }
+
+    # One ParsedHost per target. mtr only takes one target per
+    # invocation in practice, but we follow the multi-target contract
+    # — same report attaches to each target.
+    for tgt in targets:
+        out.append(ParsedHost(
+            ip_address=tgt,
+            host_state=HostStateChoices.UP if target_reached else HostStateChoices.DOWN,
+            host_findings=[ParsedVulnerability(
+                nse_script="mtr-report",
+                output=body,
+                severity=severity,
+                elements=elements,
+            )],
+        ))
+    return ParsedReport(), out
+
+
+def parse_masscan_json(raw: str, targets: list[str]) -> tuple[ParsedReport, list[ParsedHost]]:
+    """Parse masscan -oJ JSON into ParsedHost + ParsedPort rows.
+
+    Output is a JSON ARRAY of records (one per IP+timestamp), each:
+        {"ip": "1.2.3.4", "timestamp": "...",
+         "ports": [{"port": 80, "proto": "tcp", "status": "open",
+                    "reason": "syn-ack", "ttl": 64,
+                    "service": {"name": "...", "banner": "..."}}, ...]}
+
+    Unlike dig/drill/curl/mtr which create host-scope FINDINGS, masscan
+    output maps directly to the same shape nmap produces: hosts with
+    ports. We bypass the host-findings path and emit ParsedHost rows
+    with populated `ports` instead — the existing persist() loop turns
+    them into DiscoveredPort records exactly like nmap output would.
+
+    The ``targets`` arg is unused — masscan tells us which IPs it
+    found open ports on, and that's authoritative.
+    """
+    import json as _json
+    out: list[ParsedHost] = []
+    body = (raw or "").strip()
+    if not body:
+        return ParsedReport(), out
+
+    # masscan can emit either a JSON array (-oJ) or NDJSON if the
+    # output is interrupted; handle both.
+    try:
+        # Try the array form first.
+        records = _json.loads(body)
+        if not isinstance(records, list):
+            records = [records]
+    except _json.JSONDecodeError:
+        # Fall back to one-record-per-line; tolerate trailing commas
+        # masscan sometimes leaves on partial output.
+        records = []
+        for line in body.splitlines():
+            line = line.strip().rstrip(",")
+            if not line or line in ("[", "]"):
+                continue
+            try:
+                records.append(_json.loads(line))
+            except _json.JSONDecodeError:
+                continue
+
+    # Aggregate ports per IP. masscan can emit multiple records for
+    # the same IP (different timestamps as ports are discovered).
+    state_map = {
+        "open": PortStateChoices.OPEN,
+        "closed": PortStateChoices.CLOSED,
+        "filtered": PortStateChoices.FILTERED,
+    }
+    protocol_map = {
+        "tcp": ProtocolChoices.TCP,
+        "udp": ProtocolChoices.UDP,
+        "sctp": ProtocolChoices.SCTP,
+    }
+    hosts_by_ip: dict[str, ParsedHost] = {}
+    for rec in records:
+        if not isinstance(rec, dict):
+            continue
+        ip = rec.get("ip", "")
+        if not ip:
+            continue
+        if ip not in hosts_by_ip:
+            hosts_by_ip[ip] = ParsedHost(ip_address=ip, host_state=HostStateChoices.UP)
+        host = hosts_by_ip[ip]
+        for port_entry in rec.get("ports", []):
+            if not isinstance(port_entry, dict):
+                continue
+            try:
+                port_num = int(port_entry.get("port", 0))
+            except (TypeError, ValueError):
+                continue
+            if not port_num:
+                continue
+            proto = protocol_map.get(port_entry.get("proto", "tcp"), ProtocolChoices.TCP)
+            state = state_map.get(port_entry.get("status", "open"), PortStateChoices.OPEN)
+            svc = port_entry.get("service") if isinstance(port_entry.get("service"), dict) else {}
+            host.ports.append(ParsedPort(
+                port=port_num,
+                protocol=proto,
+                state=state,
+                service_name=svc.get("name", "") if svc else "",
+                banner=svc.get("banner", "") if svc else "",
+                state_reason=port_entry.get("reason", "") or "",
+                state_reason_ttl=port_entry.get("ttl"),
+            ))
+
+    out.extend(hosts_by_ip.values())
+    return ParsedReport(), out
+
+
+def parse_openssl_sclient_text(raw: str, targets: list[str]) -> tuple[ParsedReport, list[ParsedHost]]:
+    """Parse openssl s_client output into per-target TLS findings.
+
+    Wire format from ``build_openssl_sclient_argv``: per-target chunks
+    delimited by ``===TARGET=<addr>===``. Each chunk includes the
+    handshake transcript, certificate dump, and "Verify return code"
+    line.
+
+    We text-scrape rather than re-parse the PEM cert (would require
+    cryptography lib) — gets us subject, issuer, notBefore, notAfter,
+    verify result, cipher, protocol. SAN extraction would need a
+    second openssl invocation (``openssl x509 -text -noout``); not
+    worth the round-trip in v1 — operators who need SANs can read the
+    raw output.
+
+    Severity:
+      - cert expires in < 7 days: high
+      - cert expires in < 30 days: medium
+      - Verify return code != 0 (anything but ok): medium
+      - else: info
+    """
+    import datetime as _dt
+    import re as _re
+    out: list[ParsedHost] = []
+    body = (raw or "").strip()
+    if not body or not targets:
+        return ParsedReport(), out
+
+    # Split into per-target chunks. The first split-result is empty
+    # (text starts with the sentinel) so we skip it.
+    sentinel_re = _re.compile(r"===TARGET=([^=]+?)===")
+    chunks = sentinel_re.split(body)
+    # chunks layout: ["", target1, body1, target2, body2, ...]
+    chunk_pairs: list[tuple[str, str]] = []
+    for i in range(1, len(chunks), 2):
+        tgt = chunks[i].strip()
+        bod = chunks[i + 1] if i + 1 < len(chunks) else ""
+        chunk_pairs.append((tgt, bod))
+
+    # If the sentinel isn't present (single-target / wrapper skipped),
+    # fall back to treating the whole body as one target's output.
+    if not chunk_pairs and targets:
+        chunk_pairs = [(targets[0], body)]
+
+    now = _dt.datetime.now(_dt.timezone.utc)
+
+    for tgt, chunk in chunk_pairs:
+        # Extract fields. All are best-effort; missing values become "".
+        subject = _first_match(r"^subject=(.+)$", chunk)
+        issuer = _first_match(r"^issuer=(.+)$", chunk)
+        # openssl 3.x emits cipher in the "New, TLSv1.3, Cipher is X" line.
+        # openssl 1.1.x has a separate "Cipher    : X" line. Try both.
+        cipher = _first_match(r"^\s*Cipher\s+:\s*(\S+)$", chunk) or \
+                 _first_match(r"^New,\s+\S+,\s+Cipher is\s+(\S+)", chunk)
+        # Protocol: again two forms across openssl versions.
+        protocol = _first_match(r"^\s*Protocol\s*:\s*(\S+)$", chunk) or \
+                   _first_match(r"^New,\s+(\S+),\s+Cipher", chunk)
+        verify_msg = _first_match(r"^\s*Verify return code:\s*(.+)$", chunk)
+        # Validity dates: openssl 3.x's cert-chain dump puts them on
+        # ONE line: "   v:NotBefore: Apr  2 21:18:57 2026 GMT; NotAfter: Jul  1 21:24:46 2026 GMT"
+        # Older form had separate "Not Before:" / "Not After:" lines.
+        # Try the combined form first, fall back to the standalone form.
+        validity_combined = _first_match(
+            r"v:NotBefore:\s*(.+?GMT);\s*NotAfter:\s*(.+?GMT)", chunk,
+        )
+        if validity_combined:
+            # _first_match returns only group 1; re-match to grab both.
+            import re as _re
+            m = _re.search(
+                r"v:NotBefore:\s*(.+?GMT);\s*NotAfter:\s*(.+?GMT)", chunk,
+            )
+            not_before_s = m.group(1).strip() if m else ""
+            not_after_s = m.group(2).strip() if m else ""
+        else:
+            not_before_s = _first_match(r"\s+Not Before\s*:\s*(.+)", chunk)
+            not_after_s = _first_match(r"\s+Not After\s*:\s*(.+)", chunk)
+
+        # Parse openssl date format: "May 27 19:45:00 2026 GMT"
+        def _parse_openssl_dt(s: str) -> _dt.datetime | None:
+            if not s:
+                return None
+            try:
+                return _dt.datetime.strptime(s.strip(), "%b %d %H:%M:%S %Y %Z").replace(
+                    tzinfo=_dt.timezone.utc,
+                )
+            except ValueError:
+                return None
+
+        not_before = _parse_openssl_dt(not_before_s)
+        not_after = _parse_openssl_dt(not_after_s)
+
+        days_until_expiry: int | None = None
+        if not_after is not None:
+            days_until_expiry = (not_after - now).days
+
+        verify_ok = bool(verify_msg and verify_msg.strip().startswith("0 (ok)"))
+
+        # Severity
+        if days_until_expiry is not None and days_until_expiry < 7:
+            severity = SeverityChoices.HIGH
+        elif days_until_expiry is not None and days_until_expiry < 30:
+            severity = SeverityChoices.MEDIUM
+        elif verify_msg and not verify_ok:
+            severity = SeverityChoices.MEDIUM
+        else:
+            severity = SeverityChoices.INFO
+
+        elements = {
+            "subject": subject,
+            "issuer": issuer,
+            "not_before": not_before.isoformat() if not_before else "",
+            "not_after": not_after.isoformat() if not_after else "",
+            "days_until_expiry": days_until_expiry,
+            "cipher": cipher,
+            "protocol": protocol,
+            "verify_ok": verify_ok,
+            "verify_message": verify_msg,
+        }
+
+        # Target may be host:port — store host part in ip_address.
+        ip_part = tgt.split(":", 1)[0]
+        out.append(ParsedHost(
+            ip_address=ip_part or tgt,
+            host_state=HostStateChoices.UP if verify_msg else HostStateChoices.UNKNOWN,
+            host_findings=[ParsedVulnerability(
+                nse_script="openssl-s_client",
+                output=chunk.strip()[:4000],  # cap raw at 4KB — full chain is huge
+                severity=severity,
+                elements=elements,
+            )],
+        ))
+    return ParsedReport(), out
+
+
+def _first_match(pattern: str, text: str) -> str:
+    """Return the first regex capture group's match in `text`, or ''."""
+    import re as _re
+    m = _re.search(pattern, text, _re.MULTILINE)
+    return m.group(1).strip() if m else ""
+
+
 # Map ToolChoices values → parser function. The dispatch picks one
 # at ingest based on the agent's X-Tool header (or the scan's profile).
 # Adding a new tool: write a parse_<tool>_<format>() returning the same
 # (ParsedReport, list[ParsedHost]) tuple, then register it here.
 #
 # Signatures differ slightly: nmap doesn't need targets (the XML names
-# its own hosts); dig+masscan+others do. dispatch_parser() normalizes
-# the call sites.
+# its own hosts); others do. dispatch_parser() normalizes the call.
 PARSERS: dict[str, object] = {
     "nmap": parse_xml_with_report,
     "dig": parse_dig_text,
     "drill": parse_drill_text,
+    "curl": parse_curl_text,
+    "mtr": parse_mtr_json,
+    "masscan": parse_masscan_json,
+    "openssl-s_client": parse_openssl_sclient_text,
 }
 
 

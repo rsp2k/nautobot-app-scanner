@@ -252,12 +252,122 @@ def build_drill_argv(scan: dict) -> list[str]:
     return argv
 
 
+def build_curl_argv(scan: dict) -> list[str]:
+    """Compose curl argv: dump headers + a key=value summary to stdout.
+
+    curl ordering in stdout when used with these flags:
+      -D /dev/stdout : headers written as they arrive
+      -o /dev/null   : body discarded
+      -w <format>    : the format string is appended AFTER the body
+                       transfer completes
+    The headers end with a blank line (HTTP boundary). That blank line
+    is the natural separator the parser splits on — no sentinel needed.
+
+    For multiple targets, curl handles them sequentially in one
+    invocation and writes the full headers+w block per URL, separated
+    by curl's own blank-line boundary. The parser handles either case.
+    """
+    profile = scan["profile"]
+    curl_bin = os.environ.get("CURL_BIN", "/usr/bin/curl")
+    # -sS: silent but show errors. -L: follow redirects (URL stays in -w).
+    # The format string includes a leading newline so it visually
+    # separates from the headers block on the wire.
+    argv = [
+        curl_bin, "-sS", "-L",
+        "-D", "/dev/stdout",
+        "-o", "/dev/null",
+        "-w", "\n---CURL-SUMMARY--- STATUS=%{http_code} SIZE=%{size_download} "
+              "TIME=%{time_total} REDIRECTS=%{num_redirects} URL=%{url_effective}\n",
+    ]
+    argv.extend(shlex.split(profile.get("tool_arguments", "") or ""))
+    argv.extend(_all_targets(scan))
+    return argv
+
+
+def build_mtr_argv(scan: dict) -> list[str]:
+    """Compose mtr argv for JSON-mode path + latency baseline.
+
+    -j: JSON output. Schema (one report per target):
+        {"report": {"mtr": {src, dst, tos, tests, psize, bitpattern},
+                    "hubs": [{count, host, "Loss%", Snt, Last, Avg, Best, Wrst, StDev}, ...]}}
+    -c 10: 10 probes per hop (fast, stable enough for baselining)
+    -n: no DNS — keeps reports cheap and reproducible
+    """
+    profile = scan["profile"]
+    mtr_bin = os.environ.get("MTR_BIN", "/usr/bin/mtr")
+    argv = [mtr_bin, "-j", "-c", "10", "-n"]
+    argv.extend(shlex.split(profile.get("tool_arguments", "") or ""))
+    argv.extend(_all_targets(scan))
+    return argv
+
+
+def build_masscan_argv(scan: dict) -> list[str]:
+    """Compose masscan argv for JSON-to-stdout sweeping.
+
+    -oJ -: JSON to stdout. Schema is a JSON array of:
+        {"ip": "1.2.3.4", "timestamp": "...",
+         "ports": [{"port": 80, "proto": "tcp", "status": "open",
+                    "reason": "syn-ack", "ttl": 64, "service": {...}}, ...]}
+    --rate caps packets-per-second. Default 10000 is sane for LAN
+    sweeps; tool_arguments can override (e.g. "--rate 100000") for
+    larger ranges. Profiles using masscan auto-trip is_pentest_mode
+    so dispatch requires the use_pentest_profiles permission.
+    """
+    profile = scan["profile"]
+    masscan_bin = os.environ.get("MASSCAN_BIN", "/usr/bin/masscan")
+    argv = [masscan_bin, "-oJ", "-", "--rate", "10000"]
+    argv.extend(shlex.split(profile.get("tool_arguments", "") or ""))
+    argv.extend(_all_targets(scan))
+    return argv
+
+
+def build_openssl_sclient_argv(scan: dict) -> list[str]:
+    """Compose openssl s_client argv via a shell wrapper for multi-target.
+
+    openssl s_client is one-connection-per-invocation, so we synthesize
+    a small shell command that runs it once per target and writes a
+    per-target sentinel between runs. The parser splits on
+    ``===TARGET=<addr>===`` to recover per-target chunks.
+
+    Targets must include a port — TLS doesn't have a default like HTTP
+    does. The seed profile uses ``-showcerts -tls1_3`` as defaults;
+    operators add tool_arguments like ``-servername example.com`` for
+    SNI when the target is an IP that hosts multiple certs.
+
+    `</dev/null` sends EOF immediately after the handshake so s_client
+    doesn't sit waiting for stdin.
+    """
+    targets = _all_targets(scan)
+    profile = scan["profile"]
+    args = shlex.split(profile.get("tool_arguments", "") or "-showcerts -tls1_3")
+    openssl_bin = os.environ.get("OPENSSL_BIN", "/usr/bin/openssl")
+    quoted_args = " ".join(shlex.quote(a) for a in args)
+    parts = []
+    for t in targets:
+        parts.append(
+            f'echo "===TARGET={t}==="; '
+            f'{shlex.quote(openssl_bin)} s_client -connect {shlex.quote(t)} '
+            f'{quoted_args} </dev/null 2>&1',
+        )
+    # Wrap in `sh -c` so the agent's subprocess.run() executes the
+    # whole pipeline as one process. Without this, build_argv would
+    # need to know about subshell semantics.
+    return ["sh", "-c", " ; ".join(parts)] if parts else ["sh", "-c", ":"]
+
+
 # (argv_builder, content_type) per tool. Server's X-Tool header
 # dispatches the parser; here we pick the right binary + headers.
+# Phase J added curl/mtr/masscan/openssl-s_client — content-type
+# convention: text/plain for line-oriented output, application/json
+# for tools that emit structured JSON natively.
 TOOL_REGISTRY = {
     "nmap": (build_nmap_argv, "application/xml"),
     "dig": (build_dig_argv, "text/plain"),
     "drill": (build_drill_argv, "text/plain"),
+    "curl": (build_curl_argv, "text/plain"),
+    "mtr": (build_mtr_argv, "application/json"),
+    "masscan": (build_masscan_argv, "application/json"),
+    "openssl-s_client": (build_openssl_sclient_argv, "text/plain"),
 }
 
 

@@ -240,15 +240,25 @@ class ScanProfile(PrimaryModel):
         """Display string."""
         return self.name
 
+    # Phase J: tool-shapes that are recon-aggressive enough to auto-trip
+    # the pentest gate regardless of any nmap-specific flags being set.
+    # masscan at 10M pps is unmistakable to any IDS; profiles that use it
+    # should require the same legal-authorization permission as nmap-decoy
+    # / fragmentation / idle-scan profiles. Add new entries here when
+    # another tool earns the same warning.
+    PENTEST_TOOLS = frozenset({"masscan"})
+
     @property
     def is_pentest_mode(self) -> bool:
-        """True when any pentest-class flag is set.
+        """True when any pentest-class flag is set OR the tool is recon-aggressive.
 
         Used by dispatch + UI gating: pentest-mode profiles render a
         yellow banner, require ``nautobot_scanner.use_pentest_profiles``
         to dispatch, and stamp Scan.was_pentest_mode = True at runtime
         for filterable audit queries.
         """
+        if self.tool in self.PENTEST_TOOLS:
+            return True
         return bool(
             self.decoy_addresses
             or self.fragment_packets
