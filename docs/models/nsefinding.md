@@ -21,11 +21,11 @@ attached. The `severity` field is what actually distinguishes
 |-------|-------------|
 | `discovered_port` | FK to `DiscoveredPort` (CASCADE, nullable). Set when this finding came from a per-port NSE script (`vulners`, `ssl-cert`, `http-title`). **Mutually exclusive with `discovered_host`.** |
 | `discovered_host` | FK to `DiscoveredHost` (CASCADE, nullable). Set when this finding came from a host-scope NSE script (`smb-os-discovery`, `snmp-info`, `ssh-hostkey`). **Mutually exclusive with `discovered_port`.** |
-| `nse_script` | CharField(128) — name of the NSE script that produced the finding |
-| `output` | TextField — raw script output. May contain CVE IDs, CVSS scores, exploit URLs, or just informational data depending on the script. |
+| `nse_script` | CharField(128) — identifier of the script (or tool wrapper) that produced the finding. Despite the name, this isn't nmap-NSE-only: non-nmap tools synthesize wrapper names (`dig-answer`, `drill-answer`, `curl-probe`, `mtr-report`, `openssl-s_client`) so the same field works as the finding type across tools. |
+| `output` | TextField — raw script output. May contain CVE IDs, CVSS scores, exploit URLs, or just informational data depending on the script. For non-nmap tools, this is the captured raw text of the tool's stdout (response headers + status line for curl, JSON report for mtr, handshake + cert chain for openssl, etc.). |
 | `severity` | CharField (choices=`SeverityChoices`, db_indexed) — `unknown` / `info` / `low` / `medium` / `high` / `critical`. Default `unknown` — **never null**. |
 | `references` | JSONField (list) — parsed reference URLs (CVE links, exploit-db entries, vendor advisories). |
-| `elements` | JSONField (dict, default `{}`) — structured key-value data the NSE script emits alongside text `output`. `ssl-cert` populates `cert.validity.notAfter`; `smb-os-discovery` populates `os.fqdn`; `http-headers` populates each header as a key. Empty dict for scripts that emit text only. The per-finding detail page renders these via a type-aware partial so operators get structured access without grep'ing `output`. |
+| `elements` | JSONField (dict, default `{}`) — structured key-value data extracted alongside text `output`. nmap NSE scripts populate it directly (`ssl-cert` → `cert.validity.notAfter`; `smb-os-discovery` → `os.fqdn`; `http-headers` → each header as a key). Phase G + J parsers populate it from their own tool output — `curl-probe` → `{status_code, content_type, time_total_ms, headers{...}}`; `mtr-report` → `{target, hops: [...], target_loss_pct, max_loss_pct_any_hop}`; `openssl-s_client` → `{subject, issuer, not_before, not_after, days_until_expiry, cipher, verify_ok}`; `dig-answer` / `drill-answer` → `{records: [...]}`. Empty dict for scripts that emit text only. The per-finding detail page renders these via a type-aware partial so operators get structured access without grep'ing `output`. |
 
 **Base class:** `BaseModel` (lightweight — no status/tags/change-log).
 
@@ -34,12 +34,19 @@ surface at the top of every queryset by default.
 
 ## Port-scope vs host-scope
 
-nmap's NSE engine runs scripts in two different scopes:
+nmap's NSE engine runs scripts in two different scopes; Phase G + J
+non-nmap tools always land in the host-scope column because they're
+invoked per-target, not per-discovered-port:
 
 | Scope | Examples | Anchored to |
 |-------|----------|-------------|
-| **Per-port** | `vulners`, `ssl-cert`, `ssl-enum-ciphers`, `http-title`, `http-headers`, `http-server-header` | A specific `DiscoveredPort` — fires per-port-per-host |
-| **Host-scope** | `smb-os-discovery`, `smb-protocols`, `snmp-info`, `snmp-sysdescr`, `ssh-hostkey`, `ssh-auth-methods` | A `DiscoveredHost` directly — fires once per host even when the underlying service spans multiple ports |
+| **Per-port** | nmap NSE: `vulners`, `ssl-cert`, `ssl-enum-ciphers`, `http-title`, `http-headers`, `http-server-header` | A specific `DiscoveredPort` — fires per-port-per-host |
+| **Host-scope** | nmap NSE: `smb-os-discovery`, `smb-protocols`, `snmp-info`, `snmp-sysdescr`, `ssh-hostkey`, `ssh-auth-methods`. **Non-nmap tools**: `dig-answer`, `drill-answer`, `curl-probe`, `mtr-report`, `openssl-s_client`. | A `DiscoveredHost` directly — fires once per host even when the underlying service spans multiple ports |
+
+(`masscan` is the lone exception that produces **no** `NseFinding`
+rows — its output is structurally identical to nmap's host+port shape,
+so it materializes directly as `DiscoveredHost` + `DiscoveredPort`
+rows without a finding wrapper.)
 
 Pre-`0009` (when this model required a `discovered_port`), host-scope
 NSE output was **silently dropped** by the parser — `smb-os-discovery`

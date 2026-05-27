@@ -2,10 +2,11 @@
 
 ## Does this app scan from inside the Nautobot host?
 
-It can. The **Local backend** does exactly that — nmap runs inside the
-Nautobot Celery worker container. For network segments the Nautobot
-host can't reach, use a **Remote agent**. See
-[Scanner Agents](agents.md).
+It can. The **Local backend** does exactly that — the probe tool
+selected by the profile (nmap / dig / drill / curl / mtr / masscan /
+openssl-s_client) runs inside the Nautobot Celery worker container.
+For network segments the Nautobot host can't reach, use a **Remote
+agent**. See [Scanner Agents](agents.md).
 
 ## Will it auto-populate IPAM from scan results?
 
@@ -42,14 +43,23 @@ same IP discovered across multiple scans yields multiple rows so you
 have a full history. The `IPAddress` detail panel (in Phase 8) shows
 all scans that touched that IP, newest first.
 
-## Where is the raw nmap XML stored?
+## Where is the raw scan output stored?
 
-In `Scan.raw_xml` — a `FileField` (gzipped). Goes to your Nautobot
-media storage backend (filesystem by default, S3-compatible if you've
-configured one). NOT in Postgres — XML for a single scan of a /22 can
-be many megabytes, which would bloat the DB and kill `pg_dump`.
+Two FileFields on `Scan`, mutually exclusive:
 
-You can re-parse stored XML if you fix a parser bug — see
+- **nmap scans** → `Scan.raw_xml` (gzipped under
+  `media/scanner/xml/YYYY/MM/`)
+- **everything else** (dig / drill / curl / mtr / masscan /
+  openssl-s_client) → `Scan.raw_output` (gzipped under
+  `media/scanner/output/YYYY/MM/`)
+
+Both go to your Nautobot media storage backend (filesystem by default,
+S3-compatible if you've configured one). NOT in Postgres — output for
+a single scan of a /22 can be many megabytes, which would bloat the DB
+and kill `pg_dump`. The `tool_used` field tells you which file to
+look at.
+
+You can re-parse stored output if you fix a parser bug — see
 [Architecture Decisions](../dev/architecture.md#adr-003-pure-function-parser-separate-from-orm-persistence).
 
 ## Can I write my own backend?

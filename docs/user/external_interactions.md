@@ -6,19 +6,24 @@ What the app talks to outside Nautobot, and what talks to the app.
 
 | Target | Protocol | Purpose | When |
 |--------|----------|---------|------|
-| `nmap` binary | subprocess | Run the actual scan | LocalBackend, every Scan |
+| Probe tool binary (`nmap` / `dig` / `drill` / `curl` / `mtr` / `masscan` / `openssl`) | subprocess | Run the actual scan — which binary depends on `ScanProfile.tool` | LocalBackend, every Scan |
 | (none for RemoteBackend) | — | RemoteBackend doesn't call out — it just flips Scan state | — |
 
-The `LocalBackend` requires `nmap` to be installed on the Nautobot
-worker host. The dev Docker image bakes it in; for production deploys,
-make sure the worker container/host has `nmap` in PATH.
+The `LocalBackend` requires whichever tool(s) you've configured on
+seeded profiles to be installed on the Nautobot worker host. The dev
+Docker image bakes `nmap` in; for the full Phase-G + J tool set,
+either base the worker image on `nicolaka/netshoot` (same approach the
+[reference remote agent](../admin/install_remote_agent.md#base-image-nicolakanetshoot-phase-g)
+uses) or install the additional tools alongside nmap. A profile that
+asks for a tool the worker doesn't have fails the scan cleanly with
+the missing-tool name in `Scan.error_message`.
 
 ## What calls into the app
 
 | Caller | Endpoint | Auth | Purpose |
 |--------|----------|------|---------|
 | Remote agent | `GET /api/plugins/scanner/agents/<id>/pending-scans/` | DRF Token | Poll for assigned scans in `pending` status |
-| Remote agent | `POST /api/plugins/scanner/scans/<id>/ingest/` | DRF Token + `X-Ingestion-Token` header | Post raw nmap XML for parsing |
+| Remote agent | `POST /api/plugins/scanner/scans/<id>/ingest/` | DRF Token + `X-Ingestion-Token` header | Post raw probe-tool output (nmap XML, dig/drill text, mtr/masscan JSON, curl response, openssl handshake) for parsing. The `X-Tool` header selects which parser runs. |
 | Remote agent | `POST /api/plugins/scanner/agents/<id>/checkin/` | DRF Token | Heartbeat + capability report |
 | Anyone with permissions | Standard CRUD via `/api/plugins/scanner/*` | Session / DRF Token | Read/write any model |
 

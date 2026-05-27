@@ -68,9 +68,17 @@ CI runs `make test` and `make ruff` on every push.
 
 - New nmap parser features (so far we cover `-sn`, `-sS`, `-sU`,
   `-sV`, `-O`, `--script`, `--traceroute`)
+- New probe tools added to the multi-tool dispatch — see
+  [ADR-013](architecture.md#adr-013-pluggable-parser-dispatch-multi-tool-agent-foundation).
+  The current set is `nmap` / `dig` / `drill` / `curl` / `mtr` /
+  `masscan` / `openssl-s_client`. Open candidates: `whois`,
+  `httpx`/`subfinder` (ProjectDiscovery suite), `nuclei` (templated
+  CVE detection), `testssl.sh` (deeper TLS audit than `openssl
+  s_client`), `tcpdump`/`tshark` (with care — PCAP shape is large).
 - Additional scan profile recipes worth documenting
-- New `ScannerBackend` implementations (e.g., RFC-based protocols
-  other than nmap — masscan, naabu, etc.)
+- New `ScannerBackend` implementations (in-process vs remote vs
+  some future SSH-out-and-run model — backends are orthogonal to
+  the per-tool dispatch)
 - Template-content panels for additional Nautobot models
 - Doc improvements (broken links, typos, clarifications)
 

@@ -9,14 +9,14 @@ right binary based on `tool` and uses `nmap_arguments` (when
 
 <figure markdown>
 ![ScanProfile list view with a new Tool column showing nmap for most profiles and dig for dns-recon](../images/profile-list-tool-column.jpeg)
-<figcaption>The ScanProfile list with the Phase G **Tool** column. Most profiles dispatch nmap (the default); the `dns-recon` row dispatches `dig`. The `demo-pentest` row also shows up at the top — it's the seeded Phase I pentest profile.</figcaption>
+<figcaption>The ScanProfile list with the **Tool** column. Most profiles dispatch nmap (the default); `dns-recon` dispatches `dig`, `dnssec-trace` dispatches `drill`, and the four Phase-J profiles (`http-probe`, `path-baseline`, `masscan-sweep`, `tls-quick-check`) dispatch `curl` / `mtr` / `masscan` / `openssl-s_client` respectively. The `demo-pentest` and `masscan-sweep` rows render yellow — both are pentest-class.</figcaption>
 </figure>
 
 | Field | Description |
 |-------|-------------|
 | `name` | Unique identifier (operator-chosen, e.g. `discovery-fast`, `tcp-vuln-vulners`, `dns-recon`) |
 | `scan_type` | Coarse classification — `discovery` / `port` / `version` / `vuln` / `topology`. Used for table filtering and panel decisions; the tool's argument string is the actual source of truth |
-| `tool` | CharField(24, db_indexed) — which probe tool the agent runs: `nmap` (default), `dig`, `masscan`, `curl`, `mtr`, `openssl-s_client`. Defaults to `nmap` so every pre-Phase-G seeded profile keeps working unchanged. |
+| `tool` | CharField(24, db_indexed) — which probe tool the agent runs: `nmap` (default), `dig`, `drill`, `curl`, `mtr`, `masscan`, `openssl-s_client`. Defaults to `nmap` so every pre-Phase-G seeded profile keeps working unchanged. The agent's startup capability probe reports which of these binaries the host actually has. |
 | `nmap_arguments` | TextField — raw nmap flags (e.g. `-sS -sV --top-ports 1000`). Only used when `tool='nmap'`. DO NOT include target spec or `-oX` |
 | `tool_arguments` | TextField — argument string for the chosen tool when it's **not** nmap. Examples: `dig` → `+noall +answer ANY`; `masscan` → `-p 0-65535 --rate=10000`. Target list is appended by the backend. |
 | `timing_template` | `T0`..`T5` — paranoid through insane (nmap-specific; other tools ignore) |
@@ -40,9 +40,25 @@ notice and operational gotchas.
 | `source_port` | `--source-port N` | Spoof a specific source port for outgoing probes (53/88/443 are common bypasses) |
 | `idle_scan_zombie` | `-sI <ip>` | Idle scan via a zombie host — all probes route through the zombie so the target sees the zombie as the attacker |
 
-The `is_pentest_mode` computed property returns `True` if any of the
-five fields is set; the dispatch path queries this rather than each
-field individually.
+The `is_pentest_mode` computed property returns `True` when **either**
+any of the five fields above is set, **or** `tool in PENTEST_TOOLS` —
+the class-level frozenset that currently contains `{"masscan"}`. The
+dispatch path queries this property rather than each input
+individually, so adding new pentest-class tools (or new evasion fields)
+is a one-line change without touching dispatch callers.
+
+```python
+# nautobot_scanner/models/agents.py
+class ScanProfile(PrimaryModel):
+    PENTEST_TOOLS = frozenset({"masscan"})
+
+    @property
+    def is_pentest_mode(self) -> bool:
+        if self.tool in self.PENTEST_TOOLS:
+            return True
+        return bool(self.decoy_addresses or self.fragment_packets
+                    or self.mtu or self.source_port or self.idle_scan_zombie)
+```
 
 **Natural key:** `name`.
 

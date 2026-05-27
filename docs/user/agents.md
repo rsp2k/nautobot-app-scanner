@@ -11,9 +11,11 @@ deployment characteristics.
 
 ## Local agents
 
-`agent_type = local` means nmap runs inside the Nautobot Celery worker
-process. The `LocalBackend` shells out to `subprocess.run(["nmap", ...])`,
-captures the XML, and persists results synchronously.
+`agent_type = local` means the probe tool selected by the profile
+(`nmap` / `dig` / `drill` / `curl` / `mtr` / `masscan` /
+`openssl-s_client`) runs inside the Nautobot Celery worker process.
+The `LocalBackend` shells out to `subprocess.run([tool, ...])`,
+captures the output, and persists results synchronously.
 
 **Use local agents when:**
 
@@ -37,12 +39,14 @@ A local agent **does not need a `User` record**. The `user` field on
 
 ## Remote agents
 
-`agent_type = remote` means nmap runs in a standalone Python agent
-process deployed wherever it has reachability to the targets. The
-`RemoteBackend` doesn't run nmap itself — it only flips the `Scan`
-record to `pending` with a one-shot `ingestion_token`. The agent
-polls a REST endpoint for assigned scans, executes them locally, and
-POSTs the resulting XML back to Nautobot for parsing.
+`agent_type = remote` means the probe tool runs in a standalone Python
+agent process deployed wherever it has reachability to the targets.
+The `RemoteBackend` doesn't run any probe tool itself — it only flips
+the `Scan` record to `pending` with a one-shot `ingestion_token`. The
+agent polls a REST endpoint for assigned scans, dispatches the right
+tool locally (via its `TOOL_REGISTRY`), and POSTs the resulting output
+back to Nautobot with `X-Tool` set so the server picks the right
+parser.
 
 **Use remote agents when:**
 
@@ -114,10 +118,10 @@ other than Python.
 
 | | Local | Remote |
 |--|-------|--------|
-| Where nmap runs | Nautobot worker | Agent host |
+| Where the probe tool runs | Nautobot worker | Agent host |
 | Auth model | None (in-process) | DRF Token bound to dedicated User |
 | Network reach | Whatever Nautobot can reach | Whatever the agent can reach |
 | Scan dispatch | Synchronous (job blocks until complete) | Asynchronous (job returns, agent polls) |
 | Cancellation | Kill the worker task | Set `cancel_requested=True`; agent honors between hosts |
 | Source IP of scan | Nautobot host's IP | Agent host's IP |
-| Failure mode if scanner-side breaks | nmap subprocess errors logged to JobResult | Scan stays `pending`; visible in agent's missed-checkin status |
+| Failure mode if scanner-side breaks | Tool subprocess errors logged to JobResult | Scan stays `pending`; visible in agent's missed-checkin status |

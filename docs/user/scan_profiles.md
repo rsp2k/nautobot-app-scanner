@@ -1,8 +1,10 @@
 # Scan Profiles
 
-A `ScanProfile` is a reusable nmap argument template — name, scan type,
-raw nmap flags, timing template, and an optional list of NSE scripts.
-The same profile can be re-used by any agent for any target.
+A `ScanProfile` is a reusable probe-tool argument template — name, scan
+type, the tool to invoke (`nmap` / `dig` / `drill` / `curl` / `mtr` /
+`masscan` / `openssl-s_client`), the tool's argument string, timing
+template, and an optional list of NSE scripts. The same profile can be
+re-used by any agent for any target.
 
 <figure markdown>
 ![Scan profiles list view](../images/profiles-list.png)
@@ -11,8 +13,9 @@ The same profile can be re-used by any agent for any target.
 
 ## Shipped profiles
 
-**12 profiles** ship by default — 7 general-purpose plus 5 service-focused
-NSE recon profiles. All are seeded by data migrations the first time you
+**19 profiles** ship by default across four families: 7 nmap baseline,
+5 NSE service recon, 2 DNS (dig + drill), 4 Phase-J non-nmap tools, and
+1 pentest demo. All are seeded by data migrations the first time you
 `nautobot-server migrate` after install. Most operators won't need to
 write their own; pick the closest fit and dispatch.
 
@@ -60,14 +63,24 @@ in the UI to slow it down for stealthier contexts.
     `tls-audit` to inventory TLS endpoints, then `vuln` against the
     same range to flag known-CVE OpenSSL versions found there.
 
-### Non-nmap profiles (Phase G)
+### Non-nmap profiles (Phase G + G' + J)
 
-Migration `0015` seeded the first non-nmap profile to prove the
-[multi-tool dispatch path](../models/scanprofile.md):
+The multi-tool dispatch path landed in three steps:
+
+- **Phase G** (migration `0015`) — `dig`, proving one non-nmap parser
+  could ride the same agent/ingest/parser dispatch as nmap.
+- **Phase G'** (migration `0017`) — `drill`, complementing `dig` with
+  first-class DNSSEC validation.
+- **Phase J** (migration `0018`) — the four remaining tools the
+  `ToolChoices` dropdown promised: `curl`, `mtr`, `masscan`,
+  `openssl-s_client`. Closes the "dropdown lies" gap.
+
+#### DNS recon (2 profiles)
 
 | Name | Tool | `tool_arguments` | What it produces |
 |---|---|---|---|
 | `dns-recon` | `dig` | `+noall +answer ANY` | Per-target DNS record snapshot. The agent runs `dig` against each target, gzips the answer body to `Scan.raw_output`, and the server materializes one host-scope `NseFinding` per target with the records in `elements`. |
+| `dnssec-trace` | `drill` | `-DT` | Same shape as `dns-recon` plus the DNSSEC validation flags from drill's `;; flags:` header. Detects unsigned or bad-chain delegations across the trust path. |
 
 <figure markdown>
 ![dns-recon Scan detail showing Tool used=dig + a host-scope NseFinding rendering the parsed dig answer](../images/dig-scan-detail.jpeg)
@@ -79,24 +92,53 @@ Migration `0015` seeded the first non-nmap profile to prove the
 <figcaption>Drilling into the dig finding's detail page: the structured `elements` JSONField renders via the type-aware partial — DNS records appear as a clean list rather than buried inside raw text. Same partial works for ssl-cert validity windows, smb-os-discovery OS strings, http-headers maps.</figcaption>
 </figure>
 
+#### Phase J: HTTP, path, port-sweep, TLS (4 profiles)
+
+| Name | Tool | `tool_arguments` | What it produces |
+|---|---|---|---|
+| `http-probe` | `curl` | *(none — defaults to GET)* | Per-target HTTP response snapshot. One host-scope `NseFinding` per target with structured elements `status_code`, `content_type`, `time_total_ms`, `num_redirects`, `url_effective`, plus every response header nested under `headers{}` (so `?elements__headers__server__icontains=cloudflare` works as a queryable filter). |
+| `path-baseline` | `mtr` | `-c 20` | Per-target traceroute + per-hop latency baseline. JSON output captured into a list of `{ttl, host, loss_pct, avg_ms, jitter_ms, …}` dicts. Severity escalates to **medium** when any hop loses >10% and **high** when the target itself loses >50%. |
+| `masscan-sweep` | `masscan` | `-p 0-65535 --rate 50000` | Fast full-range port sweep — the only Phase J tool that produces `DiscoveredHost` + `DiscoveredPort` rows directly (no `NseFinding` layer). **Auto-tripped pentest-mode** at 10k+ pps — see [the pentest gating note below](#pentest-profiles-phase-i-and-j). |
+| `tls-quick-check` | `openssl-s_client` | `-showcerts -tls1_3` | Per-target TLS handshake + certificate dump. Structured elements `subject`, `issuer`, `not_before`, `not_after`, `days_until_expiry`, `cipher`, `protocol`, `verify_ok`. Severity escalates to **medium** under 30 days and **high** under 7 days from expiry. |
+
+End-to-end-verified against real tool output during Phase J — see the
+commit message for `4705b69` ("Wire the 4 advertised tools end-to-end")
+for the per-tool verification: `curl https://example.com` →
+`status_code=200`, `server='cloudflare'`, `time_total_ms=73`,
+`severity=info`; `mtr -j 1.1.1.1` → 8 hops parsed, hop 3 (firewall) at
+100% loss, `severity=medium` auto-escalated; `openssl s_client
+example.com:443` → `days_until_expiry=35`, `verify_ok=True`.
+
 Add your own non-nmap profile via **Scanner → Scan Profiles → Add**:
-set `tool` to one of `dig` / `masscan` / `curl` / `mtr` /
+set `tool` to one of `dig` / `drill` / `curl` / `mtr` / `masscan` /
 `openssl-s_client`, fill in `tool_arguments`, save. The agent's
 capability probe declares which of these tools the host actually has
 on startup, so an unrecognized tool fails the dispatch cleanly with
 the missing-tool name in `Scan.error_message`.
 
-### Pentest profiles (Phase I)
+### Pentest profiles (Phase I and J)
 
-Migration `0016` seeds one demonstration profile that exercises the
-pentest-mode fields. **Dispatching any pentest profile requires the
-`nautobot_scanner.use_pentest_profiles` permission** — see
-[Pentest Mode](pentest_mode.md) for the legal-authorization notice
-and permission setup.
+A profile is "pentest mode" — and therefore gated by the
+`nautobot_scanner.use_pentest_profiles` permission — when either:
 
-| Name | nmap args | Pentest flags set | What it demonstrates |
-|---|---|---|---|
-| `demo-pentest` | `-sS --top-ports 100` | `decoy_addresses`, `fragment_packets`, `source_port` | Three evasion flags on top of a top-100 SYN scan. Use as a starting point for your own pentest profiles; the audit row stamps `Scan.was_pentest_mode=True` regardless of who later edits the profile. |
+1. Any of the five nmap evasion flags is set on the profile
+   (`decoy_addresses`, `fragment_packets`, `mtu`, `source_port`,
+   `idle_scan_zombie`), **or**
+2. The tool itself is in `ScanProfile.PENTEST_TOOLS` — currently
+   `{"masscan"}`. masscan at the seeded 50k pps is unmistakable to any
+   IDS regardless of flags, so the gating triggers on tool identity
+   alone. See [Pentest Mode](pentest_mode.md) for legal notice and
+   permission setup.
+
+Two seeded pentest-class profiles ship today:
+
+| Name | Tool | What it demonstrates |
+|---|---|---|
+| `demo-pentest` (migration `0016`) | `nmap` | Three evasion flags (`decoy_addresses`, `fragment_packets`, `source_port`) on top of a top-100 SYN scan. Starting point for your own nmap pentest profiles. |
+| `masscan-sweep` (migration `0018`) | `masscan` | Tool-identity gating — no evasion flags set, but `tool == "masscan"` widens `is_pentest_mode` to `True` automatically. See [Phase J profiles](#phase-j-http-path-port-sweep-tls-4-profiles) above. |
+
+Either way the audit row stamps `Scan.was_pentest_mode=True` regardless
+of who later edits the profile.
 
 !!! info "OS fingerprint data missing?"
     Only profiles with `-O` populate the `os_family` / `os_type` /

@@ -2,6 +2,34 @@
 
 Common extension points.
 
+## Two extension axes: backends vs tools
+
+These often get confused — they're orthogonal:
+
+| Axis | What it controls | How you extend |
+|---|---|---|
+| **Backend** (`ScannerBackend` ABC) | *Where* a scan executes — in-worker (Local), remote agent (Remote), or some hypothetical third model (SSH-out-and-run, AWS Inspector wrapper) | One subclass per backend, register in `get_backend()` factory |
+| **Tool** (`PARSERS` + `TOOL_REGISTRY` dicts) | *What binary* the backend invokes — `nmap`, `dig`, `drill`, `curl`, `mtr`, `masscan`, `openssl-s_client` | One entry per tool in each dict, plus a `ToolChoices` value |
+
+Adding a new probe tool (`whois`, `nuclei`, `httpx`, etc.) is the
+**tool axis**, not the backend axis — see the next section.
+
+## Adding a custom tool
+
+The dispatch is the simplest extension point in the codebase — three
+small additions and a migration, no class hierarchy:
+
+1. Add the value to `ToolChoices` in `choices.py`
+2. Write `parse_<tool>_<format>(raw, targets) -> (ParsedReport, list[ParsedHost])`
+   in `parser.py` and register it in `PARSERS`
+3. Write `build_<tool>_argv(scan) -> list[str]` in `agent/agent.py`
+   and register it in `TOOL_REGISTRY` with the right content-type
+4. Add a migration seeding at least one example profile
+
+See [ADR-013](architecture.md#adr-013-pluggable-parser-dispatch-multi-tool-agent-foundation)
+for the design rationale and the regression-test reminder that
+`set(ToolChoices) == set(PARSERS) == set(TOOL_REGISTRY)`.
+
 ## Adding a custom backend
 
 The `ScannerBackend` abstract base class (`src/nautobot_scanner/backends/base.py`)
@@ -15,7 +43,8 @@ class ScannerBackend(ABC):
         via parser.persist() (or directly via the ORM)."""
 ```
 
-To add a new backend (e.g., masscan, naabu, an out-of-process worker):
+To add a new backend (e.g., an out-of-process worker, an SSH-jump
+backend, a third-party scanner SaaS wrapper):
 
 1. Create `src/nautobot_scanner/backends/mybackend.py`
 2. Subclass `ScannerBackend` and implement `dispatch()`
@@ -25,8 +54,8 @@ To add a new backend (e.g., masscan, naabu, an out-of-process worker):
 4. If you're adding a new `agent_type`, also add the choice value to
    `AgentTypeChoices` in `choices.py` and write a migration
 
-Re-use `parser.persist()` if your backend produces nmap-compatible XML;
-write a tool-specific persistence function if not.
+Re-use `parser.dispatch_parser()` to route raw output to the right
+parser regardless of which tool the backend invoked.
 
 ## Adding a custom scan-result model
 

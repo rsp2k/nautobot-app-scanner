@@ -1,10 +1,13 @@
 # Scanner Agent Protocol
 
 The wire contract between `nautobot-app-scanner` and a remote agent. If
-you can speak HTTP and run `nmap`, you can write a conforming agent in
-any language — see [`agent/agent.py`](https://github.com/rsp2k/nautobot-app-scanner/blob/main/agent/agent.py)
-for the reference Python implementation (~250 lines, standard library
-only).
+you can speak HTTP and run a network probe tool (`nmap` / `dig` /
+`drill` / `curl` / `mtr` / `masscan` / `openssl-s_client`), you can
+write a conforming agent in any language — see
+[`agent/agent.py`](https://github.com/rsp2k/nautobot-app-scanner/blob/main/agent/agent.py)
+for the reference Python implementation (~480 lines, standard library
+only — Phase J added the four post-G argv-builders and a generalized
+`run_tool()` dispatch).
 
 For *deploying* the reference agent, see
 [Install Remote Agent](../admin/install_remote_agent.md). This page is
@@ -120,11 +123,16 @@ the token on successful ingest, so a second POST with the same token
 gets `403`. This is the retry-after-504 defense — a network blip
 between you and Nautobot won't cause double-insertion of host records.
 
-**Multi-tool dispatch (Phase G).** The `X-Tool` request header tells
-the server which parser to invoke (`nmap` / `dig` / `masscan` / …).
-Omitting `X-Tool` defaults to `nmap` for back-compat with pre-Phase-G
-agents. Non-nmap output goes into `Scan.raw_output` (gzipped) instead
-of `Scan.raw_xml`. See [ADR-013](architecture.md#adr-013-pluggable-parser-dispatch-multi-tool-agent-foundation)
+**Multi-tool dispatch (Phase G + G' + J).** The `X-Tool` request
+header tells the server which parser to invoke. Recognized values
+today: `nmap`, `dig`, `drill`, `curl`, `mtr`, `masscan`,
+`openssl-s_client`. Omitting `X-Tool` defaults to `nmap` for
+back-compat with pre-Phase-G agents. Non-nmap output goes into
+`Scan.raw_output` (gzipped) instead of `Scan.raw_xml`. The agent's
+`TOOL_REGISTRY` declares the per-tool content-type the server should
+expect — `application/xml` for nmap, `application/json` for `mtr` and
+`masscan`, `text/plain` for everyone else. See
+[ADR-013](architecture.md#adr-013-pluggable-parser-dispatch-multi-tool-agent-foundation)
 for the dispatch design.
 
 **Request (nmap)**
@@ -153,6 +161,21 @@ X-Tool: dig
 
 example.com. 3600 IN A 93.184.216.34
 example.com. 3600 IN MX 0 .
+```
+
+**Request (mtr)** — Phase J example, structured JSON body:
+
+```http
+POST /api/plugins/scanner/scans/cafe-d00d-.../ingest/
+Authorization: Token <key>
+Content-Type: application/json
+X-Ingestion-Token: <token>
+X-Tool: mtr
+
+{"report":{"mtr":{"src":"agent01","dst":"1.1.1.1",...},"hubs":[
+  {"count":1,"host":"192.0.2.1","Loss%":0,"Snt":10,"Avg":1.5,...},
+  {"count":2,"host":"203.0.113.1","Loss%":0,"Snt":10,"Avg":12.3,...}
+]}}
 ```
 
 **Response 200**
@@ -227,23 +250,42 @@ Agents Offline` Job flips agents to status `Offline` when `last_seen >
 Minimal pseudocode:
 
 ```python
+# build_argv: a per-tool function returning the argv list. The
+# reference agent's TOOL_REGISTRY dict maps tool name → (build_fn,
+# content_type) for all 7 supported tools.
+TOOL_REGISTRY = {
+    "nmap":            (build_nmap_argv,    "application/xml"),
+    "dig":             (build_dig_argv,     "text/plain"),
+    "drill":           (build_drill_argv,   "text/plain"),
+    "curl":            (build_curl_argv,    "text/plain"),
+    "mtr":             (build_mtr_argv,     "application/json"),
+    "masscan":         (build_masscan_argv, "application/json"),
+    "openssl-s_client":(build_openssl_argv, "text/plain"),
+}
+
 while True:
     scans = http_get(f"{base}/agents/{agent_id}/pending-scans/", token)
     for scan in scans:
-        argv = ["nmap", "-oX", "-"] + scan["profile"]["nmap_arguments"].split() \
-             + [f"-{scan['profile']['timing_template']}"] \
-             + scan["targets"]["prefixes"] + scan["targets"]["ipaddresses"]
-        xml = subprocess.run(argv, capture_output=True, text=True).stdout
+        tool = scan["profile"].get("tool", "nmap")
+        build_fn, content_type = TOOL_REGISTRY[tool]
+        argv = build_fn(scan)
+        output = subprocess.run(argv, capture_output=True, text=True).stdout
         http_post(
             f"{base}/scans/{scan['id']}/ingest/",
-            body=xml,
-            headers={"X-Ingestion-Token": scan["ingestion_token"]},
+            body=output,
+            headers={
+                "X-Ingestion-Token": scan["ingestion_token"],
+                "X-Tool": tool,
+                "Content-Type": content_type,
+            },
             token=token,
         )
     sleep(POLL_INTERVAL)
 ```
 
 Background thread does `POST /checkin/` every `CHECKIN_INTERVAL`. That's
-the whole protocol. The reference agent is ~250 lines because it adds
-TLS opts, error handling, signal traps, capability probing, and
-configuration loading — none of which are protocol requirements.
+the whole protocol. The reference agent is ~480 lines because it adds
+TLS opts, error handling, signal traps, per-tool capability probing,
+configuration loading, and the seven `build_*_argv()` functions — none
+of which are protocol requirements beyond the tool you actually plan to
+support.

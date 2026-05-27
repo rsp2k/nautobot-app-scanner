@@ -31,8 +31,8 @@ flowchart TD
     A([RunScan.run]) --> B[Validate inputs<br/>agent active?<br/>targets non-empty?]
     B --> C[Create Scan record<br/>status=running<br/>ingestion_token=uuid<br/>job_result=self]
     C --> D{get_backend agent type?}
-    D -- LocalBackend --> E[subprocess.run nmap]
-    E --> F[parser.parse_xml]
+    D -- LocalBackend --> E[subprocess.run<br/>profile.tool]
+    E --> F[parser.dispatch_parser<br/>tool=profile.tool]
     F --> G[parser.persist<br/>status=completed]
     D -- RemoteBackend --> H[Flip status=pending<br/>return immediately]
     G --> I([Job result: Scan UUID +<br/>status at return time])
@@ -78,9 +78,9 @@ safely overlap).
 Set `Scan.cancel_requested = True` on a running scan to request a
 clean halt. The behavior depends on the backend:
 
-- **Local backend**: the in-process nmap subprocess gets a SIGTERM after
-  the current host finishes (TODO: confirm subprocess signal handling
-  in the Phase 6 implementation)
+- **Local backend**: the in-process probe subprocess (whatever tool
+  the profile selected) gets a SIGTERM after the current host finishes
+  (TODO: confirm subprocess signal handling in the Phase 6 implementation)
 - **Remote agent**: the agent polls `cancel_requested` between hosts
   during its scan; honoring it is implementation-defined per agent. The
   reference agent honors it within ~10 seconds.
@@ -93,7 +93,7 @@ partial results were already ingested.
 Every Scan's `job_result` FK points to the `extras.JobResult` record
 for the dispatching Job. That's where you'll find:
 
-- Per-host stdout/stderr from nmap (info-level log lines)
+- Per-host stdout/stderr from the dispatched probe tool (info-level log lines)
 - Parser warnings (info / warning)
 - Persist errors (error / failure)
 - Final exit status (success / failure)

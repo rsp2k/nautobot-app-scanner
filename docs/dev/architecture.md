@@ -367,12 +367,28 @@ collapsed into a single field with file-extension discrimination,
 but separate fields make "give me every nmap scan's XML" a clean
 queryset filter instead of a path-suffix string match.
 
+**Phase G' + J postscript — closing the "dropdown lies" gap.**
+Phase G shipped the dispatch foundation but only `nmap` + `dig`
+parsers; `ToolChoices` was a superset of `PARSERS` + `TOOL_REGISTRY`,
+so a user picking `curl` / `mtr` / `masscan` / `openssl-s_client`
+from the profile dropdown got a 400 at ingest. Phase G' added
+`drill` (DNSSEC validation alongside dig); Phase J added the
+remaining four to bring all three sets to parity. The dispatch
+contract didn't change — only the registry filled out. A regression
+test asserting `set(ToolChoices.values()) == set(PARSERS.keys()) ==
+set(TOOL_REGISTRY.keys())` would prevent the gap from silently
+reopening; worth keeping in mind when adding tool #8.
+
 ## ADR-014: Pentest mode permission gating + immutable audit flag
 
 Phase I adds five pentest-class fields to `ScanProfile`
 (`decoy_addresses` / `fragment_packets` / `mtu` / `source_port` /
-`idle_scan_zombie`). Each maps to one nmap evasion flag. Setting
-any one flips the profile into "pentest mode," and:
+`idle_scan_zombie`). Each maps to one nmap evasion flag. Phase J
+widened the trigger to also include `tool in PENTEST_TOOLS`
+(currently `{"masscan"}`) — masscan at the seeded 50k pps rate is
+unmistakable to any IDS regardless of evasion flags, so tool-identity
+gating is correct. Setting any one evasion field, or selecting any
+tool in `PENTEST_TOOLS`, flips the profile into "pentest mode," and:
 
 1. **Dispatch is gated by a new permission**
    (`nautobot_scanner.use_pentest_profiles`). Without it, dispatch

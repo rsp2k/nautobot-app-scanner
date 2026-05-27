@@ -7,9 +7,10 @@
 
 ## What gets stored
 
-The app turns nmap XML output into Nautobot ORM records. Each `Scan`
-produces zero-or-more `DiscoveredHost` rows; each host can have ports,
-vulnerability findings, and traceroute hops attached.
+The app turns probe-tool output (nmap XML, dig/drill text, mtr/masscan
+JSON, curl HTTP response, openssl handshake dump) into Nautobot ORM
+records. Each `Scan` produces zero-or-more `DiscoveredHost` rows; each
+host can have ports, findings, and traceroute hops attached.
 
 ```
 ScannerAgent ──┐
@@ -20,9 +21,9 @@ ScanProfile ───┘             (linked_ipaddress, └──→ TraceRouteH
 
 | Layer | Models | Purpose |
 |-------|--------|---------|
-| **Identity** | `ScannerAgent`, `ScanProfile` | Who runs scans, with what nmap config |
-| **Execution** | `Scan` | One scan run — agent + profile + IPAM targets + lifecycle state + raw XML |
-| **Results** | `DiscoveredHost`, `DiscoveredPort`, `NseFinding`, `TraceRouteHop` | What nmap actually found |
+| **Identity** | `ScannerAgent`, `ScanProfile` | Who runs scans, with what tool + arguments |
+| **Execution** | `Scan` | One scan run — agent + profile + IPAM targets + lifecycle state + raw output (XML for nmap, gzipped text/JSON for everything else) |
+| **Results** | `DiscoveredHost`, `DiscoveredPort`, `NseFinding`, `TraceRouteHop` | What the probe actually found |
 
 See the [Data Models reference](../models/index.md) for field-by-field
 details.
@@ -64,7 +65,7 @@ stateDiagram-v2
     pending --> running: agent claims via<br/>/pending-scans/ poll
 
     running --> completed: parser.persist OK
-    running --> failed: nmap nonzero exit<br/>or parser raises
+    running --> failed: tool nonzero exit<br/>or parser raises
     running --> cancelled: cancel_requested=True<br/>honored between hosts
     pending --> cancelled: cancel_requested set<br/>before agent claimed it
 

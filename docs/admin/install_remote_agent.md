@@ -134,8 +134,9 @@ sockets without `--privileged`.
 nmap-only build. For agents on flaky / metered links (satellite,
 cellular, branch with thin pipes), the larger initial pull is real
 cost. The benefit: a single image supports every probe tool the app
-dispatches (`tool=nmap` / `dig` / `masscan` / `curl` / `mtr` /
-`openssl-s_client`) so you don't have to manage one image per tool.
+dispatches (`tool=nmap` / `dig` / `drill` / `curl` / `mtr` /
+`masscan` / `openssl-s_client`) so you don't have to manage one image
+per tool.
 
 **Per-tool capability probe.** On startup, the agent inspects each
 tool's version and posts the inventory in its `/checkin/` capabilities

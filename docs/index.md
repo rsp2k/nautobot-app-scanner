@@ -1,10 +1,12 @@
 # Nautobot Scanner
 
-A Nautobot app that runs nmap-based network scans against IPAM-defined
-targets and stores discovered hosts, open ports, service fingerprints,
-vulnerability findings, and traceroute hops as first-class queryable
-models — then surfaces the results on existing Device, IPAddress, and
-Prefix detail pages.
+A Nautobot app that dispatches one of seven network probe tools
+(`nmap` / `dig` / `drill` / `curl` / `mtr` / `masscan` /
+`openssl-s_client`) against IPAM-defined targets and stores discovered
+hosts, open ports, service fingerprints, vulnerability findings, DNS
+records, HTTP responses, TLS handshakes, traceroute hops, and DNSSEC
+validation status as first-class queryable models — then surfaces the
+results on existing Device, IPAddress, and Prefix detail pages.
 
 !!! warning "Pre-alpha"
     Under active development. Backwards-incompatible changes possible until v1.
@@ -18,8 +20,9 @@ Prefix detail pages.
 
 ## Why this app
 
-Network teams already have an IPAM (Nautobot) and a scanner (nmap). The
-gap is that **scan results live in XML files, not in the IPAM**, so the
+Network teams already have an IPAM (Nautobot) and probe tools (nmap,
+dig, curl, masscan…). The gap is that **scan results live in XML files,
+JSON blobs, and one-shot terminal output, not in the IPAM**, so the
 operational questions you actually need answers to are awkward:
 
 - "Which hosts in 10.50.0.0/24 weren't there last month?"
@@ -34,13 +37,13 @@ Nautobot model.
 
 ## Two scan backends
 
-| Backend | Where nmap runs | When to use |
-|---------|-----------------|-------------|
+| Backend | Where the probe tool runs | When to use |
+|---------|--------------------------|-------------|
 | **Local** | Inside the Nautobot Celery worker | Single-site deploys, scanning networks the Nautobot host can reach |
 | **Remote** | Standalone Python agent process | Scanning isolated segments (DMZ, OT, branch offices, remote sites) where the Nautobot host has no L3 reachability |
 
-Both backends share the same data model and the same parser — the only
-difference is where the `nmap` subprocess executes.
+Both backends share the same data model and the same parser-dispatch
+table — the only difference is where the probe subprocess executes.
 
 ## Enrichment, not replacement
 

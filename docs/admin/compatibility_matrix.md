@@ -1,8 +1,25 @@
 # Compatibility Matrix
 
-| nautobot-app-scanner | Nautobot | Python | python-libnmap | nmap binary |
-|----------------------|----------|--------|----------------|-------------|
-| 2026.5.x (current)   | 3.0–3.1  | 3.10–3.13 | 0.7+        | 7.x+        |
+| nautobot-app-scanner | Nautobot | Python | python-libnmap |
+|----------------------|----------|--------|----------------|
+| 2026.5.x (current)   | 3.0–3.1  | 3.10–3.13 | 0.7+        |
+
+## Probe tool versions
+
+Each tool is independently dispatched via `ScanProfile.tool`. A profile
+that asks for a tool the worker / agent doesn't have fails cleanly
+with the missing-tool name in `Scan.error_message`. Only install what
+you'll dispatch.
+
+| Tool | Minimum version | Tested with | Notes |
+|---|---|---|---|
+| nmap | 7.0+ | 7.94+ | XML schema stable since 7.x; `vulners` script needs 7.0+ |
+| dig | any modern | bind 9.16+ | Output format is line-stable; the parser is tolerant |
+| drill | any modern | ldns 1.8+ | DNSSEC `;; flags:` parsing exercised in tests against ldns 1.8 output |
+| curl | 7.50+ | 8.x | `-w` writeout flag is parser-critical; older curls work but the writeout token set has expanded |
+| mtr | 0.94+ | 0.95+ | Needs `-j` JSON output flag (introduced in mtr 0.86, mature by 0.94) |
+| masscan | 1.3+ | 1.3.2 | `-oJ -` JSON-to-stdout requires 1.3+ |
+| openssl | 1.1.1+ | 1.1.1 + 3.x | Parser handles both 1.1.x ("Cipher : X" / "Not Before:") and 3.x ("Cipher is X" / "v:NotBefore:") output shapes |
 
 ## Versioning policy
 

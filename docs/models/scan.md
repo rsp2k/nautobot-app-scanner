@@ -33,8 +33,12 @@ colliding with Nautobot's `extras.jobs.Job` namespace.
 ### Scan provenance (captured from nmap XML at ingest)
 
 These four fields are populated by the parser reading the nmap XML's
-`<nmaprun>` attributes. They make the audit trail one query away
-instead of one shell pivot through the gzipped raw XML.
+`<nmaprun>` attributes — so they're **nmap-only**. Non-nmap scans
+(`tool_used != "nmap"`) leave them blank; for those tools the
+provenance lives inside each `NseFinding.elements` dict instead
+(e.g. `openssl-s_client` records the connect-string, `mtr` records
+the source/dest of the trace). They make the audit trail one query
+away instead of one shell pivot through the gzipped raw XML.
 
 | Field | Description |
 |-------|-------------|
