@@ -1,8 +1,8 @@
 # Compatibility Matrix
 
-| nautobot-app-scanner | Nautobot | Python | python-libnmap |
-|----------------------|----------|--------|----------------|
-| 2026.5.x (current)   | 3.0–3.1  | 3.10–3.13 | 0.7+        |
+| nautobot-app-scanner | Nautobot | Python | python-libnmap | nautobot-dns-models |
+|----------------------|----------|--------|----------------|---------------------|
+| 2026.5.x (current)   | 3.0–3.1  | 3.10–3.13 | 0.7+        | bitemporal fork @ `9ce2eb4` (pin via git URL until `2.1.2` ships on PyPI) |
 
 ## Probe tool versions
 
@@ -68,8 +68,23 @@ re-running tests; we'll cut a new CalVer release at that point.
 - For Windows host detection (`-O`), nmap **7.94+** has noticeably
   better fingerprints
 
+## nautobot-dns-models note
+
+Phase K (dig/drill record promotion) depends on the **bitemporal
+fork** of `nautobot-app-dns-models`, not upstream `2.1.1`. The fork
+adds `BitemporalMixin` to every record class so the promoter can do
+sequenced-amend rotations on re-scan. `pyproject.toml` pins the fork
+via git URL; once `2.1.2` ships on PyPI, a follow-up app release will
+swap to a plain version specifier. See
+[ADR-015](../dev/architecture.md#adr-015-promote-dig-and-drill-into-typed-dns-models)
+for the rationale and `docs/agent-threads/bitemporal-dns-integration/`
+for the full coordination history.
+
 ## What's NOT supported
 
 - nmap versions older than 7.0 (XML schema differences)
 - Nautobot versions older than 3.0
 - Python 3.9 (Nautobot itself requires 3.10+)
+- Upstream `nautobot-dns-models 2.1.1` without the bitemporal mixin
+  — Phase K's amend detection depends on `BitemporalMixin.all_versions`
+  / `entry_id`. Use the pinned fork until upstream releases `2.1.2`.

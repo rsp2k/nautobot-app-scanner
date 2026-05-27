@@ -4,9 +4,12 @@ A Nautobot app that dispatches one of seven network probe tools
 (`nmap` / `dig` / `drill` / `curl` / `mtr` / `masscan` /
 `openssl-s_client`) against IPAM-defined targets and stores discovered
 hosts, open ports, service fingerprints, vulnerability findings, DNS
-records, HTTP responses, TLS handshakes, traceroute hops, and DNSSEC
-validation status as first-class queryable models — then surfaces the
-results on existing Device, IPAddress, and Prefix detail pages.
+records (promoted into typed
+[`nautobot-dns-models`](https://github.com/rsp2k/nautobot-app-dns-models)
+rows so they join cleanly with IPAM), HTTP responses, TLS handshakes,
+traceroute hops, and DNSSEC validation status as first-class queryable
+models — then surfaces the results on existing Device, IPAddress, and
+Prefix detail pages.
 
 !!! warning "Pre-alpha"
     Under active development. Backwards-incompatible changes possible until v1.

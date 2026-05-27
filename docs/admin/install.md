@@ -8,7 +8,8 @@
 | Python | 3.10–3.13 |
 | python-libnmap | 0.7+ |
 | defusedxml | 0.7+ |
-| nmap binary | 7.x+ (only required for the LocalBackend host) |
+| nautobot-dns-models | bitemporal fork @ `9ce2eb4` until `2.1.2` lands on PyPI (see note below) |
+| Probe tool binaries | only required on the host that runs scans — see per-tool versions in the [Compatibility Matrix](compatibility_matrix.md#probe-tool-versions) |
 
 See [Compatibility Matrix](compatibility_matrix.md) for full support
 details.
@@ -19,24 +20,48 @@ details.
 pip install nautobot-app-scanner
 ```
 
-The package's only Python deps are `python-libnmap` (XML parser) and
-`defusedxml` (XML-bomb protection). It does NOT pull in nmap itself —
-you need to install that separately on whichever host actually runs
-scans (the Nautobot worker for `local` agents, or each remote-agent
-host).
+The package pulls in `python-libnmap` (XML parser), `defusedxml`
+(XML-bomb protection), and `nautobot-dns-models` (typed DNS records
+that dig/drill scan answers promote into — see
+[ADR-015](../dev/architecture.md#adr-015-promote-dig-and-drill-into-typed-dns-models)).
+It does NOT install any probe tool binaries — you need to install
+those separately on whichever host actually runs scans (the Nautobot
+worker for `local` agents, or each remote-agent host).
 
-### Installing nmap
+!!! note "nautobot-dns-models is pinned to a git URL, not PyPI"
+    Phase K (the dig/drill → typed-DNS promotion) depends on the
+    `BitemporalMixin` added in the **bitemporal fork** of
+    `nautobot-app-dns-models`. The fork's `2.1.2` release isn't on
+    PyPI yet, so `pyproject.toml` pins it via git URL:
+    `nautobot-dns-models @ git+https://github.com/rsp2k/nautobot-app-dns-models@9ce2eb4`.
+    `pip install nautobot-app-scanner` resolves and fetches the fork
+    automatically; no manual step needed. When `2.1.2` lands on PyPI,
+    a follow-up release of this app will swap the pin to a plain
+    version specifier. See
+    `docs/agent-threads/bitemporal-dns-integration/` for the full
+    coordination history.
 
-| OS | Command |
-|----|---------|
-| Debian / Ubuntu | `apt-get install nmap` |
-| RHEL / Rocky / Fedora | `dnf install nmap` |
-| Arch | `pacman -S nmap` |
-| Alpine (containers) | `apk add nmap` |
-| macOS (dev only) | `brew install nmap` |
+### Installing the probe tool binaries
+
+The scanner dispatches one of seven tools per profile. Install only
+the tools you'll actually use; a profile that asks for a missing tool
+fails cleanly with the tool name in `Scan.error_message`.
+
+| OS | nmap-only | Full multi-tool set (Phase G + J) |
+|----|---|---|
+| Debian / Ubuntu | `apt-get install nmap` | `apt-get install nmap masscan mtr-tiny ldnsutils dnsutils curl openssl` |
+| RHEL / Rocky / Fedora | `dnf install nmap` | `dnf install nmap masscan mtr ldns-utils bind-utils curl openssl` |
+| Arch | `pacman -S nmap` | `pacman -S nmap masscan mtr ldns bind-tools curl openssl` |
+| Alpine (containers) | `apk add nmap` | `apk add nmap masscan mtr ldns-utils bind-tools curl openssl` |
+| macOS (dev only) | `brew install nmap` | `brew install nmap masscan mtr ldns bind curl openssl` |
+
+(`drill` ships in the `ldns-utils` / `ldns` package on most distros;
+`dig` in `bind-utils` / `bind-tools` / `dnsutils`.)
 
 For container deploys see the dev `Dockerfile` in `development/` — it
-bakes nmap into the Nautobot worker image.
+extends `nicolaka/netshoot` which bundles all seven tools out of the
+box (plus ~40 more) so a single image supports every profile the app
+dispatches.
 
 ## Configure
 
@@ -45,6 +70,7 @@ Add to `nautobot_config.py`:
 ```python
 PLUGINS = [
     "nautobot_scanner",
+    "nautobot_dns_models",   # required — Phase K promotes dig/drill into this
 ]
 
 PLUGINS_CONFIG = {
@@ -54,8 +80,14 @@ PLUGINS_CONFIG = {
         "local_scan_timeout_seconds": 3600,
         "prefix_coverage_cache_ttl_seconds": 300,
     },
+    "nautobot_dns_models": {},
 }
 ```
+
+Both plugins must be listed — `nautobot_scanner` writes typed DNS
+records into the `nautobot_dns_models` tables on every dig/drill
+ingest, so the second plugin's models need to be installed and
+migrated for scan ingest to succeed.
 
 All settings are optional — the defaults from
 `NautobotScannerConfig.default_settings` will be used otherwise.

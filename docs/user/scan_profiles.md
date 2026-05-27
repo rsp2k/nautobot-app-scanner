@@ -82,6 +82,19 @@ The multi-tool dispatch path landed in three steps:
 | `dns-recon` | `dig` | `+noall +answer ANY` | Per-target DNS record snapshot. The agent runs `dig` against each target, gzips the answer body to `Scan.raw_output`, and the server materializes one host-scope `NseFinding` per target with the records in `elements`. |
 | `dnssec-trace` | `drill` | `-DT` | Same shape as `dns-recon` plus the DNSSEC validation flags from drill's `;; flags:` header. Detects unsigned or bad-chain delegations across the trust path. |
 
+!!! info "dig and drill scans also promote into typed DNS records (Phase K)"
+    As of Phase K, every dig/drill answer record gets promoted into
+    `nautobot-app-dns-models` during ingest — `A` / `AAAA` / `CNAME` /
+    `MX` / `NS` / `TXT` / `PTR` / `SRV` records all materialize as
+    rows in the right typed table. A
+    [`DnsRecordProvenance`](../models/dnsrecordprovenance.md) row
+    joins each promoted record back to the source `NseFinding`, so
+    "which dig scan saw this `A` record?" is a one-clause filter.
+    A/AAAA records that resolve to IPs not in IPAM are skipped (the
+    raw value still lives on the provenance row); see
+    [ADR-015](../dev/architecture.md#adr-015-promote-dig-and-drill-into-typed-dns-models)
+    for why.
+
 <figure markdown>
 ![dns-recon Scan detail showing Tool used=dig + a host-scope NseFinding rendering the parsed dig answer](../images/dig-scan-detail.jpeg)
 <figcaption>A completed `dns-recon` scan. **Tool used: dig** badge, raw output stored as `.txt.gz` (not `.xml.gz`), and the Host Findings table shows the parsed dig answer rendered as one host-scope `NseFinding` row — no new templates needed because the existing finding-rendering machinery handles it.</figcaption>

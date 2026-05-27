@@ -1,6 +1,6 @@
 # Data Models
 
-The app defines 7 models grouped into three concerns. Click into any
+The app defines 8 models grouped into three concerns. Click into any
 model for field-level reference.
 
 ## Identity
@@ -24,6 +24,7 @@ model for field-level reference.
 | [`DiscoveredPort`](discoveredport.md) | `BaseModel` | One port on a discovered host |
 | [`NseFinding`](nsefinding.md) | `BaseModel` | One NSE finding on a port |
 | [`TraceRouteHop`](traceroutehop.md) | `BaseModel` | One hop in a host's traceroute path |
+| [`DnsRecordProvenance`](dnsrecordprovenance.md) | `BaseModel` | Join row — connects an NseFinding to a typed `nautobot-dns-models` record (Phase K) |
 
 ## Relationship diagram
 
@@ -38,6 +39,7 @@ erDiagram
     DiscoveredHost ||--o{ TraceRouteHop : "traced-via"
     DiscoveredHost ||--o{ NseFinding : "host_findings (host-scope NSE)"
     DiscoveredPort ||--o{ NseFinding : "vulnerabilities (port-scope NSE)"
+    NseFinding ||--o{ DnsRecordProvenance : "dns_promotions (Phase K: dig/drill)"
     DiscoveredHost }o--|| IPAddress : "linked_ipaddress (set by Promote)"
     DiscoveredHost }o--|| Device : "linked_device (auto at ingest)"
     ScannerAgent ||--o| User : "remote-agent auth (OneToOne)"

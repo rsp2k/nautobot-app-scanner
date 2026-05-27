@@ -133,6 +133,7 @@ nav:
       - "DiscoveredPort": "models/discoveredport.md"
       - "NseFinding": "models/nsefinding.md"
       - "TraceRouteHop": "models/traceroutehop.md"
+      - "DnsRecordProvenance": "models/dnsrecordprovenance.md"
   - "Administrator Guide":
     - "Install": "admin/install.md"
     - "Install Remote Agent": "admin/install_remote_agent.md"

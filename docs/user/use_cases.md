@@ -156,6 +156,50 @@ via `.as_of(<datetime>)` is available for audit replay.
 
 ---
 
+## "Which DNS names resolve to this discovered host?"
+
+**Where**: any `DiscoveredHost` detail page → the **DNS Records
+(pointing here)** panel on the right.
+
+Once Phase K is enabled (any dig or drill scan has run and its records
+have been promoted), the panel queries
+`DiscoveredHost.dns_records_pointing_here` — which walks IPAM
+(`IPAddress` keyed by host IP) → `nautobot-dns-models` (`ARecord` /
+`AAAARecord` filtered by that IPAddress FK). The cross-reference
+surfaces the cross-layer answer in one place:
+
+- *Scanner layer* says: "we saw an open port on `198.51.100.42`."
+- *DNS layer* says: "`mail.example.com`, `mta-01.example.com`, and
+  `legacy-relay.example.com` all resolve to `198.51.100.42`."
+
+The panel renders only typed records — the IP has to exist in IPAM
+first. A discovered host whose IP is not (yet) promoted to IPAM shows
+the panel empty, with an explanatory message: "promote the IP to IPAM
+and re-run dig/drill to populate this." That's the same
+[best-effort IPAM-coupling gate](../models/dnsrecordprovenance.md#a-and-aaaa-records-and-the-ipam-coupling-gate)
+the promoter uses on write — symmetric on read.
+
+---
+
+## "Which scans saw an A record for example.com?"
+
+**Where**: Nautobot REST or GraphQL against `nautobot_dns_models.ARecord`,
+then follow `arecord.dns_promotions` (the reverse relation from
+[`DnsRecordProvenance`](../models/dnsrecordprovenance.md)) to the
+source `NseFinding`, then to the parent `Scan`.
+
+This is the question Phase K's promotion path exists to answer.
+Before Phase K, DNS records lived as JSON on `NseFinding.elements` —
+browsable but not filterable. After Phase K, the same data lives in
+typed `nautobot-dns-models` tables with proper indexes, FK joins to
+IPAM, and full REST + GraphQL exposure.
+
+The provenance row also preserves the **wire** TTL and value (which
+upstream `nautobot-dns-models` clips: TTL ≥ 300s, TXT ≤ 256 chars), so
+audit queries that need the un-clipped data still have it.
+
+---
+
 ## "What did nmap actually run for this scan?"
 
 **Where**: any Scan detail page → the **Provenance** card.

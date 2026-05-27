@@ -110,6 +110,40 @@ template_extensions = [
 
 Then drop a template at `templates/nautobot_scanner/inc/circuit_scans.html`.
 
+## Hooking into the DNS-record promotion path (Phase K)
+
+For `tool in DNS_PRODUCING_TOOLS` (`{"dig", "drill"}`), the
+`ScanIngestView` runs `dns_promote.promote_finding(finding)` against
+every `NseFinding` produced by the scan. Each parsed answer record
+gets dispatched through `dns_promote.PROMOTERS` (one entry per DNS
+record type) into the right typed `nautobot-dns-models` row.
+
+To add a new DNS record type (e.g., `CAA`, `DNSKEY`, `TLSA`):
+
+1. Add a `_promote_caa(rec, finding, zone)` function in
+   `dns_promote.py`. It receives the parsed wire-record dict, the
+   source `NseFinding`, and the resolved `DNSZone` object; it should
+   call `_upsert_with_amend(CAARecord, natural_key=..., wire_fields=...)`
+   to handle the bitemporal-aware insert-or-amend, then call
+   `_write_provenance(...)` to record the join row.
+2. Register it in the `PROMOTERS` dispatch dict on the same module.
+3. Add a test class to `tests/test_dns_promote.py` exercising the
+   happy path plus the bitemporal-amend (changed wire data → second
+   save rotates `entry_id`).
+
+To add a new **DNS-producing tool** (e.g., a `host` or `nslookup`
+parser), expand `DNS_PRODUCING_TOOLS` to include it. The parser must
+populate `NseFinding.elements` with a key whose value is a
+list-of-dicts shaped like dig/drill's `records: [{name, ttl, type,
+value}, ...]`. The promoter is parser-tolerant on the exact shape but
+requires those four keys per record.
+
+See [`DnsRecordProvenance`](../models/dnsrecordprovenance.md) for the
+sidecar model that captures each promotion and
+[ADR-015](architecture.md#adr-015-promote-dig-and-drill-into-typed-dns-models)
+for the design rationale (entry_id-via-composite-key, best-effort
+promotion, A/AAAA IPAM-coupling gate).
+
 ## Hooking into the Promote workflow
 
 The `DiscoveredHostPromoteView` (Phase 9) creates an `ipam.IPAddress`.

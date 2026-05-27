@@ -439,3 +439,120 @@ form (operators can't claim they didn't know). The
 [Pentest Mode user docs](../user/pentest_mode.md) carry the
 detailed permission-setup walkthrough so this banner doesn't need
 to explain everything inline.
+
+## ADR-015: Promote dig and drill into typed dns-models
+
+Phase G + G' shipped dig and drill as scanner tools — but their
+output landed on `NseFinding.elements` as JSON. "Which scans saw an
+`A` record for `example.com`?" was browsable but not queryable; no
+joins to IPAM, no filters in the REST API, no GraphQL edges. Phase K
+hooks the dig/drill ingest path into the typed-DNS layer provided by
+[`nautobot-app-dns-models`](https://github.com/rsp2k/nautobot-app-dns-models),
+so each parsed answer record becomes a row in the right typed table
+(`ARecord`, `MXRecord`, `NSRecord`, `TXTRecord`, etc.) **plus** a
+sidecar `DnsRecordProvenance` row joining the typed record back to
+the scanner finding.
+
+**Three structural decisions** that took the most negotiation, with
+the failed alternatives recorded so they don't get re-litigated:
+
+### 1. The fork, not upstream
+
+We pin **`rsp2k/nautobot-app-dns-models @ 9ce2eb4`** (a fork that adds
+`BitemporalMixin` to `DNSZone` / `DNSRegistration` / every DNS record
+class) rather than upstream `nautobot/nautobot-app-dns-models 2.1.1`.
+
+- **Why the fork.** DNS data is the canonical "what's true *now*"
+  store, but operators routinely ask "what did `mail.example.com`
+  resolve to last Tuesday?" — the same shape question that
+  [ADR-010 bitemporal `DiscoveredHost`](#adr-010-bitemporal-discoveredhost-valid-time-recorded-time)
+  answers for hosts. The fork adds the same `valid_during` /
+  `recorded_during` / `entry_id` triple to DNS records, so re-scans
+  rotate the belief window through `manager.as_of(dt)` instead of
+  needing a sidecar history table.
+- **Why pin to git URL, not PyPI.** The fork hasn't released `2.1.2`
+  on PyPI yet (queued; the maintainer is the same human). Pinning
+  through `pip install
+  "nautobot-dns-models @ git+https://.../nautobot-app-dns-models@9ce2eb4"`
+  is the canonical install path until then. Swap to a plain version
+  pin in a follow-up PR when `2.1.2` lands.
+
+### 2. `entry_id`-via-composite-key, not `GenericForeignKey(record_type, pk)`
+
+`DnsRecordProvenance` references the typed record via
+`(record_type ContentType, record_entry_id UUID)` and resolves it
+through a manual `model.all_versions.filter(entry_id=...)` lookup —
+**not** through Django's standard `GenericForeignKey`.
+
+- **Why not GFK.** GFK is hardcoded to use the target's `pk`. The
+  bitemporal mixin's sequenced-amend pattern rebinds `pk` on every
+  belief change — a `(record_type, pk)` GFK would silently follow
+  the successor after one amend, losing the "we observed this
+  **specific** belief at scan time" identity. Discovered during the
+  K' refactor; the schema fix shipped as migration `0020` (column
+  rename only, since 0019 had only just landed and the table was
+  empty).
+- **The resolver uses `all_versions`, not `objects`.** The default
+  manager filters to current beliefs; a provenance row pointing at
+  a superseded belief — the whole point of `entry_id` — would
+  resolve to `None` against `objects`. The fork's `all_versions`
+  manager queries the full history. Graceful fallback to `objects`
+  keeps the property working if anyone installs upstream `2.1.1`
+  over the top.
+
+### 3. Best-effort promotion, never blocks ingest
+
+The promoter is invoked from `ScanIngestView` for `tool in
+DNS_PRODUCING_TOOLS` (`{"dig", "drill"}`) after the scan has fully
+persisted. Each per-record promotion is wrapped in `try/except
+Exception` — the broad catch is **deliberate**:
+
+- A bug in `nautobot-dns-models 2.1.x` (we've found and reported
+  several) must not break scan ingest. The raw data still lives
+  on `NseFinding.elements` either way, so a failed promotion
+  loses no information; only the queryability degrades.
+- The agent has already POSTed and moved on. Failing ingest after
+  the agent's one-shot ingestion token has been consumed would
+  strand the scan in `running` forever.
+
+Same principle as [ADR-011's MAC OUI resolution](#adr-011-resolve-mac-oui-vendor-at-ingest-time-not-on-render):
+enrichment that *can* fail must *fail soft* relative to the
+critical-path "did the scan complete" question.
+
+**Counts dict, not exceptions, for partial success.** The
+promoter returns
+`{"promoted": Counter, "created": Counter, "amended": Counter,
+"unchanged": Counter, "skipped": int}` so callers can bucket
+outcomes (and the test suite can lock them in) without
+relying on stringly-typed exceptions.
+
+### A/AAAA records need IPAM, others don't
+
+`ARecord` / `AAAARecord` in `nautobot-dns-models` carry a `ForeignKey`
+to `ipam.IPAddress` — not a raw IP string. Nautobot 3.x `IPAddress`
+requires a parent `Prefix` in the same `Namespace`, so we can't
+synthesize an IPAddress for an arbitrary public IP without also
+synthesizing the covering prefix (which would pollute IPAM).
+
+**v1 behavior:** look up `IPAddress.objects.filter(host=ip_str)`; if
+found, write the typed A/AAAA record; if not, log + skip but **always
+write the provenance row** with the raw value. Once the operator
+creates the covering prefix and re-scans, the next promotion fills in
+the typed record; the earlier provenance row stays as historical
+context — bitemporally additive, same shape as every other scanner
+record.
+
+Non-A/AAAA records (`CNAME`, `MX`, `NS`, `TXT`, `PTR`, `SRV`) have no
+IPAM coupling and always promote.
+
+### The decision trail
+
+The full negotiation between this repo and the dns-models maintainer
+during Phase K is committed at `docs/agent-threads/bitemporal-dns-integration/`
+(15 messages, captured via the agent-thread protocol). It documents
+two upstream bug discoveries (`name[]` vs `text[]` migration cast,
+non-idempotent `EXCLUDE` constraint creation) and the structural
+back-and-forth that produced the `_upsert_with_amend` helper at the
+center of the promoter. Worth keeping for the same reason the ADRs
+are: a commit message captures the resolved decision; the thread
+captures the rejected alternatives.
