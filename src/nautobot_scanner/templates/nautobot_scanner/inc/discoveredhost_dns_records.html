@@ -17,7 +17,7 @@
           <td><code>A</code></td>
           <td><a href="{{ r.get_absolute_url }}"><code>{{ r.name }}</code></a></td>
           <td>{% if r.zone %}<a href="{{ r.zone.get_absolute_url }}">{{ r.zone.name }}</a>{% else %}<em style="opacity:.5">—</em>{% endif %}</td>
-          <td>{% if r._ttl %}<code>{{ r._ttl }}</code>{% else %}<span style="opacity:.5">inherit</span>{% endif %}</td>
+          <td><code>{{ r.ttl }}</code></td>
         </tr>
       {% endfor %}
       {% for r in dns.aaaa %}
@@ -25,7 +25,7 @@
           <td><code>AAAA</code></td>
           <td><a href="{{ r.get_absolute_url }}"><code>{{ r.name }}</code></a></td>
           <td>{% if r.zone %}<a href="{{ r.zone.get_absolute_url }}">{{ r.zone.name }}</a>{% else %}<em style="opacity:.5">—</em>{% endif %}</td>
-          <td>{% if r._ttl %}<code>{{ r._ttl }}</code>{% else %}<span style="opacity:.5">inherit</span>{% endif %}</td>
+          <td><code>{{ r.ttl }}</code></td>
         </tr>
       {% endfor %}
     </tbody>

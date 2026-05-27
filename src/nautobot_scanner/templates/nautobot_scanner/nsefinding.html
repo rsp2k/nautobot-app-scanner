@@ -123,8 +123,8 @@ parent host/port.
                 <td>
                   {% if p.raw_ttl %}
                     <code>{{ p.raw_ttl }}</code>
-                    {% if p.record and p.record._ttl and p.raw_ttl != p.record._ttl %}
-                      <span style="opacity:.5">→ <code>{{ p.record._ttl }}</code></span>
+                    {% if p.record and p.raw_ttl != p.record.ttl %}
+                      <span style="opacity:.5">→ <code>{{ p.record.ttl }}</code></span>
                       <small class="text-muted" title="dns-models requires TTL ≥ 300s">(clipped)</small>
                     {% endif %}
                   {% else %}
