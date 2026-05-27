@@ -1,18 +1,25 @@
 {% comment %}
 Recursive renderer for NseFinding.elements — handles arbitrarily
 nested dict/list/scalar shapes that libnmap pulls out of NSE
-elem/table XML children.
+elem/table XML children, plus the parsed-record shapes Phase G/J/K
+tools (dig, drill, mtr, masscan, openssl) emit.
 
 Usage (call site uses {% include with data=... depth=0 %}).
 
-Rendering strategy: dict becomes <dl>; nested dicts collapse into
-<details> at depth >= 2; lists become <ol>; scalars print verbatim.
+Rendering strategy:
+  - dict → <dl>; nested dicts collapse into <details> at depth >= 2
+  - **list of homogeneous dicts → table** (the killer UX: a "records"
+    list with 8 rows shouldn't be 8 stacked <dl> blocks; one row per
+    dict, columns from the first dict's keys)
+  - other list → <ol>
+  - scalar → verbatim
 
 Recursion bottoms out on scalars — libnmap normalizes leaf values to
 strings so depth is bounded by NSE script complexity (typically 2-4
 levels for ssl-cert; 1-2 for most others).
 {% endcomment %}
 {% load humanize %}
+{% load scanner_renderers %}
 {% if data.items %}
   {# It's a dict — render as <dl>. #}
   <dl style="margin:0">
@@ -43,17 +50,60 @@ levels for ssl-cert; 1-2 for most others).
 {% else %}
   {# Not a dict — could be list or scalar. Try iterating; scalars print as-is. #}
   {% if data|length and data|stringformat:"s"|slice:":1" == "[" %}
-    <ol style="margin:0;padding-left:1.5rem">
-      {% for item in data %}
-        <li style="margin-top:.2rem">
-          {% if item.items %}
-            {% include "nautobot_scanner/inc/_render_elements.html" with data=item depth=depth|add:1 %}
-          {% else %}
-            <code style="word-break:break-all">{{ item }}</code>
-          {% endif %}
-        </li>
-      {% endfor %}
-    </ol>
+    {% with first=data.0 %}
+    {% if first.items and data|length > 1 %}
+      {% comment %}
+      List of dicts → render as table using the first item's keys as columns.
+      Cells with their own nested dict/list values still recurse via the
+      partial; scalar cells print verbatim. Heterogeneous lists (later items
+      have extra keys) silently drop the extras — rare enough not to bother
+      with a fallback path.
+      {% endcomment %}
+      <table class="table table-condensed" style="margin:0;background:rgba(255,255,255,.02)">
+        <thead>
+          <tr style="border-bottom:1px solid rgba(255,255,255,.1)">
+            <th style="padding:.3rem .6rem;font-weight:600;opacity:.7;font-size:.85em">#</th>
+            {% for col_key in first.keys %}
+              <th style="padding:.3rem .6rem;font-weight:600;font-family:monospace;color:#5cb85c;font-size:.85em">{{ col_key }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in data %}
+            <tr>
+              <td style="padding:.2rem .6rem;opacity:.5;font-size:.85em">{{ forloop.counter }}</td>
+              {% for col_key in first.keys %}
+                {% with cell=row|get_item:col_key %}
+                <td style="padding:.2rem .6rem;vertical-align:top">
+                  {% if cell.items %}
+                    {% include "nautobot_scanner/inc/_render_elements.html" with data=cell depth=depth|add:1 %}
+                  {% elif cell|stringformat:"s"|slice:":1" == "[" %}
+                    {% include "nautobot_scanner/inc/_render_elements.html" with data=cell depth=depth|add:1 %}
+                  {% else %}
+                    <code style="word-break:break-all">{{ cell }}</code>
+                  {% endif %}
+                </td>
+                {% endwith %}
+              {% endfor %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      {# Single-item list, or list of scalars — keep the <ol> path. #}
+      <ol style="margin:0;padding-left:1.5rem">
+        {% for item in data %}
+          <li style="margin-top:.2rem">
+            {% if item.items %}
+              {% include "nautobot_scanner/inc/_render_elements.html" with data=item depth=depth|add:1 %}
+            {% else %}
+              <code style="word-break:break-all">{{ item }}</code>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ol>
+    {% endif %}
+    {% endwith %}
   {% else %}
     <code style="word-break:break-all">{{ data }}</code>
   {% endif %}
