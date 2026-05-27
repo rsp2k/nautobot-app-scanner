@@ -204,15 +204,19 @@ def _upsert_with_amend(Model, natural_key: dict, wire_fields: dict, default_fiel
     )
     if created:
         return obj, "created"
-    # Existing record — compare each wire field, mutate any drift.
-    changed: list[str] = []
-    for field, new_value in wire_fields.items():
-        if getattr(obj, field) != new_value:
-            setattr(obj, field, new_value)
-            changed.append(field)
-    if changed:
-        obj.save()  # bitemporal mixin rotates the belief window; pk + entry_id rebind
-        logger.info("dns_promote: amended %s pk=%s; changed=%r", Model.__name__, obj.pk, changed)
+    # Existing record — compare each wire field, collect drift.
+    drift = {f: v for f, v in wire_fields.items() if getattr(obj, f) != v}
+    if drift:
+        # obj.amend() is the explicit sequenced-amend entry point as of
+        # nautobot-dns-models fork commit 7e13095. The prior implicit
+        # save()-rotates-belief contract broke ~30 Nautobot framework
+        # tests that assume pk stability across edits, so the fork made
+        # the destructive operation explicit. `amend()` closes the prior
+        # belief window via raw UPDATE, inserts a successor with the
+        # field_changes overlaid, and rebinds `obj` to the new row —
+        # `obj.entry_id` is fresh on return for our provenance write.
+        obj.amend(**drift)
+        logger.info("dns_promote: amended %s pk=%s; changed=%r", Model.__name__, obj.pk, list(drift))
         return obj, "amended"
     return obj, "unchanged"
 
