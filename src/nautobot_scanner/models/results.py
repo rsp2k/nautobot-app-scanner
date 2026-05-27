@@ -28,6 +28,7 @@ now". Pattern matches l2trace.warehack.ing's tier-4 bitemporal model.
 import datetime
 import uuid
 
+from django.contrib.contenttypes.models import ContentType
 from django.contrib.postgres.fields import DateTimeRangeField
 from django.db import models
 from django.utils import timezone
@@ -373,6 +374,37 @@ class DiscoveredHost(PrimaryModel):
         host_scope = NseFinding.objects.filter(discovered_host=self).count()
         return port_scope + host_scope
 
+    @property
+    def dns_records_pointing_here(self) -> dict:
+        """A/AAAA records in nautobot-app-dns-models that resolve to this host.
+
+        Returns ``{"a": [<ARecord>...], "aaaa": [<AAAARecord>...]}``.
+        Empty lists when nothing resolves here (or when dns-models is
+        not installed). Used by the DiscoveredHost detail panel to
+        surface the killer cross-ref: "the DNS layer says these names
+        point at the IP we're scanning."
+
+        Lookup is by-IPAddress, not by-IP-string — dns-models stores
+        the FK to ``ipam.IPAddress``, so a Cloudflare edge IP we've
+        SEEN in DNS but never PROMOTED to IPAM won't show up here.
+        That matches the v1 promotion policy (don't auto-pollute IPAM
+        from DNS) — once the operator creates the IPAddress and
+        re-runs the scan, this property starts returning the record.
+        """
+        try:
+            from nautobot.ipam.models import IPAddress
+            from nautobot_dns_models.models import AAAARecord, ARecord
+        except ImportError:
+            return {"a": [], "aaaa": []}
+        ip_str = str(self.ip_address)
+        ip_objs = IPAddress.objects.filter(host=ip_str)
+        if not ip_objs.exists():
+            return {"a": [], "aaaa": []}
+        return {
+            "a": list(ARecord.objects.filter(ip_address__in=ip_objs).select_related("zone")),
+            "aaaa": list(AAAARecord.objects.filter(ip_address__in=ip_objs).select_related("zone")),
+        }
+
 
 class DiscoveredPort(BaseModel):
     """One port nmap reported on a DiscoveredHost.
@@ -610,3 +642,138 @@ class TraceRouteHop(BaseModel):
     def __str__(self) -> str:
         """Display string."""
         return f"hop {self.hop_number}: {self.hop_ip}"
+
+
+class DnsRecordProvenance(BaseModel):
+    """Source-of-truth log for DNS records promoted from dig/drill findings.
+
+    nautobot-app-dns-models (>= 2.1.2, bitemporal fork) stores the
+    canonical "current state" of each DNS record plus a full belief
+    history via the BitemporalMixin. This provenance log adds the
+    *causal* axis the bitemporal store can't carry on its own:
+
+    1. **Which finding caused this belief?** dns-models' bitemporal
+       rotation captures *when* a belief changed (recorded_during /
+       valid_during) but not *what* triggered it. Provenance closes
+       the loop: every promotion writes one row joining the scan
+       finding to the freshly-rotated belief.
+    2. **What did the wire actually say?** Two upstream constraints
+       still clip data on write (TTL ≥ 300s, TXTRecord.text ≤ 256).
+       The raw wire values stay here so audit / diff still has the
+       truth — even after the canonical record has been rounded to
+       fit the model. These fields can be dropped once nautobot-dns-
+       models 2.2.0 lifts the constraints (queued upstream).
+
+    ### Why `record_entry_id`, not `record_id`
+
+    The bitemporal mixin's sequenced-amend pattern rebinds ``pk`` on
+    every belief change. Django's GenericForeignKey is hardcoded to
+    use the target's pk, which means after an amend a GFK would
+    silently follow the *successor* — losing the "this is the
+    specific belief we saw at scan time" identity that's the whole
+    point of provenance.
+
+    The fork's ``entry_id`` is stable for one belief row's lifetime,
+    so we store ``(record_type, record_entry_id)`` and resolve
+    through the typed model's ``all_versions`` manager. See the
+    ``record`` property below.
+
+    Each re-scan creates a NEW provenance row even if the canonical
+    record's belief window didn't rotate — that gives us the
+    recurrence history independent of whether the underlying data
+    actually changed.
+    """
+
+    record_type = models.ForeignKey(
+        to=ContentType,
+        on_delete=models.CASCADE,
+        related_name="+",
+        help_text="Content type of the canonical DNS record (ARecord, MXRecord, ...).",
+    )
+    record_entry_id = models.UUIDField(
+        db_index=True,
+        help_text=(
+            "BitemporalMixin.entry_id of the specific belief row this "
+            "promotion observed. Stable across amends (unlike pk, which "
+            "rebinds on every sequenced-amend save)."
+        ),
+    )
+
+    finding = models.ForeignKey(
+        to="nautobot_scanner.NseFinding",
+        on_delete=models.CASCADE,
+        related_name="dns_promotions",
+        help_text="The dig/drill NseFinding that produced this observation.",
+    )
+    observed_at = models.DateTimeField(
+        default=timezone.now,
+        db_index=True,
+        help_text="When the parser dispatched this record into dns-models.",
+    )
+    record_type_label = models.CharField(
+        max_length=16,
+        help_text="DNS record type as seen on the wire (A, AAAA, CNAME, MX, NS, TXT, PTR, SRV).",
+    )
+    raw_value = models.CharField(
+        max_length=512,
+        help_text=(
+            "Value field as the parser saw it on the wire — before any "
+            "upstream truncation (TXTRecord.text caps at 256). Becomes "
+            "redundant once dns-models 2.2.0 widens TXT to TextField."
+        ),
+    )
+    raw_ttl = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text=(
+            "TTL as the parser saw it on the wire — before any clipping "
+            "(dns-models enforces a 300s floor). null when the source "
+            "tool did not emit a TTL. Becomes redundant once dns-models "
+            "2.2.0 lifts the floor to 0."
+        ),
+    )
+
+    class Meta:
+        """Meta options."""
+
+        ordering = ("-observed_at",)
+        verbose_name = "DNS record provenance"
+        verbose_name_plural = "DNS record provenances"
+        indexes = [
+            # Lookup pattern: "show me the history of this belief" —
+            # filter by (record_type, record_entry_id), sort by observed_at desc.
+            models.Index(
+                fields=["record_type", "record_entry_id", "-observed_at"],
+                name="dnsprov_record_recent_idx",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        """Display string."""
+        return f"{self.record_type_label} {self.raw_value} @ {self.observed_at:%Y-%m-%d %H:%M}"
+
+    @property
+    def record(self):
+        """Resolve the canonical DNS record (including superseded beliefs).
+
+        Goes through the typed model's ``all_versions`` manager so we can
+        find rows whose ``recorded_during`` window has been closed — that's
+        the whole point of using entry_id over pk. Returns None if the
+        record's been hard-deleted.
+
+        Cached per-instance so a template's repeated ``{{ p.record }}``
+        accesses don't hit the DB more than once.
+        """
+        cached = self.__dict__.get("_resolved_record")
+        if cached is not None:
+            return cached
+        model = self.record_type.model_class()
+        # all_versions is added by BitemporalMixin (fork >=2.1.2); fall back
+        # to objects on the upstream pre-bitemporal package so the property
+        # still works during the install transition.
+        manager = getattr(model, "all_versions", None) or model.objects
+        resolved = manager.filter(entry_id=self.record_entry_id).first()
+        # We deliberately allow None to be cached (record was deleted) —
+        # template renders empty state, no need to re-query.
+        self.__dict__["_resolved_record"] = resolved
+        return resolved

@@ -10,6 +10,7 @@ from nautobot_scanner.models.agents import ScannerAgent, ScanProfile
 from nautobot_scanner.models.results import (
     DiscoveredHost,
     DiscoveredPort,
+    DnsRecordProvenance,
     TraceRouteHop,
     NseFinding,
 )
@@ -18,6 +19,7 @@ from nautobot_scanner.models.scans import Scan
 __all__ = [
     "DiscoveredHost",
     "DiscoveredPort",
+    "DnsRecordProvenance",
     "Scan",
     "ScanProfile",
     "ScannerAgent",

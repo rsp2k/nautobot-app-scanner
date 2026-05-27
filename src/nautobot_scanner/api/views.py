@@ -31,6 +31,7 @@ from nautobot_scanner import filters, models, parser
 from nautobot_scanner.api import serializers
 from nautobot_scanner.api.auth import AgentTokenAuthentication
 from nautobot_scanner.choices import ScanStateChoices
+from nautobot_scanner.dns_promote import DNS_PRODUCING_TOOLS
 
 logger = logging.getLogger(__name__)
 
@@ -304,6 +305,22 @@ class ScanIngestView(_AgentEndpointMixin, APIView):
 
         # Update agent.last_seen.
         models.ScannerAgent.objects.filter(pk=scan.agent_id).update(last_seen=timezone.now())
+
+        # Phase K: promote dig/drill findings into nautobot-app-dns-models so
+        # the records become filterable/linkable. Best-effort — wrapped in
+        # try/except per finding so a promotion failure never breaks ingest
+        # (the raw data still lives on the finding either way).
+        if posted_tool in DNS_PRODUCING_TOOLS:
+            from nautobot_scanner.dns_promote import promote_finding
+            new_findings = models.NseFinding.objects.filter(discovered_host__scan=scan)
+            for finding in new_findings:
+                try:
+                    promote_finding(finding)
+                except Exception:  # noqa: BLE001 — last line of defense
+                    logger.exception(
+                        "Phase K: promote_finding(%s) failed; raw data preserved on finding",
+                        finding.pk,
+                    )
 
         return Response(
             {"scan_id": str(scan.pk), "status": scan.status, "summary": summary},

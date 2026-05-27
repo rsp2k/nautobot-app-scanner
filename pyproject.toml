@@ -38,6 +38,11 @@ dependencies = [
     "nautobot>=3.0,<4",
     "python-libnmap>=0.7,<1",
     "defusedxml>=0.7,<1",
+    # Pinned to the bitemporal fork @ 9b86401 — upstream 2.1.1 lacks the
+    # BitemporalMixin (entry_id + recorded_during/valid_during) that the
+    # promoter's amend detection relies on. Swap to `nautobot-dns-models == 2.1.2`
+    # once the fork's PyPI release lands. See docs/agent-threads/bitemporal-dns-integration/.
+    "nautobot-dns-models @ git+https://github.com/rsp2k/nautobot-app-dns-models@9b86401",
 ]
 
 [project.optional-dependencies]

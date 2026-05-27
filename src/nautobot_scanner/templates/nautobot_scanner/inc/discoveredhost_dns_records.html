@@ -1,0 +1,42 @@
+{# Phase K: DNS records (A/AAAA) in nautobot-app-dns-models that resolve to this host. #}
+{% with dns=object.dns_records_pointing_here %}
+{% if dns.a or dns.aaaa %}
+<div style="padding: 0.5rem 0">
+  <table class="table table-condensed" style="margin:0">
+    <thead>
+      <tr>
+        <th style="width:60px">Type</th>
+        <th>Name</th>
+        <th>Zone</th>
+        <th>TTL</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in dns.a %}
+        <tr>
+          <td><code>A</code></td>
+          <td><a href="{{ r.get_absolute_url }}"><code>{{ r.name }}</code></a></td>
+          <td>{% if r.zone %}<a href="{{ r.zone.get_absolute_url }}">{{ r.zone.name }}</a>{% else %}<em style="opacity:.5">—</em>{% endif %}</td>
+          <td>{% if r._ttl %}<code>{{ r._ttl }}</code>{% else %}<span style="opacity:.5">inherit</span>{% endif %}</td>
+        </tr>
+      {% endfor %}
+      {% for r in dns.aaaa %}
+        <tr>
+          <td><code>AAAA</code></td>
+          <td><a href="{{ r.get_absolute_url }}"><code>{{ r.name }}</code></a></td>
+          <td>{% if r.zone %}<a href="{{ r.zone.get_absolute_url }}">{{ r.zone.name }}</a>{% else %}<em style="opacity:.5">—</em>{% endif %}</td>
+          <td>{% if r._ttl %}<code>{{ r._ttl }}</code>{% else %}<span style="opacity:.5">inherit</span>{% endif %}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div style="padding: 0.75rem; opacity: 0.65; font-size: .9em">
+  No DNS A/AAAA records in <code>nautobot-app-dns-models</code> resolve to this IP.
+  Records appear here after a <code>dig</code> or <code>drill</code> scan promotes them
+  AND the matching IPAM <code>IPAddress</code> exists (auto-promotion needs the parent
+  Prefix to be present; see Phase K docs).
+</div>
+{% endif %}
+{% endwith %}

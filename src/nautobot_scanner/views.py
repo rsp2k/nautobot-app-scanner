@@ -315,6 +315,18 @@ class DiscoveredHostActionsPanel(Panel):
     body_content_template_path = "nautobot_scanner/inc/discoveredhost_actions.html"
 
 
+class DiscoveredHostDnsRecordsPanel(Panel):
+    """Phase K: DNS records (A/AAAA) that resolve to this host's IP.
+
+    Queries through ``object.dns_records_pointing_here``, which goes
+    IPAM IPAddress → typed dns-models records. Empty state explains
+    *why* it's empty so operators understand the IPAM-Prefix prerequisite.
+    """
+
+    label = "DNS Records (pointing here)"
+    body_content_template_path = "nautobot_scanner/inc/discoveredhost_dns_records.html"
+
+
 class ScannerAgentUIViewSet(NautobotUIViewSet):
     """CRUD viewset for ScannerAgent."""
 
@@ -531,6 +543,10 @@ class DiscoveredHostUIViewSet(NautobotUIViewSet):
                 table_class=tables.TraceRouteHopTable,
                 table_filter="discovered_host",
                 table_title="Traceroute Hops",
+            ),
+            DiscoveredHostDnsRecordsPanel(
+                section=SectionChoices.RIGHT_HALF,
+                weight=250,
             ),
         ),
     )

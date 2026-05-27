@@ -15,6 +15,7 @@ DEBUG = is_truthy(os.environ.get("NAUTOBOT_DEBUG", "true"))
 
 PLUGINS = [
     "nautobot_scanner",
+    "nautobot_dns_models",
 ]
 
 PLUGINS_CONFIG = {
@@ -22,4 +23,5 @@ PLUGINS_CONFIG = {
         # Override the defaults from NautobotScannerConfig.default_settings here
         # if you want to tune them per-environment.
     },
+    "nautobot_dns_models": {},
 }

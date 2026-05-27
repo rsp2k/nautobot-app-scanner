@@ -91,6 +91,56 @@ parent host/port.
       </div>
     </div>
 
+    {# ---------- Phase K: promoted DNS records ---------- #}
+    {% with promotions=object.dns_promotions.all %}
+    {% if promotions %}
+    <div class="panel panel-default">
+      <div class="panel-heading">
+        <strong>DNS Records</strong>
+        <small class="text-muted" style="margin-left:.5rem">{{ promotions|length }} promoted into nautobot-app-dns-models</small>
+      </div>
+      <div class="panel-body" style="padding:0">
+        <table class="table table-condensed" style="margin:0">
+          <thead>
+            <tr>
+              <th style="width:60px">Type</th>
+              <th>Record</th>
+              <th>TTL (wire → stored)</th>
+              <th>Raw value</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in promotions %}
+              <tr>
+                <td><code>{{ p.record_type_label }}</code></td>
+                <td>
+                  {% if p.record %}
+                    <a href="{{ p.record.get_absolute_url }}"><code>{{ p.record }}</code></a>
+                  {% else %}
+                    <em style="opacity:.6">record deleted</em>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if p.raw_ttl %}
+                    <code>{{ p.raw_ttl }}</code>
+                    {% if p.record and p.record._ttl and p.raw_ttl != p.record._ttl %}
+                      <span style="opacity:.5">→ <code>{{ p.record._ttl }}</code></span>
+                      <small class="text-muted" title="dns-models requires TTL ≥ 300s">(clipped)</small>
+                    {% endif %}
+                  {% else %}
+                    <em style="opacity:.5">—</em>
+                  {% endif %}
+                </td>
+                <td><code style="font-size:.85em">{{ p.raw_value|truncatechars:80 }}</code></td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+    {% endwith %}
+
     {# ---------- References (if any) ---------- #}
     <div class="panel panel-default">
       <div class="panel-heading">
