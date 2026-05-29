@@ -42,7 +42,7 @@ dependencies = [
     # BitemporalMixin (entry_id + recorded_during/valid_during) that the
     # promoter's amend detection relies on. Swap to `nautobot-dns-models == 2.1.2`
     # once the fork's PyPI release lands. See docs/agent-threads/bitemporal-dns-integration/.
-    "nautobot-dns-models @ git+https://github.com/rsp2k/nautobot-app-dns-models@7e13095",
+    "nautobot-dns-models-bitemporal @ git+https://github.com/rsp2k/nautobot-app-dns-models@v2.2.0a1",
 ]
 
 [project.optional-dependencies]
