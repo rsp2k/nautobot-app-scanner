@@ -49,6 +49,19 @@ from django.utils import timezone
 if TYPE_CHECKING:
     from nautobot_scanner.models import NseFinding
 
+# nautobot-dns-models-bitemporal>=2.2.0a2 raises ConcurrentAmendError when
+# two writers race on the same belief row (per fork message 021's Hamilton
+# review fix C-2). We import it here so the except clause in
+# ``_upsert_with_amend`` is statically resolvable; if the fork ever drops
+# the class or someone installs upstream dns-models instead, the fallback
+# defines a never-raised stand-in so the except is dead code rather than
+# a NameError.
+try:
+    from nautobot_dns_models.bitemporal import ConcurrentAmendError
+except ImportError:  # pragma: no cover - graceful degradation only
+    class ConcurrentAmendError(Exception):
+        """Stand-in when the fork's bitemporal module isn't available."""
+
 logger = logging.getLogger(__name__)
 
 # dns-models hard floor on TTL — anything lower raises ValidationError
@@ -206,19 +219,43 @@ def _upsert_with_amend(Model, natural_key: dict, wire_fields: dict, default_fiel
         return obj, "created"
     # Existing record — compare each wire field, collect drift.
     drift = {f: v for f, v in wire_fields.items() if getattr(obj, f) != v}
-    if drift:
-        # obj.amend() is the explicit sequenced-amend entry point as of
-        # nautobot-dns-models fork commit 7e13095. The prior implicit
-        # save()-rotates-belief contract broke ~30 Nautobot framework
-        # tests that assume pk stability across edits, so the fork made
-        # the destructive operation explicit. `amend()` closes the prior
-        # belief window via raw UPDATE, inserts a successor with the
-        # field_changes overlaid, and rebinds `obj` to the new row —
-        # `obj.entry_id` is fresh on return for our provenance write.
+    if not drift:
+        return obj, "unchanged"
+
+    # obj.amend() is the explicit sequenced-amend entry point as of
+    # nautobot-dns-models-bitemporal commit 7e13095. The prior implicit
+    # save()-rotates-belief contract broke ~30 Nautobot framework tests
+    # that assume pk stability across edits, so the fork made the
+    # destructive operation explicit. amend() closes the prior belief
+    # window via raw UPDATE, inserts a successor with the field_changes
+    # overlaid, and rebinds ``obj`` to the new row — ``obj.entry_id`` is
+    # fresh on return for our provenance write.
+    try:
         obj.amend(**drift)
-        logger.info("dns_promote: amended %s pk=%s; changed=%r", Model.__name__, obj.pk, list(drift))
-        return obj, "amended"
-    return obj, "unchanged"
+    except ConcurrentAmendError:
+        # Multiple agents can promote the same DNS finding concurrently
+        # (e.g. two scanners against the same target landing in the same
+        # ingest window). The fork's row-lock + ConcurrentAmendError
+        # contract (Hamilton review C-2, fork message 021) guarantees
+        # only one of us gets through; the other arrival sees the prior
+        # already closed and raises.
+        #
+        # Retry-once with a re-read: if the other writer already amended
+        # to the same wire data we wanted (common when re-scans carry
+        # identical results), our drift dict is now empty and we exit
+        # as "unchanged". Otherwise we still have something to amend and
+        # the second attempt should succeed against the now-current belief.
+        obj.refresh_from_db()
+        drift = {f: v for f, v in wire_fields.items() if getattr(obj, f) != v}
+        if not drift:
+            logger.info(
+                "dns_promote: concurrent amend already applied our changes to %s pk=%s; nothing to do",
+                Model.__name__, obj.pk,
+            )
+            return obj, "unchanged"
+        obj.amend(**drift)
+    logger.info("dns_promote: amended %s pk=%s; changed=%r", Model.__name__, obj.pk, list(drift))
+    return obj, "amended"
 
 
 # ----------------------------------------------------------------------

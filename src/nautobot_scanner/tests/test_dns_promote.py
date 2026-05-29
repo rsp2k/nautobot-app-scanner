@@ -402,6 +402,124 @@ class TestBitemporalAmend(PromoterTestBase):
         self.assertEqual(resolved_new._ttl, 600)
 
 
+class TestConcurrentAmend(PromoterTestBase):
+    """Hamilton-review C-2: row-locked amend + ConcurrentAmendError contract.
+
+    The fork (v2.2.0a2+) acquires SELECT FOR UPDATE on the prior belief row
+    inside its amend savepoint. Two writers racing on the same record:
+    one wins, the other gets ConcurrentAmendError. Our promoter has to
+    handle that — multiple scanner agents CAN promote the same DNS finding
+    concurrently (two scans against the same target landing in the same
+    ingest window).
+
+    The retry-once contract:
+
+    - **Other writer landed our exact change** (re-scan with identical
+      wire data): refresh_from_db, drift is now empty, return "unchanged".
+    - **Other writer landed different data**: refresh_from_db, drift is
+      still non-empty against our wire values, retry amend, succeed.
+    """
+
+    def _force_concurrent_error_on_first_call(self, target):
+        """Patch target.amend so the FIRST call raises, second call runs normally."""
+        original_amend = target.amend
+        call_count = [0]
+
+        def patched_amend(**fields):
+            call_count[0] += 1
+            if call_count[0] == 1:
+                from nautobot_dns_models.bitemporal import ConcurrentAmendError
+                raise ConcurrentAmendError("simulated concurrent writer")
+            return original_amend(**fields)
+
+        target.amend = patched_amend
+        return call_count
+
+    def test_concurrent_writer_already_applied_our_drift_returns_unchanged(self):
+        """The drift-resolved-by-someone-else case → return 'unchanged'."""
+        from nautobot_dns_models.models import CNAMERecord
+        from nautobot_dns_models.bitemporal import ConcurrentAmendError
+        from unittest.mock import patch
+
+        # First scan: create record at TTL=3600
+        f1 = self._make_finding([
+            {"name": "race.example.com.", "ttl": "3600", "type": "CNAME", "value": "x.example.com."},
+        ])
+        promote_finding(f1)
+        rec_before = CNAMERecord.objects.get(name="race")
+
+        # Simulate: another writer already amended the record to ttl=600
+        # while we were in flight. The first amend() call from our path
+        # raises ConcurrentAmendError; the refresh_from_db on retry pulls
+        # ttl=600, which matches what WE were trying to amend to — so the
+        # post-refresh drift dict is empty.
+        def simulate_other_writer(self_obj, **fields):
+            # Pretend another writer beat us to it by writing the same data
+            # we want; raise ConcurrentAmendError to mimic the row-lock loser.
+            # Apply the change directly so the post-refresh state matches.
+            for field, value in fields.items():
+                setattr(self_obj, field, value)
+            type(self_obj).all_versions.filter(pk=self_obj.pk).update(**fields)
+            raise ConcurrentAmendError("simulated: other writer wrote same value")
+
+        f2 = self._make_finding([
+            {"name": "race.example.com.", "ttl": "600", "type": "CNAME", "value": "x.example.com."},
+        ])
+
+        # Patch amend on the CNAMERecord class so the lookup-then-amend path
+        # in _upsert_with_amend hits our simulator.
+        with patch.object(CNAMERecord, "amend", simulate_other_writer):
+            counts = promote_finding(f2)
+
+        # After retry-once: drift was zeroed by the other writer's data,
+        # promoter returns "unchanged" (NOT spurious second amend).
+        self.assertEqual(counts["unchanged"]["CNAME"], 1)
+        self.assertEqual(counts["amended"]["CNAME"], 0)
+        self.assertEqual(counts["errors"], [])
+
+    def test_concurrent_writer_landed_different_data_retries_and_amends(self):
+        """The drift-still-exists case → retry amend, succeed as 'amended'."""
+        from nautobot_dns_models.models import CNAMERecord
+        from nautobot_dns_models.bitemporal import ConcurrentAmendError
+        from unittest.mock import patch
+
+        # First scan: create record at TTL=3600
+        f1 = self._make_finding([
+            {"name": "drift2.example.com.", "ttl": "3600", "type": "CNAME", "value": "y.example.com."},
+        ])
+        promote_finding(f1)
+
+        # We want to write ttl=600; other writer landed ttl=1800 (unrelated).
+        # After our ConcurrentAmendError + refresh, ttl is 1800 ≠ 600, so
+        # drift is non-empty and we retry — second amend should succeed.
+        original_amend = CNAMERecord.amend
+        call_count = [0]
+
+        def first_call_raises(self_obj, **fields):
+            call_count[0] += 1
+            if call_count[0] == 1:
+                # Simulate other writer's value landing during our race.
+                type(self_obj).all_versions.filter(pk=self_obj.pk).update(_ttl=1800)
+                raise ConcurrentAmendError("simulated concurrent writer wrote ttl=1800")
+            return original_amend(self_obj, **fields)
+
+        f2 = self._make_finding([
+            {"name": "drift2.example.com.", "ttl": "600", "type": "CNAME", "value": "y.example.com."},
+        ])
+
+        with patch.object(CNAMERecord, "amend", first_call_raises):
+            counts = promote_finding(f2)
+
+        # Retry-once succeeded: counted as "amended", record now reflects our wire data.
+        self.assertEqual(counts["amended"]["CNAME"], 1)
+        self.assertEqual(counts["unchanged"]["CNAME"], 0)
+        self.assertEqual(counts["errors"], [])
+        # First call (raised) + second call (succeeded) = 2 total invocations.
+        self.assertEqual(call_count[0], 2)
+        # Canonical record reflects OUR wire value, not the racing 1800.
+        self.assertEqual(CNAMERecord.objects.get(name="drift2")._ttl, 600)
+
+
 class TestPromoteHandlesEdgeCases(PromoterTestBase):
     """Bad input shouldn't take down the batch."""
 
