@@ -2,7 +2,7 @@
 
 | nautobot-app-scanner | Nautobot | Python | python-libnmap | nautobot-dns-models |
 |----------------------|----------|--------|----------------|---------------------|
-| 2026.5.x (current)   | 3.0–3.1  | 3.10–3.13 | 0.7+        | bitemporal fork @ `9ce2eb4` (pin via git URL until `2.1.2` ships on PyPI) |
+| 2026.5.x (current)   | 3.0–3.1  | 3.10–3.13 | 0.7+        | `nautobot-dns-models-bitemporal == 2.2.1` (pinned via git URL @ tag until the fork's PyPI publish flips) |
 
 ## Probe tool versions
 
@@ -68,23 +68,36 @@ re-running tests; we'll cut a new CalVer release at that point.
 - For Windows host detection (`-O`), nmap **7.94+** has noticeably
   better fingerprints
 
-## nautobot-dns-models note
+## nautobot-dns-models-bitemporal note
 
-Phase K (dig/drill record promotion) depends on the **bitemporal
-fork** of `nautobot-app-dns-models`, not upstream `2.1.1`. The fork
-adds `BitemporalMixin` to every record class so the promoter can do
-sequenced-amend rotations on re-scan. `pyproject.toml` pins the fork
-via git URL; once `2.1.2` ships on PyPI, a follow-up app release will
-swap to a plain version specifier. See
+Phase K (dig/drill record promotion) depends on
+`nautobot-dns-models-bitemporal`, a fork of upstream
+`nautobot-app-dns-models` that adds `BitemporalMixin` to every record
+class plus an explicit `obj.amend()` API for sequenced-amend rotations
+on re-scan (separate from `obj.save()`, which keeps the framework-
+standard pk-stable UPDATE semantics).
+
+The dist was renamed from `nautobot-dns-models` to
+`nautobot-dns-models-bitemporal` at the `v2.2.0a1` tag to signal the
+structural divergence from upstream once the API split landed —
+upstream `2.1.x` doesn't have `amend()`, so the promoter would
+silently fail an `AttributeError` against it. The import path stays
+`nautobot_dns_models` (no code-side change).
+
+`pyproject.toml` pins the fork via git URL at tag `v2.2.1`; the
+fork's PyPI publish remains deferred. When publish flips, a one-line
+follow-up bumps the pin to a plain `nautobot-dns-models-bitemporal ==
+2.2.1` specifier. See
 [ADR-015](../dev/architecture.md#adr-015-promote-dig-and-drill-into-typed-dns-models)
 for the rationale and `docs/agent-threads/bitemporal-dns-integration/`
-for the full coordination history.
+for the full coordination history (24 messages, 13 bugs caught
+across the integration arc).
 
 ## What's NOT supported
 
 - nmap versions older than 7.0 (XML schema differences)
 - Nautobot versions older than 3.0
 - Python 3.9 (Nautobot itself requires 3.10+)
-- Upstream `nautobot-dns-models 2.1.1` without the bitemporal mixin
-  — Phase K's amend detection depends on `BitemporalMixin.all_versions`
-  / `entry_id`. Use the pinned fork until upstream releases `2.1.2`.
+- Upstream `nautobot-dns-models` (any version) — Phase K's amend
+  detection depends on `BitemporalMixin.all_versions`, `entry_id`,
+  and `obj.amend()`. Use `nautobot-dns-models-bitemporal` instead.

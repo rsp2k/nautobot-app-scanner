@@ -8,7 +8,7 @@
 | Python | 3.10–3.13 |
 | python-libnmap | 0.7+ |
 | defusedxml | 0.7+ |
-| nautobot-dns-models | bitemporal fork @ `9ce2eb4` until `2.1.2` lands on PyPI (see note below) |
+| nautobot-dns-models-bitemporal | `2.2.1` (git URL pin to the renamed fork dist until its PyPI publish flips — see note below) |
 | Probe tool binaries | only required on the host that runs scans — see per-tool versions in the [Compatibility Matrix](compatibility_matrix.md#probe-tool-versions) |
 
 See [Compatibility Matrix](compatibility_matrix.md) for full support
@@ -21,25 +21,30 @@ pip install nautobot-app-scanner
 ```
 
 The package pulls in `python-libnmap` (XML parser), `defusedxml`
-(XML-bomb protection), and `nautobot-dns-models` (typed DNS records
-that dig/drill scan answers promote into — see
+(XML-bomb protection), and `nautobot-dns-models-bitemporal` (typed
+DNS records that dig/drill scan answers promote into — see
 [ADR-015](../dev/architecture.md#adr-015-promote-dig-and-drill-into-typed-dns-models)).
 It does NOT install any probe tool binaries — you need to install
 those separately on whichever host actually runs scans (the Nautobot
 worker for `local` agents, or each remote-agent host).
 
-!!! note "nautobot-dns-models is pinned to a git URL, not PyPI"
+!!! note "nautobot-dns-models-bitemporal is pinned to a git URL @ tag"
     Phase K (the dig/drill → typed-DNS promotion) depends on the
-    `BitemporalMixin` added in the **bitemporal fork** of
-    `nautobot-app-dns-models`. The fork's `2.1.2` release isn't on
-    PyPI yet, so `pyproject.toml` pins it via git URL:
-    `nautobot-dns-models @ git+https://github.com/rsp2k/nautobot-app-dns-models@9ce2eb4`.
+    `BitemporalMixin` and explicit `obj.amend()` API added in the
+    bitemporal fork of `nautobot-app-dns-models`, published as the
+    `nautobot-dns-models-bitemporal` distribution (the rename signals
+    the API divergence — upstream's `nautobot-dns-models` doesn't
+    have `amend()` and would `AttributeError` during promotion).
+    The fork's PyPI publish remains deferred per its own audit
+    discipline, so `pyproject.toml` pins it via git URL:
+    `nautobot-dns-models-bitemporal @ git+https://github.com/rsp2k/nautobot-app-dns-models@v2.2.1`.
     `pip install nautobot-app-scanner` resolves and fetches the fork
-    automatically; no manual step needed. When `2.1.2` lands on PyPI,
-    a follow-up release of this app will swap the pin to a plain
-    version specifier. See
-    `docs/agent-threads/bitemporal-dns-integration/` for the full
-    coordination history.
+    automatically; no manual step needed. The import path stays
+    `nautobot_dns_models` — no code-side change. When the publish
+    flips, a one-line follow-up bumps the pin to a plain version
+    specifier. See `docs/agent-threads/bitemporal-dns-integration/`
+    for the full coordination history (24 messages, 13 bugs caught
+    across the integration arc).
 
 ### Installing the probe tool binaries
 

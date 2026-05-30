@@ -458,24 +458,32 @@ the failed alternatives recorded so they don't get re-litigated:
 
 ### 1. The fork, not upstream
 
-We pin **`rsp2k/nautobot-app-dns-models @ 9ce2eb4`** (a fork that adds
-`BitemporalMixin` to `DNSZone` / `DNSRegistration` / every DNS record
-class) rather than upstream `nautobot/nautobot-app-dns-models 2.1.1`.
+We pin **`nautobot-dns-models-bitemporal @ v2.2.1`** (git URL @ tag,
+fork of upstream `nautobot/nautobot-app-dns-models`) rather than
+upstream itself.
 
 - **Why the fork.** DNS data is the canonical "what's true *now*"
   store, but operators routinely ask "what did `mail.example.com`
   resolve to last Tuesday?" — the same shape question that
   [ADR-010 bitemporal `DiscoveredHost`](#adr-010-bitemporal-discoveredhost-valid-time-recorded-time)
-  answers for hosts. The fork adds the same `valid_during` /
-  `recorded_during` / `entry_id` triple to DNS records, so re-scans
-  rotate the belief window through `manager.as_of(dt)` instead of
-  needing a sidecar history table.
-- **Why pin to git URL, not PyPI.** The fork hasn't released `2.1.2`
-  on PyPI yet (queued; the maintainer is the same human). Pinning
-  through `pip install
-  "nautobot-dns-models @ git+https://.../nautobot-app-dns-models@9ce2eb4"`
-  is the canonical install path until then. Swap to a plain version
-  pin in a follow-up PR when `2.1.2` lands.
+  answers for hosts. The fork adds `BitemporalMixin` to `DNSZone` /
+  `DNSRegistration` / every DNS record class — the same
+  `valid_during` / `recorded_during` / `entry_id` triple — so
+  re-scans rotate the belief window through `manager.as_of(dt)`
+  instead of needing a sidecar history table.
+- **Why the renamed distribution.** The fork's `v2.2.0a1` tag
+  renamed the published dist from `nautobot-dns-models` to
+  `nautobot-dns-models-bitemporal` because the `save()` / `amend()`
+  API split (see decision #4 below) is a behavioral contract break
+  versus upstream. Anyone `pip install`-ing `nautobot-dns-models`
+  expecting upstream semantics would silently get the fork's
+  semantics — the rename forces an explicit opt-in. The import path
+  stays `nautobot_dns_models` so no scanner code changes.
+- **Why pin to git URL, not PyPI.** The fork's PyPI publish remains
+  deferred per its own audit discipline. Pinning through
+  `nautobot-dns-models-bitemporal @ git+https://.../@v2.2.1` is the
+  canonical install path until publish flips; swap to a plain
+  `nautobot-dns-models-bitemporal == 2.2.1` in a follow-up.
 
 ### 2. `entry_id`-via-composite-key, not `GenericForeignKey(record_type, pk)`
 
@@ -526,7 +534,39 @@ promoter returns
 outcomes (and the test suite can lock them in) without
 relying on stringly-typed exceptions.
 
-### A/AAAA records need IPAM, others don't
+### 4. `obj.amend()` for sequenced rotation, with one-retry `ConcurrentAmendError` handling
+
+The bitemporal fork's `v2.2.0` API split made the rotation contract
+explicit: `obj.save()` is now framework-standard pk-stable UPDATE,
+and `obj.amend(**field_changes)` is the entry point that closes the
+prior belief window and inserts the successor row.
+
+- **Why the split exists upstream.** Before the split, `save()`
+  implicitly rotated the belief whenever a tracked field changed —
+  which broke ~30 Nautobot framework tests that assume pk stability
+  across edits (edit-view round-trips, REST `PATCH`/`PUT`, list-view
+  ordering). The implicit-rotation contract was simpler but brittle
+  against the framework; the explicit `amend()` API is the cleaner
+  answer.
+- **Why we use it.** `_upsert_with_amend` detects drift between the
+  freshly-parsed wire fields and the current belief, calls
+  `obj.amend(**drift)` once, and writes the provenance row **after**
+  the call (so `obj.entry_id` captures the freshly-rotated belief,
+  not the prior one). No-drift case: `unchanged` outcome, no DB
+  write, no provenance row.
+- **`ConcurrentAmendError` retry-once.** Two scans posting findings
+  against the same target simultaneously can race — both detect the
+  same drift, both call `amend()`, only one wins the row-level lock
+  the fork added in `v2.2.0a2`. The loser catches
+  `ConcurrentAmendError`, re-reads the row, recomputes drift against
+  the now-current state, and either returns `unchanged` (the other
+  writer landed our exact data) or amends again with the *remaining*
+  drift. Both branches are regression-tested. The exception import
+  is wrapped in `try/except ImportError` so anyone running upstream
+  or a future fork version that drops the exception type doesn't
+  `NameError` — the except clause just becomes dead code.
+
+### A and AAAA records need IPAM, others don't
 
 `ARecord` / `AAAARecord` in `nautobot-dns-models` carry a `ForeignKey`
 to `ipam.IPAddress` — not a raw IP string. Nautobot 3.x `IPAddress`
@@ -549,10 +589,15 @@ IPAM coupling and always promote.
 
 The full negotiation between this repo and the dns-models maintainer
 during Phase K is committed at `docs/agent-threads/bitemporal-dns-integration/`
-(15 messages, captured via the agent-thread protocol). It documents
-two upstream bug discoveries (`name[]` vs `text[]` migration cast,
-non-idempotent `EXCLUDE` constraint creation) and the structural
-back-and-forth that produced the `_upsert_with_amend` helper at the
-center of the promoter. Worth keeping for the same reason the ADRs
-are: a commit message captures the resolved decision; the thread
-captures the rejected alternatives.
+— 24 messages, captured via the agent-thread protocol, surfaced
+**13 bugs** across the integration arc (5 from scanner-side
+integration testing, 2 from the fork's own full-test-suite runs, 6
+from a separate Margaret-Hamilton-style reliability review on the
+fork side). The thread documents two upstream migration bug
+discoveries (`name[]` vs `text[]` cast, non-idempotent `EXCLUDE`
+constraint creation), the `save()`/`amend()` API split rationale,
+and the structural back-and-forth that produced the
+`_upsert_with_amend` helper at the center of the promoter. Worth
+keeping for the same reason the ADRs are: a commit message captures
+the resolved decision; the thread captures the rejected
+alternatives and the methodology that surfaced each defect.

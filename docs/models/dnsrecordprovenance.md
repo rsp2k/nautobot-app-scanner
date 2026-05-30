@@ -30,11 +30,15 @@ history of this belief" query in one index scan.
 
 ## Why `record_entry_id`, not `record_id`
 
-The bitemporal fork of `nautobot-app-dns-models` (>= 2.1.2) attaches a
-`BitemporalMixin` to every DNS record class. The mixin's sequenced-amend
-pattern **rebinds the record's `pk` on every belief change**: closing
-the old belief's `recorded_during` window and inserting a successor row
-gives the successor a fresh primary key.
+The fork (`nautobot-dns-models-bitemporal >= 2.2.1`) attaches a
+`BitemporalMixin` to every DNS record class. The mixin's explicit
+`obj.amend(**field_changes)` method **rebinds the record's `pk` on
+every belief change**: closing the old belief's `recorded_during`
+window and inserting a successor row gives the successor a fresh
+primary key. (Upstream `nautobot-dns-models` doesn't have `amend()`
+at all; promoting against it would `AttributeError` — that's why the
+fork was renamed to a distinct distribution name, see
+[ADR-015 § the fork, not upstream](../dev/architecture.md#1-the-fork-not-upstream).)
 
 Django's `GenericForeignKey` is hardcoded to use the target's `pk`. If
 we'd stored `(record_type, record.pk)` and the underlying record then
@@ -72,10 +76,13 @@ Two design beats:
   reason `entry_id` exists — would resolve to `None` against `objects`.
   `all_versions` is the bitemporal-fork-added manager that queries the
   full history; that's what provenance needs.
-- **Graceful fallback.** If someone installs upstream `2.1.1` (no
-  bitemporal mixin, no `all_versions`) over the top, the resolver
-  falls back to `objects` so the property keeps working — current
-  beliefs only, but no exception.
+- **Graceful fallback.** If someone installs upstream
+  `nautobot-dns-models` (no bitemporal mixin, no `all_versions`) over
+  the top, the resolver falls back to `objects` so the property keeps
+  working — current beliefs only, but no exception. The promoter
+  *itself* would fail much earlier on `AttributeError: amend()` on
+  that install, but the read-side property is defensively coded
+  anyway.
 
 Cached per-instance via `__dict__["_resolved_record"]` so template
 loops calling `{{ p.record }}` repeatedly don't hammer the DB. `None`
@@ -84,21 +91,22 @@ template renders an empty state in that case.
 
 ## Why `raw_ttl` and `raw_value` exist
 
-Upstream `nautobot-dns-models` enforces two write-time constraints
-that don't match wire reality:
+`nautobot-dns-models-bitemporal` (and upstream `nautobot-dns-models`)
+enforce two write-time constraints that don't match wire reality:
 
 | Constraint | Wire reality | Provenance escape hatch |
 |---|---|---|
 | `_ttl >= 300` (5-minute floor) | Cloudflare commonly serves TTL=60 | `raw_ttl` keeps the wire value; the canonical record stores `max(300, raw_ttl)` |
 | `TXTRecord.text` max_length 256 | Modern DKIM keys routinely 512+ chars | `raw_value` keeps the wire string; the canonical record stores `raw_value[:256]` |
 
-Both lifts are queued for `nautobot-dns-models 2.2.0`. Once that
-release ships, the two `raw_*` fields become redundant and can be
-dropped via a follow-up migration. The `record_type_label` field also
-becomes redundant if upstream adopts a polymorphic `DNSRecord`
-superclass — it's currently load-bearing because the typed-table-per-
-record-type design makes a generic "what type was this?" lookup
-require crawling content types.
+Both lifts are queued for a future release of the fork — `v2.2.x` so
+far has prioritized the bitemporal API split and the Hamilton-review
+concurrency fixes. Once the lifts ship, the two `raw_*` fields become
+redundant and can be dropped via a follow-up migration. The
+`record_type_label` field also becomes redundant if upstream adopts a
+polymorphic `DNSRecord` superclass — it's currently load-bearing
+because the typed-table-per-record-type design makes a generic
+"what type was this?" lookup require crawling content types.
 
 ## A and AAAA records and the IPAM coupling gate
 
