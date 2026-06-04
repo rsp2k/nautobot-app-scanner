@@ -367,17 +367,21 @@ collapsed into a single field with file-extension discrimination,
 but separate fields make "give me every nmap scan's XML" a clean
 queryset filter instead of a path-suffix string match.
 
-**Phase G' + J postscript — closing the "dropdown lies" gap.**
+**Phase G' + J + L postscript — closing the "dropdown lies" gap.**
 Phase G shipped the dispatch foundation but only `nmap` + `dig`
 parsers; `ToolChoices` was a superset of `PARSERS` + `TOOL_REGISTRY`,
 so a user picking `curl` / `mtr` / `masscan` / `openssl-s_client`
 from the profile dropdown got a 400 at ingest. Phase G' added
 `drill` (DNSSEC validation alongside dig); Phase J added the
-remaining four to bring all three sets to parity. The dispatch
-contract didn't change — only the registry filled out. A regression
-test asserting `set(ToolChoices.values()) == set(PARSERS.keys()) ==
-set(TOOL_REGISTRY.keys())` would prevent the gap from silently
-reopening; worth keeping in mind when adding tool #8.
+remaining four to bring all three sets to parity; **Phase L added
+`testssl` and `ssh-audit`** as the deep-audit pair (compliance-grade
+TLS + SSH audits with native ordinal severity). The dispatch contract
+didn't change — only the registry filled out. The
+`TestToolRegistriesInParity` regression test that landed in Phase L
+asserts `set(ToolChoices.values()) == set(PARSERS.keys())` at the
+server side; the agent's `TOOL_REGISTRY` is kept in sync by its own
+CI. The "dropdown lies" gap is now locked closed by that test;
+adding tool #10 must keep all three registries in lockstep.
 
 ## ADR-014: Pentest mode permission gating + immutable audit flag
 

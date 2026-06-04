@@ -355,11 +355,104 @@ def build_openssl_sclient_argv(scan: dict) -> list[str]:
     return ["sh", "-c", " ; ".join(parts)] if parts else ["sh", "-c", ":"]
 
 
+def build_testssl_argv(scan: dict) -> list[str]:
+    """Compose testssl.sh argv for deep TLS audit.
+
+    --jsonfile <path> writes the structured per-test results as a JSON
+    array. testssl interprets ``-`` as a literal filename, so we
+    redirect via ``/dev/stdout`` and a small ``sh -c`` wrapper that
+    captures stdout, separating the JSON output from testssl's chatty
+    progress text on stderr.
+
+    --quiet suppresses the banner. --color 0 disables ANSI codes so
+    the JSON file doesn't carry escape sequences. tool_arguments lets
+    operators override defaults (e.g. ``--severity LOW`` to drop noise).
+
+    Targets are ``<host>[:<port>]`` — default port 443 if omitted.
+    Multi-target scans loop in a shell wrapper, accumulating JSON arrays
+    for each target into one combined JSON document.
+    """
+    targets = _all_targets(scan)
+    profile = scan["profile"]
+    args = shlex.split(profile.get("tool_arguments", "") or "")
+    testssl_bin = os.environ.get("TESTSSL_BIN", "/usr/bin/testssl")
+    quoted_args = " ".join(shlex.quote(a) for a in args)
+
+    # testssl writes its progress text to stdout regardless of --jsonfile,
+    # so /dev/stdout for --jsonfile produces interleaved garbage. Use a
+    # real temp file per target, redirect progress to /dev/null, then cat
+    # the JSON file out. Same pattern used by LocalBackend's argv builder.
+    quoted_bin = shlex.quote(testssl_bin)
+    if len(targets) == 1:
+        return [
+            "sh", "-c",
+            f"TMP=$(mktemp /tmp/testssl-XXXXXX.json) && trap 'rm -f $TMP' EXIT && "
+            f"{quoted_bin} --jsonfile $TMP --quiet --color 0 "
+            f"{quoted_args} {shlex.quote(targets[0])} >/dev/null 2>&1 && "
+            f"cat $TMP",
+        ]
+    cmds = []
+    for i, t in enumerate(targets):
+        cmds.append(
+            f"TMP{i}=$(mktemp /tmp/testssl-XXXXXX.json) && "
+            f"{quoted_bin} --jsonfile $TMP{i} --quiet --color 0 "
+            f"{quoted_args} {shlex.quote(t)} >/dev/null 2>&1",
+        )
+    cat_cmd = " ; ".join(f"cat $TMP{i}" for i in range(len(targets)))
+    rm_cmd = " ; ".join(f"rm -f $TMP{i}" for i in range(len(targets)))
+    cmds_str = " && ".join(cmds)
+    return [
+        "sh", "-c",
+        f"({cmds_str}) && ( {cat_cmd} ) | "
+        "awk 'BEGIN{RS=\"\"} {gsub(/\\][[:space:]]*\\[/,\",\"); print}' ; "
+        f"{rm_cmd}",
+    ]
+
+
+def build_ssh_audit_argv(scan: dict) -> list[str]:
+    """Compose ssh-audit argv for JSON-mode SSH server audit.
+
+    ``ssh-audit -j <target>`` emits a single JSON document per target.
+    ssh-audit returns non-zero exit codes to signal severity (0=pass,
+    2=warn, 3=info-only) — these are NOT failures; the wrapper masks
+    them via ``|| true`` so subprocess.run doesn't treat them as errors.
+
+    Multi-target scans are handled by shelling out per target and
+    joining the per-target JSON documents into a JSON array — the
+    server-side parser detects either shape.
+    """
+    targets = _all_targets(scan)
+    profile = scan["profile"]
+    args = shlex.split(profile.get("tool_arguments", "") or "")
+    bin_path = os.environ.get("SSH_AUDIT_BIN", "/usr/local/bin/ssh-audit")
+    quoted_args = " ".join(shlex.quote(a) for a in args)
+
+    if len(targets) == 1:
+        return [
+            "sh", "-c",
+            f"{shlex.quote(bin_path)} -j {quoted_args} {shlex.quote(targets[0])} 2>/dev/null || true",
+        ]
+
+    # Multi-target: emit JSON array of per-target results. Each ssh-audit
+    # call writes one object; comma-separate and wrap in [].
+    parts = [
+        f"{shlex.quote(bin_path)} -j {quoted_args} {shlex.quote(t)} 2>/dev/null || true"
+        for t in targets
+    ]
+    joined = " ; echo ',' ; ".join(parts)
+    return [
+        "sh", "-c",
+        f"( echo '[' ; {joined} ; echo ']' ) | "
+        "awk 'BEGIN{RS=\"\"} {gsub(/}[[:space:]]*,[[:space:]]*,[[:space:]]*{/,\"},{\"); print}'",
+    ]
+
+
 # (argv_builder, content_type) per tool. Server's X-Tool header
 # dispatches the parser; here we pick the right binary + headers.
 # Phase J added curl/mtr/masscan/openssl-s_client — content-type
 # convention: text/plain for line-oriented output, application/json
 # for tools that emit structured JSON natively.
+# Phase L added testssl + ssh-audit — both JSON-native deep audit tools.
 TOOL_REGISTRY = {
     "nmap": (build_nmap_argv, "application/xml"),
     "dig": (build_dig_argv, "text/plain"),
@@ -367,6 +460,8 @@ TOOL_REGISTRY = {
     "curl": (build_curl_argv, "text/plain"),
     "mtr": (build_mtr_argv, "application/json"),
     "masscan": (build_masscan_argv, "application/json"),
+    "testssl": (build_testssl_argv, "application/json"),
+    "ssh-audit": (build_ssh_audit_argv, "application/json"),
     "openssl-s_client": (build_openssl_sclient_argv, "text/plain"),
 }
 

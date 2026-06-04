@@ -382,7 +382,7 @@ class DiscoveredHost(PrimaryModel):
         as a single queryset so templates and viewsets can iterate or
         count without nested loops. Mirrors the ``host_findings`` reverse
         manager which goes through the direct FK; together they cover
-        both NSE scopes per [ADR-012](../../../docs/dev/architecture.md).
+        both NSE scopes per ADR-012 (see docs/dev/architecture.md).
         """
         from nautobot_scanner.models import NseFinding
 

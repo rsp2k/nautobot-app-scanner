@@ -1,0 +1,3664 @@
+[
+         {
+              "id"           : "engine_problem",
+              "ip"           : "/",
+              "port"         : "443",
+              "severity"     : "WARN",
+              "finding"      : "No engine or GOST support via engine with your /usr/bin/openssl"
+          }
+,         {
+              "id"           : "service",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "HTTP"
+          }
+,         {
+              "id"           : "pre_128cipher",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "No 128 cipher limit bug"
+          }
+,         {
+              "id"           : "SSLv2",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "not offered"
+          }
+,         {
+              "id"           : "SSLv3",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "not offered"
+          }
+,         {
+              "id"           : "TLS1",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "offered (deprecated)"
+          }
+,         {
+              "id"           : "TLS1_1",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "offered (deprecated)"
+          }
+,         {
+              "id"           : "TLS1_2",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "offered"
+          }
+,         {
+              "id"           : "TLS1_3",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "offered with final"
+          }
+,         {
+              "id"           : "NPN",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "offered with h2, http/1.1 (advertised)"
+          }
+,         {
+              "id"           : "ALPN_HTTP2",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "h2"
+          }
+,         {
+              "id"           : "ALPN",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "http/1.1"
+          }
+,         {
+              "id"           : "cipherlist_NULL",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "cwe"          : "CWE-327",
+              "finding"      : "not offered"
+          }
+,         {
+              "id"           : "cipherlist_aNULL",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "cwe"          : "CWE-327",
+              "finding"      : "not offered"
+          }
+,         {
+              "id"           : "cipherlist_EXPORT",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "cwe"          : "CWE-327",
+              "finding"      : "not offered"
+          }
+,         {
+              "id"           : "cipherlist_LOW",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "cwe"          : "CWE-327",
+              "finding"      : "not offered"
+          }
+,         {
+              "id"           : "cipherlist_3DES_IDEA",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "MEDIUM",
+              "cwe"          : "CWE-310",
+              "finding"      : "offered"
+          }
+,         {
+              "id"           : "cipherlist_OBSOLETED",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "cwe"          : "CWE-310",
+              "finding"      : "offered"
+          }
+,         {
+              "id"           : "cipherlist_STRONG_NOFS",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "offered"
+          }
+,         {
+              "id"           : "cipherlist_STRONG_FS",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "offered"
+          }
+,         {
+              "id"           : "cipher_order-tls1",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "server"
+          }
+,         {
+              "id"           : "cipher-tls1_xc013",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1   xc013   ECDHE-RSA-AES128-SHA              ECDH 253   AES         128      TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA"
+          }
+,         {
+              "id"           : "cipher-tls1_x2f",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1   x2f     AES128-SHA                        RSA        AES         128      TLS_RSA_WITH_AES_128_CBC_SHA"
+          }
+,         {
+              "id"           : "cipher-tls1_xc014",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1   xc014   ECDHE-RSA-AES256-SHA              ECDH 253   AES         256      TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA"
+          }
+,         {
+              "id"           : "cipher-tls1_x35",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1   x35     AES256-SHA                        RSA        AES         256      TLS_RSA_WITH_AES_256_CBC_SHA"
+          }
+,         {
+              "id"           : "cipher-tls1_x0a",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "MEDIUM",
+              "finding"      : "TLSv1   x0a     DES-CBC3-SHA                      RSA        3DES        168      TLS_RSA_WITH_3DES_EDE_CBC_SHA"
+          }
+,         {
+              "id"           : "cipherorder_TLSv1",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "ECDHE-RSA-AES128-SHA AES128-SHA ECDHE-RSA-AES256-SHA AES256-SHA DES-CBC3-SHA"
+          }
+,         {
+              "id"           : "cipher_order-tls1_1",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "server"
+          }
+,         {
+              "id"           : "cipher-tls1_1_xc013",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1.1   xc013   ECDHE-RSA-AES128-SHA              ECDH 253   AES         128      TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA"
+          }
+,         {
+              "id"           : "cipher-tls1_1_x2f",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1.1   x2f     AES128-SHA                        RSA        AES         128      TLS_RSA_WITH_AES_128_CBC_SHA"
+          }
+,         {
+              "id"           : "cipher-tls1_1_xc014",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1.1   xc014   ECDHE-RSA-AES256-SHA              ECDH 253   AES         256      TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA"
+          }
+,         {
+              "id"           : "cipher-tls1_1_x35",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1.1   x35     AES256-SHA                        RSA        AES         256      TLS_RSA_WITH_AES_256_CBC_SHA"
+          }
+,         {
+              "id"           : "cipherorder_TLSv1_1",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "ECDHE-RSA-AES128-SHA AES128-SHA ECDHE-RSA-AES256-SHA AES256-SHA"
+          }
+,         {
+              "id"           : "cipher_order-tls1_2",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "server -- server prioritizes ChaCha ciphers when preferred by clients"
+          }
+,         {
+              "id"           : "cipher-tls1_2_xc02b",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "TLSv1.2   xc02b   ECDHE-ECDSA-AES128-GCM-SHA256     ECDH 253   AESGCM      128      TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256"
+          }
+,         {
+              "id"           : "cipher-tls1_2_xcca9",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "TLSv1.2   xcca9   ECDHE-ECDSA-CHACHA20-POLY1305     ECDH 253   ChaCha20    256      TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256"
+          }
+,         {
+              "id"           : "cipher-tls1_2_xc009",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1.2   xc009   ECDHE-ECDSA-AES128-SHA            ECDH 253   AES         128      TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA"
+          }
+,         {
+              "id"           : "cipher-tls1_2_xc02c",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "TLSv1.2   xc02c   ECDHE-ECDSA-AES256-GCM-SHA384     ECDH 253   AESGCM      256      TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384"
+          }
+,         {
+              "id"           : "cipher-tls1_2_xc00a",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1.2   xc00a   ECDHE-ECDSA-AES256-SHA            ECDH 253   AES         256      TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA"
+          }
+,         {
+              "id"           : "cipher-tls1_2_xc023",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1.2   xc023   ECDHE-ECDSA-AES128-SHA256         ECDH 253   AES         128      TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256"
+          }
+,         {
+              "id"           : "cipher-tls1_2_xc024",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1.2   xc024   ECDHE-ECDSA-AES256-SHA384         ECDH 253   AES         256      TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384"
+          }
+,         {
+              "id"           : "cipher-tls1_2_xc02f",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "TLSv1.2   xc02f   ECDHE-RSA-AES128-GCM-SHA256       ECDH 253   AESGCM      128      TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"
+          }
+,         {
+              "id"           : "cipher-tls1_2_xcca8",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "TLSv1.2   xcca8   ECDHE-RSA-CHACHA20-POLY1305       ECDH 253   ChaCha20    256      TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256"
+          }
+,         {
+              "id"           : "cipher-tls1_2_xc013",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1.2   xc013   ECDHE-RSA-AES128-SHA              ECDH 253   AES         128      TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA"
+          }
+,         {
+              "id"           : "cipher-tls1_2_x9c",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "TLSv1.2   x9c     AES128-GCM-SHA256                 RSA        AESGCM      128      TLS_RSA_WITH_AES_128_GCM_SHA256"
+          }
+,         {
+              "id"           : "cipher-tls1_2_x2f",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1.2   x2f     AES128-SHA                        RSA        AES         128      TLS_RSA_WITH_AES_128_CBC_SHA"
+          }
+,         {
+              "id"           : "cipher-tls1_2_xc030",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "TLSv1.2   xc030   ECDHE-RSA-AES256-GCM-SHA384       ECDH 253   AESGCM      256      TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"
+          }
+,         {
+              "id"           : "cipher-tls1_2_xc014",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1.2   xc014   ECDHE-RSA-AES256-SHA              ECDH 253   AES         256      TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA"
+          }
+,         {
+              "id"           : "cipher-tls1_2_x9d",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "TLSv1.2   x9d     AES256-GCM-SHA384                 RSA        AESGCM      256      TLS_RSA_WITH_AES_256_GCM_SHA384"
+          }
+,         {
+              "id"           : "cipher-tls1_2_x35",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1.2   x35     AES256-SHA                        RSA        AES         256      TLS_RSA_WITH_AES_256_CBC_SHA"
+          }
+,         {
+              "id"           : "cipher-tls1_2_xc027",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1.2   xc027   ECDHE-RSA-AES128-SHA256           ECDH 253   AES         128      TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256"
+          }
+,         {
+              "id"           : "cipher-tls1_2_x3c",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1.2   x3c     AES128-SHA256                     RSA        AES         128      TLS_RSA_WITH_AES_128_CBC_SHA256"
+          }
+,         {
+              "id"           : "cipher-tls1_2_xc028",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1.2   xc028   ECDHE-RSA-AES256-SHA384           ECDH 253   AES         256      TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384"
+          }
+,         {
+              "id"           : "cipher-tls1_2_x3d",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1.2   x3d     AES256-SHA256                     RSA        AES         256      TLS_RSA_WITH_AES_256_CBC_SHA256"
+          }
+,         {
+              "id"           : "cipherorder_TLSv1_2",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "ECDHE-ECDSA-AES128-GCM-SHA256 ECDHE-ECDSA-CHACHA20-POLY1305 ECDHE-ECDSA-AES128-SHA ECDHE-ECDSA-AES256-GCM-SHA384 ECDHE-ECDSA-AES256-SHA ECDHE-ECDSA-AES128-SHA256 ECDHE-ECDSA-AES256-SHA384 ECDHE-RSA-AES128-GCM-SHA256 ECDHE-RSA-CHACHA20-POLY1305 ECDHE-RSA-AES128-SHA AES128-GCM-SHA256 AES128-SHA ECDHE-RSA-AES256-GCM-SHA384 ECDHE-RSA-AES256-SHA AES256-GCM-SHA384 AES256-SHA ECDHE-RSA-AES128-SHA256 AES128-SHA256 ECDHE-RSA-AES256-SHA384 AES256-SHA256"
+          }
+,         {
+              "id"           : "prioritize_chacha_TLSv1_2",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "true"
+          }
+,         {
+              "id"           : "cipher_order-tls1_3",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "NOT a cipher order configured"
+          }
+,         {
+              "id"           : "cipher-tls1_3_x1302",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "TLSv1.3   x1302   TLS_AES_256_GCM_SHA384            ECDH/MLKEM AESGCM      256      TLS_AES_256_GCM_SHA384"
+          }
+,         {
+              "id"           : "cipher-tls1_3_x1303",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "TLSv1.3   x1303   TLS_CHACHA20_POLY1305_SHA256      ECDH/MLKEM ChaCha20    256      TLS_CHACHA20_POLY1305_SHA256"
+          }
+,         {
+              "id"           : "cipher-tls1_3_x1301",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "TLSv1.3   x1301   TLS_AES_128_GCM_SHA256            ECDH/MLKEM AESGCM      128      TLS_AES_128_GCM_SHA256"
+          }
+,         {
+              "id"           : "supportedciphers_TLSv1_3",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLS_AES_256_GCM_SHA384 TLS_CHACHA20_POLY1305_SHA256 TLS_AES_128_GCM_SHA256"
+          }
+,         {
+              "id"           : "cipher_order",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "server -- TLS 1.3 client determined"
+          }
+,         {
+              "id"           : "FS",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "offered"
+          }
+,         {
+              "id"           : "FS_ciphers",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLS_AES_256_GCM_SHA384 TLS_CHACHA20_POLY1305_SHA256 ECDHE-RSA-AES256-GCM-SHA384 ECDHE-ECDSA-AES256-GCM-SHA384 ECDHE-RSA-AES256-SHA384 ECDHE-ECDSA-AES256-SHA384 ECDHE-RSA-AES256-SHA ECDHE-ECDSA-AES256-SHA ECDHE-ECDSA-CHACHA20-POLY1305 ECDHE-RSA-CHACHA20-POLY1305 TLS_AES_128_GCM_SHA256 ECDHE-RSA-AES128-GCM-SHA256 ECDHE-ECDSA-AES128-GCM-SHA256 ECDHE-RSA-AES128-SHA256 ECDHE-ECDSA-AES128-SHA256 ECDHE-RSA-AES128-SHA ECDHE-ECDSA-AES128-SHA"
+          }
+,         {
+              "id"           : "FS_KEMs",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "X25519MLKEM768 X25519Kyber768Draft00"
+          }
+,         {
+              "id"           : "FS_ECDHE_curves",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "prime256v1 secp384r1 secp521r1 X25519"
+          }
+,         {
+              "id"           : "FS_TLS12_sig_algs",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "RSA-PSS-RSAE+SHA256 RSA+SHA256 RSA-PSS-RSAE+SHA384 ECDSA+SHA256 ECDSA+SHA384 ECDSA+SHA512"
+          }
+,         {
+              "id"           : "FS_TLS13_sig_algs",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "ECDSA+SHA256"
+          }
+,         {
+              "id"           : "TLS_extensions",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "'server name/#0' 'status request/#5' 'EC point formats/#11' 'application layer protocol negotiation/#16' 'signed certificate timestamps/#18' 'extended master secret/#23' 'compress_certificate/#27' 'session ticket/#35' 'supported versions/#43' 'key share/#51' 'next protocol/#13172' 'renegotiation info/#65281'"
+          }
+,         {
+              "id"           : "TLS_session_ticket",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "valid for 64800 seconds only (<daily)"
+          }
+,         {
+              "id"           : "SSL_sessionID_support",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "yes"
+          }
+,         {
+              "id"           : "sessionresumption_ticket",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "supported"
+          }
+,         {
+              "id"           : "sessionresumption_ID",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "supported"
+          }
+,         {
+              "id"           : "TLS_timestamp",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "off by 0 seconds from your localtime"
+          }
+,         {
+              "id"           : "certificate_compression",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "0002/Brotli"
+          }
+,         {
+              "id"           : "clientAuth",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "none"
+          }
+,         {
+              "id"           : "cert_numbers",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "2"
+          }
+,         {
+              "id"           : "cert_signatureAlgorithm <hostCert#1>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "SHA256 with RSA"
+          }
+,         {
+              "id"           : "cert_keySize <hostCert#1>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "RSA 2048 bits (exponent is 65537)"
+          }
+,         {
+              "id"           : "cert_keyUsage <hostCert#1>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "HIGH",
+              "finding"      : "Certificate incorrectly used for key encipherment: 'Digital Signature'"
+          }
+,         {
+              "id"           : "cert_extKeyUsage <hostCert#1>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLS Web Server Authentication"
+          }
+,         {
+              "id"           : "cert_serialNumber <hostCert#1>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "27FD65644D90AA4763B6CFB53D6DCCA3"
+          }
+,         {
+              "id"           : "cert_serialNumberLen <hostCert#1>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "16"
+          }
+,         {
+              "id"           : "cert_fingerprintSHA1 <hostCert#1>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "BBAF0CAAE3AFC4EAB1592ABE636A1F4B2A763A1B"
+          }
+,         {
+              "id"           : "cert_fingerprintSHA256 <hostCert#1>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "28A4EB5CE222C5BF4368AF8A0D64C59BDDD3C4EA561B592F063ABAEE3A7C20EF"
+          }
+,         {
+              "id"           : "cert <hostCert#1>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "-----BEGIN CERTIFICATE-----\nMIIFczCCBFugAwIBAgIQJ/1lZE2Qqkdjts+1PW3MozANBgkqhkiG9w0BAQsFADBRMQswCQYDVQQGEwJVUzEYMBYGA1UECgwPU1NMIENvcnBvcmF0aW9uMSgwJgYDVQQDDB9DbG91ZGZsYXJlIFRMUyBJc3N1aW5nIFJTQSBDQSAzMB4XDTI2MDUzMTIxMzkwMFoXDTI2MDgyOTIxNDEyNlowFjEUMBIGA1UEAwwLZXhhbXBsZS5jb20wggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQC7VM7Mq8MlMAqAgIuzPrlfwPuP91A6GsUV4WBiU3y7mn0Sl0C3isx9baaMsmWhkVpGHKSEjmLbMJ15a67YjZCYJrgHHC46PH6jCm0U3PxWSrpV8mFeSqXfoNXfotsWAPs7NfbCNmYpR73SLJFgktyNwatDGMzMs3ZAKeuC0D6//+/NSJvO+xhiYBHSxWt0QAm1Zteh0PRbC6RKDotWSP7I4zZ1+4MZaoT3p1pg1RlnID7LfJaQJtoWlg35kAzHUhly2SnMcsJdMDLOA8VMQcnGOiIgaMtr1Gf3oSySEaXTCznnyVjnwQKKZNF0e7s5PTeUBgcKnu6ZecgfqVPofl7DAgMBAAGjggKAMIICfDAMBgNVHRMBAf8EAjAAMB8GA1UdIwQYMBaAFJV1HRbz6EN8JFXJxODhVo4Yo+zvMGwGCCsGAQUFBwEBBGAwXjA5BggrBgEFBQcwAoYtaHR0cDovL2kuY2YtaS5zc2wuY29tL0Nsb3VkZmxhcmUtVExTLUktUjMuY2VyMCEGCCsGAQUFBzABhhVodHRwOi8vby5jZi1pLnNzbC5jb20wJQYDVR0RBB4wHIILZXhhbXBsZS5jb22CDSouZXhhbXBsZS5jb20wIwYDVR0gBBwwGjAIBgZngQwBAgEwDgYMKwYBBAGCqTABAwEBMBMGA1UdJQQMMAoGCCsGAQUFBwMBMFMGA1UdHwRMMEowSKBGoESGQmh0dHA6Ly9jLmNmLWkuc3NsLmNvbS9kY2NkMDZjOTM5ZmUwN2VlYTU2N2Q2OTU4YmEwOTA3ZjVhODBmNzg4LmNybDAOBgNVHQ8BAf8EBAMCB4AwDwYJKwYBBAGC2kssBAIFADCCAQQGCisGAQQB1nkCBAIEgfUEgfIA8AB2AMIxfldFGaNF7n843rKQQevHwiFaIr9/1bWtdprZDlLNAAABnoADBWMAAAQDAEcwRQIhAPOPpxlNVgDsY3R71gDSHss/D4M7PVZRQhK7FxSi1A1WAiBLo3QTfyAepPrH7CLAkPxod2vrs6rQuwPZ+4y4G2uj9wB2AMijxH/Hs625NWsBP2p6Em3jOk5DpcZG+ZetOXWZHc+aAAABnoADBXMAAAQDAEcwRQIhAMDK73ARa0lekFFP+dLRoawbrCD9yUVtLF6kM7q0Kgd+AiBOMwsJasbh18iMFQu7vnM5CdIBKZ2Q0w41k+1J/Lj0XjANBgkqhkiG9w0BAQsFAAOCAQEAMUyK8XjrVnp/p5dr57V88G3R/uid6lBUYiisT3zHj38iL9GvTVQvOExjHg//gmU6rxHkzVroWLPUsI+HRvIRUGSWWCKpveVJ5VT/eWl7hklEpCM+E6XocNAJbMhox07/UHnfAI3a6cJO+BAgZmZjf8O9cdnSF8irEaFk5RiPWLMjr+JswwC9t++YSY3MRjWUeWH945wjAKz/KdkqXkI3LXi89qSJd1D4VGb8y7KJ+UA4Mpjd3B5cYP/nSLlUY3+VE6aZeyP3RAYW3mmfY/3G2uLJOevc2dl5Exg6l65NZd00vYi+36mxFROA18Fa7U7bnPScvuzd3dfIFw2dGutm8g==\n-----END CERTIFICATE-----"
+          }
+,         {
+              "id"           : "cert_commonName <hostCert#1>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "example.com"
+          }
+,         {
+              "id"           : "cert_commonName_wo_SNI <hostCert#1>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "request w/o SNI didn't succeed"
+          }
+,         {
+              "id"           : "cert_subjectAltName <hostCert#1>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "example.com *.example.com"
+          }
+,         {
+              "id"           : "cert_trust <hostCert#1>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "Ok via SAN and CN (SNI mandatory)"
+          }
+,         {
+              "id"           : "cert_chain_of_trust <hostCert#1>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "passed."
+          }
+,         {
+              "id"           : "cert_certificatePolicies_EV <hostCert#1>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "no"
+          }
+,         {
+              "id"           : "cert_expirationStatus <hostCert#1>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "86 >= 60 days"
+          }
+,         {
+              "id"           : "cert_notBefore <hostCert#1>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "2026-05-31 21:39"
+          }
+,         {
+              "id"           : "cert_notAfter <hostCert#1>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "2026-08-29 21:41"
+          }
+,         {
+              "id"           : "cert_extlifeSpan <hostCert#1>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "certificate has no extended life time according to browser forum"
+          }
+,         {
+              "id"           : "cert_eTLS <hostCert#1>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "not present"
+          }
+,         {
+              "id"           : "cert_crlDistributionPoints <hostCert#1>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "http://c.cf-i.ssl.com/dccd06c939fe07eea567d6958ba0907f5a80f788.crl"
+          }
+,         {
+              "id"           : "cert_ocspURL <hostCert#1>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "http://o.cf-i.ssl.com"
+          }
+,         {
+              "id"           : "OCSP_stapling <hostCert#1>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "offered"
+          }
+,         {
+              "id"           : "cert_ocspRevoked <hostCert#1>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "not revoked"
+          }
+,         {
+              "id"           : "cert_mustStapleExtension <hostCert#1>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "--"
+          }
+,         {
+              "id"           : "DNS_CAArecord <hostCert#1>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "--"
+          }
+,         {
+              "id"           : "certificate_transparency <hostCert#1>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "yes (certificate extension)"
+          }
+,         {
+              "id"           : "certs_countServer <hostCert#1>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "4"
+          }
+,         {
+              "id"           : "certs_list_ordering_problem <hostCert#1>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "no"
+          }
+,         {
+              "id"           : "cert_caIssuers <hostCert#1>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "Cloudflare TLS Issuing RSA CA 3 (SSL Corporation from US)"
+          }
+,         {
+              "id"           : "intermediate_cert <#1> <hostCert#1>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "-----BEGIN CERTIFICATE-----\nMIIFTzCCAzegAwIBAgIQV+YU0PKwrtSy+C+AGzt4gTANBgkqhkiG9w0BAQsFADBPMQswCQYDVQQGEwJVUzEYMBYGA1UECgwPU1NMIENvcnBvcmF0aW9uMSYwJAYDVQQDDB1TU0wuY29tIFRMUyBUcmFuc2l0IFJTQSBDQSBSMjAeFw0yNTA1MjkxOTUxMTZaFw0zNTA1MjcxOTUxMTVaMFExCzAJBgNVBAYTAlVTMRgwFgYDVQQKDA9TU0wgQ29ycG9yYXRpb24xKDAmBgNVBAMMH0Nsb3VkZmxhcmUgVExTIElzc3VpbmcgUlNBIENBIDMwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQCf7MlKl6II7NWQtPWRalCiNJ4PN4t9tjIGfcvAXSLrxX7wryk0dVbrcSQu9303vWIyNgcE9fokvkSj/qxRIfIS8TjX2LK+HjIearYR12tVrwkHDvAIIJHuuJbHcZiYWDVRPGiAUCwsjxy0fGjwlPO29TwyvxIdDjt0aW42+jkByotiUIs9UiZkHyPt4ndfW4++Iea0PzqhFWaHVz/8nUaXp5hr/VIBmla4gjWup9qfbW8OQRbzNZBEYgXFah0n8bFXeoev9XLd+ZNc9/jPnnUjUDahgPrE3xrAg0yKOXNaT2QlEoX1gUCVkm7ULIAIKObpm6GgCiYw1j3dTNGvlcupAgMBAAGjggEjMIIBHzASBgNVHRMBAf8ECDAGAQH/AgEAMB8GA1UdIwQYMBaAFCFBNGOOHZEMw922JLCoh3uNZWAIMEgGCCsGAQUFBwEBBDwwOjA4BggrBgEFBQcwAoYsaHR0cDovL2NlcnQuc3NsLmNvbS9TU0wuY29tLVRMUy1ULVJTQS1SMi5jZXIwEQYDVR0gBAowCDAGBgRVHSAAMB0GA1UdJQQWMBQGCCsGAQUFBwMCBggrBgEFBQcDATA9BgNVHR8ENjA0MDKgMKAuhixodHRwOi8vY3Jscy5zc2wuY29tL1NTTC5jb20tVExTLVQtUlNBLVIyLmNybDAdBgNVHQ4EFgQUlXUdFvPoQ3wkVcnE4OFWjhij7O8wDgYDVR0PAQH/BAQDAgGGMA0GCSqGSIb3DQEBCwUAA4ICAQAaI9vmfyXLvSz7g6VNn7RI217Rjrkg35aJTv7f04GNVtrEkw/8AHnh2MoTvsafHwn2Jq9c2uzv+4ySskdshDgd0bAldXKTbv0v5shxCSSalobNX/RNoxneENIuckNwtcWH+bxN0JcR/4JKuCb4XezfcZa5fvvXqGrsiV2FXvy48raf4cOhK0BM0OK4BEEyU9VmnXHi0hUdbs7FVsURYJLbZQ37NCY04aFKb6nR6LTNe9/5EdBnwB4F9P3h5YjSx3kqOVJWJrEtQr3F6lC9ZFALCsJnkiOjvuzFoiMA5bDEhOsf0ly5+7gkT99WFyYNqOQvZhsXZ0mO2ADnbW6giqq9/juqCKtLhQtGYu0mUZQkCmL1bF1fAHAurj5RVBAWEb0NMdtGiE9u+Wh1ZKXNGG+yl2RGuTgUGNmdBVXyxCIpUDOeArGETS4KpUJTrmeO+7J6E4CMdQbWAOxkddfg7jEsW88bz7ySOK2iZGehAOvok7cF3s+dFBNw/BOXN5tcQYi2cbVAM6H2DFFu5lfbn77IlEnSS8xh1F9tmM/lolgeo8jR4W3ONu8qYVlrUPDe4wB986peSw8HxzbskQVUm/IewCZhUwVV2BTUYKIeUWzsj9Xdc45J3FGBXDYcdd29/fVGteIeFKd90rhgl+05ndb8ySrdNDEz9omUbOg1NoFaPw==\n-----END CERTIFICATE-----"
+          }
+,         {
+              "id"           : "intermediate_cert_fingerprintSHA256 <#1> <hostCert#1>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "F2EC7E0A2CF0E3550FD336CF16BAF09A71B4759DC4D98768021E8498943C7547"
+          }
+,         {
+              "id"           : "intermediate_cert_notBefore <#1> <hostCert#1>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "2025-05-29 19:51"
+          }
+,         {
+              "id"           : "intermediate_cert_notAfter <#1> <hostCert#1>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "2035-05-27 19:51"
+          }
+,         {
+              "id"           : "intermediate_cert_expiration <#1> <hostCert#1>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "ok > 40 days"
+          }
+,         {
+              "id"           : "intermediate_cert_chain <#1> <hostCert#1>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "Cloudflare TLS Issuing RSA CA 3 <-- SSL.com TLS Transit RSA CA R2"
+          }
+,         {
+              "id"           : "intermediate_cert <#2> <hostCert#1>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "-----BEGIN CERTIFICATE-----\n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\n-----END CERTIFICATE-----"
+          }
+,         {
+              "id"           : "intermediate_cert_fingerprintSHA256 <#2> <hostCert#1>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "FFE930442DFEB69CE29A908B6A639B370BD6BA6075F931AB83561D938B453A21"
+          }
+,         {
+              "id"           : "intermediate_cert_notBefore <#2> <hostCert#1>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "2022-10-21 17:02"
+          }
+,         {
+              "id"           : "intermediate_cert_notAfter <#2> <hostCert#1>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "2037-10-17 17:02"
+          }
+,         {
+              "id"           : "intermediate_cert_expiration <#2> <hostCert#1>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "ok > 40 days"
+          }
+,         {
+              "id"           : "intermediate_cert_chain <#2> <hostCert#1>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "SSL.com TLS Transit RSA CA R2 <-- SSL.com TLS RSA Root CA 2022"
+          }
+,         {
+              "id"           : "intermediate_cert <#3> <hostCert#1>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "-----BEGIN CERTIFICATE-----\n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\n-----END CERTIFICATE-----"
+          }
+,         {
+              "id"           : "intermediate_cert_fingerprintSHA256 <#3> <hostCert#1>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "D6DF0026E5939EF08BEDAC8C5838F1F0A6EFA7CAD5F6B8BB80AEB255DA96EBB3"
+          }
+,         {
+              "id"           : "intermediate_cert_notBefore <#3> <hostCert#1>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "2025-08-01 00:00"
+          }
+,         {
+              "id"           : "intermediate_cert_notAfter <#3> <hostCert#1>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "2028-12-31 23:59"
+          }
+,         {
+              "id"           : "intermediate_cert_expiration <#3> <hostCert#1>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "ok > 40 days"
+          }
+,         {
+              "id"           : "intermediate_cert_chain <#3> <hostCert#1>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "SSL.com TLS RSA Root CA 2022 <-- AAA Certificate Services"
+          }
+,         {
+              "id"           : "intermediate_cert_badOCSP <hostCert#1>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "intermediate certificate(s) is/are ok"
+          }
+,         {
+              "id"           : "cert_signatureAlgorithm <hostCert#2>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "ECDSA with SHA256"
+          }
+,         {
+              "id"           : "cert_keySize <hostCert#2>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "EC 256 bits (curve P-256)"
+          }
+,         {
+              "id"           : "cert_keyUsage <hostCert#2>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "Digital Signature"
+          }
+,         {
+              "id"           : "cert_extKeyUsage <hostCert#2>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLS Web Server Authentication"
+          }
+,         {
+              "id"           : "cert_serialNumber <hostCert#2>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "1AA73FEA257BE3334B9A29552E6F878E"
+          }
+,         {
+              "id"           : "cert_serialNumberLen <hostCert#2>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "16"
+          }
+,         {
+              "id"           : "cert_fingerprintSHA1 <hostCert#2>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "E7F60D1AFECDFFDF164B7479386BBE67CDD8E51E"
+          }
+,         {
+              "id"           : "cert_fingerprintSHA256 <hostCert#2>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "BEAB14CF39678FDA0EF1606EEDB818C2298BA2CC7A00886E7DC2D2410F24CD35"
+          }
+,         {
+              "id"           : "cert <hostCert#2>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "-----BEGIN CERTIFICATE-----\nMIID5zCCA42gAwIBAgIQGqc/6iV74zNLmilVLm+HjjAKBggqhkjOPQQDAjBRMQswCQYDVQQGEwJVUzEYMBYGA1UECgwPU1NMIENvcnBvcmF0aW9uMSgwJgYDVQQDDB9DbG91ZGZsYXJlIFRMUyBJc3N1aW5nIEVDQyBDQSAzMB4XDTI2MDUzMTIxMzkxMloXDTI2MDgyOTIxNDEyNlowFjEUMBIGA1UEAwwLZXhhbXBsZS5jb20wWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAR3K9vg9mgByiZluphXApVAUpQtIO9MPLbbdVxu2SDIKEYKZhTqszaA9lNa6oAGtsi++/m+uwI35sAG+zkIpAeOo4ICgDCCAnwwDAYDVR0TAQH/BAIwADAfBgNVHSMEGDAWgBSDA/3n9vVKTRVB9O0iFtMyCj7KZjBsBggrBgEFBQcBAQRgMF4wOQYIKwYBBQUHMAKGLWh0dHA6Ly9pLmNmLWkuc3NsLmNvbS9DbG91ZGZsYXJlLVRMUy1JLUUzLmNlcjAhBggrBgEFBQcwAYYVaHR0cDovL28uY2YtaS5zc2wuY29tMCUGA1UdEQQeMByCC2V4YW1wbGUuY29tgg0qLmV4YW1wbGUuY29tMCMGA1UdIAQcMBowCAYGZ4EMAQIBMA4GDCsGAQQBgqkwAQMBATATBgNVHSUEDDAKBggrBgEFBQcDATBTBgNVHR8ETDBKMEigRqBEhkJodHRwOi8vYy5jZi1pLnNzbC5jb20vYWU4MDFlZDFjNTViYjU3OWQ3OTIwOGIwZDc3MmFjZmI4Y2MzYTIwOC5jcmwwDgYDVR0PAQH/BAQDAgeAMA8GCSsGAQQBgtpLLAQCBQAwggEEBgorBgEEAdZ5AgQCBIH1BIHyAPAAdgCUTkOH+uzB74HzGSQmqBhlAcfTXzgCAT9yZ31VNy4Z2AAAAZ6AAzGJAAAEAwBHMEUCIQCBv0JM0mXaiiQ9efuArkk3O2t/RQ39q7O3oKtYCvOUhQIgdn2ut5rn+AWzBqZ9m1VOlMLpT/jy2M92Is6itMy9rR8AdgDIo8R/x7OtuTVrAT9qehJt4zpOQ6XGRvmXrTl1mR3PmgAAAZ6AAzGgAAAEAwBHMEUCIQCoc8r0LVigaz6pvG8sv0+uBqzf+LPNPxwYxtgkuVdNMwIgAbK/qRNJIWljIVp30PFWjmM+SnoT80ShaPJMGdbtNLMwCgYIKoZIzj0EAwIDSAAwRQIhALDciGbviRHUIMPez2CVH+Vc0NiaT8BrFrUGD7dej3D4AiAfs90UtVHGYKTXYYPIJlVqUK1amlBBby7M2KI7pSMjxA==\n-----END CERTIFICATE-----"
+          }
+,         {
+              "id"           : "cert_commonName <hostCert#2>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "example.com"
+          }
+,         {
+              "id"           : "cert_commonName_wo_SNI <hostCert#2>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "request w/o SNI didn't succeed, usual for EC certificates"
+          }
+,         {
+              "id"           : "cert_subjectAltName <hostCert#2>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "example.com *.example.com"
+          }
+,         {
+              "id"           : "cert_trust <hostCert#2>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "Ok via SAN and CN (SNI mandatory)"
+          }
+,         {
+              "id"           : "cert_chain_of_trust <hostCert#2>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "passed."
+          }
+,         {
+              "id"           : "cert_certificatePolicies_EV <hostCert#2>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "no"
+          }
+,         {
+              "id"           : "cert_expirationStatus <hostCert#2>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "86 >= 60 days"
+          }
+,         {
+              "id"           : "cert_notBefore <hostCert#2>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "2026-05-31 21:39"
+          }
+,         {
+              "id"           : "cert_notAfter <hostCert#2>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "2026-08-29 21:41"
+          }
+,         {
+              "id"           : "cert_extlifeSpan <hostCert#2>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "certificate has no extended life time according to browser forum"
+          }
+,         {
+              "id"           : "cert_eTLS <hostCert#2>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "not present"
+          }
+,         {
+              "id"           : "cert_crlDistributionPoints <hostCert#2>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "http://c.cf-i.ssl.com/ae801ed1c55bb579d79208b0d772acfb8cc3a208.crl"
+          }
+,         {
+              "id"           : "cert_ocspURL <hostCert#2>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "http://o.cf-i.ssl.com"
+          }
+,         {
+              "id"           : "OCSP_stapling <hostCert#2>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "offered"
+          }
+,         {
+              "id"           : "cert_ocspRevoked <hostCert#2>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "not revoked"
+          }
+,         {
+              "id"           : "cert_mustStapleExtension <hostCert#2>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "--"
+          }
+,         {
+              "id"           : "DNS_CAArecord <hostCert#2>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "--"
+          }
+,         {
+              "id"           : "certificate_transparency <hostCert#2>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "yes (certificate extension)"
+          }
+,         {
+              "id"           : "certs_countServer <hostCert#2>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "4"
+          }
+,         {
+              "id"           : "certs_list_ordering_problem <hostCert#2>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "no"
+          }
+,         {
+              "id"           : "cert_caIssuers <hostCert#2>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "Cloudflare TLS Issuing ECC CA 3 (SSL Corporation from US)"
+          }
+,         {
+              "id"           : "intermediate_cert <#1> <hostCert#2>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "-----BEGIN CERTIFICATE-----\nMIIC4jCCAmmgAwIBAgIQMe7oivuHzZ74M2YEdD+bJzAKBggqhkjOPQQDAzBPMQswCQYDVQQGEwJVUzEYMBYGA1UECgwPU1NMIENvcnBvcmF0aW9uMSYwJAYDVQQDDB1TU0wuY29tIFRMUyBUcmFuc2l0IEVDQyBDQSBSMjAeFw0yNTA1MjkxOTQ5NDVaFw0zNTA1MjcxOTQ5NDRaMFExCzAJBgNVBAYTAlVTMRgwFgYDVQQKDA9TU0wgQ29ycG9yYXRpb24xKDAmBgNVBAMMH0Nsb3VkZmxhcmUgVExTIElzc3VpbmcgRUNDIENBIDMwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAT9HRQUjiNCkybPcNCJ17Eecqw+XVlSgd8c9dYludZ3B4ULjRKxKz9AuR9yBuD/QFIKk0n4yXGwfu7go0VRGER0o4IBIzCCAR8wEgYDVR0TAQH/BAgwBgEB/wIBADAfBgNVHSMEGDAWgBQyosfYWIv/f8A88lVpM+zOzB+8lzBIBggrBgEFBQcBAQQ8MDowOAYIKwYBBQUHMAKGLGh0dHA6Ly9jZXJ0LnNzbC5jb20vU1NMLmNvbS1UTFMtVC1FQ0MtUjIuY2VyMBEGA1UdIAQKMAgwBgYEVR0gADAdBgNVHSUEFjAUBggrBgEFBQcDAgYIKwYBBQUHAwEwPQYDVR0fBDYwNDAyoDCgLoYsaHR0cDovL2NybHMuc3NsLmNvbS9TU0wuY29tLVRMUy1ULUVDQy1SMi5jcmwwHQYDVR0OBBYEFIMD/ef29UpNFUH07SIW0zIKPspmMA4GA1UdDwEB/wQEAwIBhjAKBggqhkjOPQQDAwNnADBkAjBkW/dgTArl36px6LVMWzfHLv0pFD+P9BoOYzirZ2aS2IwsQPHb0rQdZMY5NghTTk4CMCiwDU71fhtYVRulUc575HJroLXgj+BkpkBubdHnb2+aPpCH7LP6QNQ/Xm9NiqdxAw==\n-----END CERTIFICATE-----"
+          }
+,         {
+              "id"           : "intermediate_cert_fingerprintSHA256 <#1> <hostCert#2>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "F15F29ABEF73AA4DD9AB754BAEAE3685BDD3874B46B525071177628685718026"
+          }
+,         {
+              "id"           : "intermediate_cert_notBefore <#1> <hostCert#2>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "2025-05-29 19:49"
+          }
+,         {
+              "id"           : "intermediate_cert_notAfter <#1> <hostCert#2>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "2035-05-27 19:49"
+          }
+,         {
+              "id"           : "intermediate_cert_expiration <#1> <hostCert#2>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "ok > 40 days"
+          }
+,         {
+              "id"           : "intermediate_cert_chain <#1> <hostCert#2>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "Cloudflare TLS Issuing ECC CA 3 <-- SSL.com TLS Transit ECC CA R2"
+          }
+,         {
+              "id"           : "intermediate_cert <#2> <hostCert#2>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "-----BEGIN CERTIFICATE-----\nMIIDNDCCArmgAwIBAgIQYE2K+NALqHSLlVhTFyxfLjAKBggqhkjOPQQDAzBOMQswCQYDVQQGEwJVUzEYMBYGA1UECgwPU1NMIENvcnBvcmF0aW9uMSUwIwYDVQQDDBxTU0wuY29tIFRMUyBFQ0MgUm9vdCBDQSAyMDIyMB4XDTIyMTAyMTE3MDIyM1oXDTM3MTAxNzE3MDIyMlowTzELMAkGA1UEBhMCVVMxGDAWBgNVBAoMD1NTTCBDb3Jwb3JhdGlvbjEmMCQGA1UEAwwdU1NMLmNvbSBUTFMgVHJhbnNpdCBFQ0MgQ0EgUjIwdjAQBgcqhkjOPQIBBgUrgQQAIgNiAARk532ZA1NckR7q+NgjraG/LOJjie8oaPbt1/Dsq2iudyvkdpcbUOvbWSgtb7g2uauNl8pMIp7uidkCP/16czqQjSvMLzo3g9oNtC1FG3NyCWVfeCE954tmP0f9CSnWFA+jggFZMIIBVTASBgNVHRMBAf8ECDAGAQH/AgEBMB8GA1UdIwQYMBaAFImPL6PoK6AUVHvzVrgmX2c4C5zQMEwGCCsGAQUFBwEBBEAwPjA8BggrBgEFBQcwAoYwaHR0cDovL2NlcnQuc3NsLmNvbS9TU0xjb20tVExTLVJvb3QtMjAyMi1FQ0MuY2VyMD8GA1UdIAQ4MDYwNAYEVR0gADAsMCoGCCsGAQUFBwIBFh5odHRwczovL3d3dy5zc2wuY29tL3JlcG9zaXRvcnkwHQYDVR0lBBYwFAYIKwYBBQUHAwIGCCsGAQUFBwMBMEEGA1UdHwQ6MDgwNqA0oDKGMGh0dHA6Ly9jcmxzLnNzbC5jb20vU1NMY29tLVRMUy1Sb290LTIwMjItRUNDLmNybDAdBgNVHQ4EFgQUMqLH2FiL/3/APPJVaTPszswfvJcwDgYDVR0PAQH/BAQDAgGGMAoGCCqGSM49BAMDA2kAMGYCMQC4SkI+e2cts1nTN9MCRil97z624WxLAp94hT7tNZGPZLe9YiLIyzgKqW/bE0b2h9ACMQCvV5XMRcunAylQaCQc4J/GwR1p7yrPC0DRWWeyLAkQWi5Ylta9DxlX74QFFksFCP0=\n-----END CERTIFICATE-----"
+          }
+,         {
+              "id"           : "intermediate_cert_fingerprintSHA256 <#2> <hostCert#2>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "5D1BC399274E649E1C72697DE91A54AD725088C5221CB61E17EE9C290BC42A92"
+          }
+,         {
+              "id"           : "intermediate_cert_notBefore <#2> <hostCert#2>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "2022-10-21 17:02"
+          }
+,         {
+              "id"           : "intermediate_cert_notAfter <#2> <hostCert#2>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "2037-10-17 17:02"
+          }
+,         {
+              "id"           : "intermediate_cert_expiration <#2> <hostCert#2>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "ok > 40 days"
+          }
+,         {
+              "id"           : "intermediate_cert_chain <#2> <hostCert#2>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "SSL.com TLS Transit ECC CA R2 <-- SSL.com TLS ECC Root CA 2022"
+          }
+,         {
+              "id"           : "intermediate_cert <#3> <hostCert#2>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "-----BEGIN CERTIFICATE-----\nMIIEPjCCAyagAwIBAgIQFz3KYOqfjhAm2vzXKBDkjjANBgkqhkiG9w0BAQsFADB7MQswCQYDVQQGEwJHQjEbMBkGA1UECAwSR3JlYXRlciBNYW5jaGVzdGVyMRAwDgYDVQQHDAdTYWxmb3JkMRowGAYDVQQKDBFDb21vZG8gQ0EgTGltaXRlZDEhMB8GA1UEAwwYQUFBIENlcnRpZmljYXRlIFNlcnZpY2VzMB4XDTI1MDgwMTAwMDAwMFoXDTI4MTIzMTIzNTk1OVowTjELMAkGA1UEBhMCVVMxGDAWBgNVBAoMD1NTTCBDb3Jwb3JhdGlvbjElMCMGA1UEAwwcU1NMLmNvbSBUTFMgRUNDIFJvb3QgQ0EgMjAyMjB2MBAGByqGSM49AgEGBSuBBAAiA2IABEUpNXP6wrgjzhR9qLFNoFs27iosU8NgCTWyJGYmacCzldZdkkAZDsalE3D07xJRKF3nzL35PIXBz5SQySvOkkJYWWf9lCcQZIxPBLFNSeR7T5v15wj4A4j3p8OSSxlUgaOCAZcwggGTMB8GA1UdIwQYMBaAFKARCiM+lvEH7OKvKe+CpX/QMKS0MB0GA1UdDgQWBBSJjy+j6CugFFR781a4Jl9nOAuc0DAOBgNVHQ8BAf8EBAMCAYYwEgYDVR0TAQH/BAgwBgEB/wIBAjAdBgNVHSUEFjAUBggrBgEFBQcDAQYIKwYBBQUHAwIwgZIGA1UdIASBijCBhzAHBgVngQwBATAIBgZngQwBAgEwCAYGZ4EMAQICMAgGBmeBDAECAzAOBgwrBgEEAYKpMAEDAQEwDgYMKwYBBAGCqTABAwECMA4GDCsGAQQBgqkwAQMBAzAOBgwrBgEEAYKpMAEDAQQwDgYMKwYBBAGCqTABAwEFMA4GDCsGAQQBgqkwAQMBBjBDBgNVHR8EPDA6MDigNqA0hjJodHRwOi8vY3JsLmNvbW9kb2NhLmNvbS9BQUFDZXJ0aWZpY2F0ZVNlcnZpY2VzLmNybDA0BggrBgEFBQcBAQQoMCYwJAYIKwYBBQUHMAGGGGh0dHA6Ly9vY3NwLmNvbW9kb2NhLmNvbTANBgkqhkiG9w0BAQsFAAOCAQEAQ+Vw+0vuJDzwOCiGy95GwysrnGBYAFdba+jQTkXYvkJWGtID1xfyUhKf8tZupwURpkOoVB+9ZvsR15BZ8OSZrRw8Uh32Qz6bYale3PZ80izAhlAwSWR0PD7MQxMUxY9b2GsCvSb8z1XgJxfMoZSRRCTVgWDhua7WB2MBdtN+A88zoXdY/PhVnox0NZbMxXdCSWc2yojUEO3AwcGEcTL9+I1w6A89onNQ0SKfGXs/Xz6UajT8m0gH1BtdUUbur3aB3+n0zJ/U7u35DKiGv5mmNG81ldZrWjBTJ1T9fxVIWmmbTVzZvygNMtUumSs5DelljhlJAidAsTc+5iCBJmqRFg==\n-----END CERTIFICATE-----"
+          }
+,         {
+              "id"           : "intermediate_cert_fingerprintSHA256 <#3> <hostCert#2>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "BA06D3D3E348FCE7478CC84B422D0E638E9E221EF1A0B53ADC14CC70E04B8AB8"
+          }
+,         {
+              "id"           : "intermediate_cert_notBefore <#3> <hostCert#2>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "2025-08-01 00:00"
+          }
+,         {
+              "id"           : "intermediate_cert_notAfter <#3> <hostCert#2>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "2028-12-31 23:59"
+          }
+,         {
+              "id"           : "intermediate_cert_expiration <#3> <hostCert#2>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "ok > 40 days"
+          }
+,         {
+              "id"           : "intermediate_cert_chain <#3> <hostCert#2>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "SSL.com TLS ECC Root CA 2022 <-- AAA Certificate Services"
+          }
+,         {
+              "id"           : "intermediate_cert_badOCSP <hostCert#2>",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "intermediate certificate(s) is/are ok"
+          }
+,         {
+              "id"           : "HTTP_status_code",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "200 OK ('/')"
+          }
+,         {
+              "id"           : "HTTP_clock_skew",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "+8391 seconds from localtime"
+          }
+,         {
+              "id"           : "HTTP_headerTime",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "1780566801"
+          }
+,         {
+              "id"           : "HTTP_headerAge",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "8391 seconds"
+          }
+,         {
+              "id"           : "HSTS",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "not offered"
+          }
+,         {
+              "id"           : "HPKP",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "No support for HTTP Public Key Pinning"
+          }
+,         {
+              "id"           : "banner_server",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "cloudflare"
+          }
+,         {
+              "id"           : "banner_application",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "No application banner found"
+          }
+,         {
+              "id"           : "cookie_count",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "0 at '/'"
+          }
+,         {
+              "id"           : "security_headers",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "MEDIUM",
+              "finding"      : "--"
+          }
+,         {
+              "id"           : "banner_reverseproxy",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "cwe"          : "CWE-200",
+              "finding"      : "--"
+          }
+,         {
+              "id"           : "heartbleed",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "cve"          : "CVE-2014-0160",
+              "cwe"          : "CWE-119",
+              "finding"      : "not vulnerable, no heartbeat extension"
+          }
+,         {
+              "id"           : "CCS",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "cve"          : "CVE-2014-0224",
+              "cwe"          : "CWE-310",
+              "finding"      : "not vulnerable"
+          }
+,         {
+              "id"           : "ticketbleed",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "cve"          : "CVE-2016-9244",
+              "cwe"          : "CWE-200",
+              "finding"      : "not vulnerable"
+          }
+,         {
+              "id"           : "ROBOT",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "cve"          : "CVE-2017-17382 CVE-2017-17427 CVE-2017-17428 CVE-2017-13098 CVE-2017-1000385 CVE-2017-13099 CVE-2016-6883 CVE-2012-5081 CVE-2017-6168",
+              "cwe"          : "CWE-203",
+              "finding"      : "not vulnerable"
+          }
+,         {
+              "id"           : "secure_renego",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "cwe"          : "CWE-310",
+              "finding"      : "supported"
+          }
+,         {
+              "id"           : "secure_client_renego",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "cve"          : "CVE-2011-1473",
+              "cwe"          : "CWE-310",
+              "finding"      : "not vulnerable"
+          }
+,         {
+              "id"           : "CRIME_TLS",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "cve"          : "CVE-2012-4929",
+              "cwe"          : "CWE-310",
+              "finding"      : "not vulnerable"
+          }
+,         {
+              "id"           : "BREACH",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "MEDIUM",
+              "cve"          : "CVE-2013-3587",
+              "cwe"          : "CWE-310",
+              "finding"      : "potentially VULNERABLE, br gzip HTTP compression detected  - only supplied '/' tested"
+          }
+,         {
+              "id"           : "POODLE_SSL",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "cve"          : "CVE-2014-3566",
+              "cwe"          : "CWE-310",
+              "finding"      : "not vulnerable, no SSLv3"
+          }
+,         {
+              "id"           : "fallback_SCSV",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "supported"
+          }
+,         {
+              "id"           : "SWEET32",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "cve"          : "CVE-2016-2183 CVE-2016-6329",
+              "cwe"          : "CWE-327",
+              "finding"      : "uses 64 bit block ciphers"
+          }
+,         {
+              "id"           : "FREAK",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "cve"          : "CVE-2015-0204",
+              "cwe"          : "CWE-310",
+              "finding"      : "not vulnerable"
+          }
+,         {
+              "id"           : "DROWN",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "cve"          : "CVE-2016-0800 CVE-2016-0703",
+              "cwe"          : "CWE-310",
+              "finding"      : "not vulnerable on this host and port"
+          }
+,         {
+              "id"           : "DROWN_hint",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "cve"          : "CVE-2016-0800 CVE-2016-0703",
+              "cwe"          : "CWE-310",
+              "finding"      : "Make sure you don't use this certificate elsewhere with SSLv2 enabled services, see https://search.censys.io/search?resource=hosts&virtual_hosts=INCLUDE&q=28A4EB5CE222C5BF4368AF8A0D64C59BDDD3C4EA561B592F063ABAEE3A7C20EF"
+          }
+,         {
+              "id"           : "LOGJAM",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "cve"          : "CVE-2015-4000",
+              "cwe"          : "CWE-310",
+              "finding"      : "not vulnerable, no DH EXPORT ciphers,"
+          }
+,         {
+              "id"           : "LOGJAM-common_primes",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "cve"          : "CVE-2015-4000",
+              "cwe"          : "CWE-310",
+              "finding"      : "no DH key with <= TLS 1.2"
+          }
+,         {
+              "id"           : "BEAST_CBC_TLS1",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "MEDIUM",
+              "cve"          : "CVE-2011-3389",
+              "cwe"          : "CWE-20",
+              "finding"      : "ECDHE-RSA-AES128-SHA AES128-SHA ECDHE-RSA-AES256-SHA AES256-SHA DES-CBC3-SHA"
+          }
+,         {
+              "id"           : "BEAST",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "cve"          : "CVE-2011-3389",
+              "cwe"          : "CWE-20",
+              "finding"      : "VULNERABLE -- but also supports higher protocols  TLSv1.1 TLSv1.2 (likely mitigated)"
+          }
+,         {
+              "id"           : "LUCKY13",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "cve"          : "CVE-2013-0169",
+              "cwe"          : "CWE-310",
+              "finding"      : "potentially vulnerable, uses TLS CBC ciphers"
+          }
+,         {
+              "id"           : "winshock",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "cve"          : "CVE-2014-6321",
+              "cwe"          : "CWE-94",
+              "finding"      : "not vulnerable"
+          }
+,         {
+              "id"           : "RC4",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "OK",
+              "cve"          : "CVE-2013-2566 CVE-2015-2808",
+              "cwe"          : "CWE-310",
+              "finding"      : "not vulnerable"
+          }
+,         {
+              "id"           : "clientsimulation-android_70",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.2 ECDHE-ECDSA-AES128-GCM-SHA256"
+          }
+,         {
+              "id"           : "clientsimulation-android_81",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.2 ECDHE-ECDSA-AES128-GCM-SHA256"
+          }
+,         {
+              "id"           : "clientsimulation-android_90",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_128_GCM_SHA256"
+          }
+,         {
+              "id"           : "clientsimulation-android_X",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_128_GCM_SHA256"
+          }
+,         {
+              "id"           : "clientsimulation-android_11_12",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_128_GCM_SHA256"
+          }
+,         {
+              "id"           : "clientsimulation-android_13_14",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_128_GCM_SHA256"
+          }
+,         {
+              "id"           : "clientsimulation-android_15",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_128_GCM_SHA256"
+          }
+,         {
+              "id"           : "clientsimulation-chrome_101_win10",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_128_GCM_SHA256"
+          }
+,         {
+              "id"           : "clientsimulation-chromium_137_win11",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_128_GCM_SHA256"
+          }
+,         {
+              "id"           : "clientsimulation-firefox_100_win10",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_128_GCM_SHA256"
+          }
+,         {
+              "id"           : "clientsimulation-firefox_137_win11",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_128_GCM_SHA256"
+          }
+,         {
+              "id"           : "clientsimulation-ie_8_win7",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.0 ECDHE-RSA-AES128-SHA"
+          }
+,         {
+              "id"           : "clientsimulation-ie_11_win7",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.2 ECDHE-ECDSA-AES128-GCM-SHA256"
+          }
+,         {
+              "id"           : "clientsimulation-ie_11_win81",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.2 ECDHE-ECDSA-AES128-GCM-SHA256"
+          }
+,         {
+              "id"           : "clientsimulation-ie_11_winphone81",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.2 ECDHE-ECDSA-AES128-GCM-SHA256"
+          }
+,         {
+              "id"           : "clientsimulation-ie_11_win10",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.2 ECDHE-ECDSA-AES128-GCM-SHA256"
+          }
+,         {
+              "id"           : "clientsimulation-edge_15_win10",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.2 ECDHE-ECDSA-AES128-GCM-SHA256"
+          }
+,         {
+              "id"           : "clientsimulation-edge_101_win10_21h2",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_128_GCM_SHA256"
+          }
+,         {
+              "id"           : "clientsimulation-edge_133_win11_23h2",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_128_GCM_SHA256"
+          }
+,         {
+              "id"           : "clientsimulation-safari_184_ios_184",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_128_GCM_SHA256"
+          }
+,         {
+              "id"           : "clientsimulation-safari_154_osx_1231",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_128_GCM_SHA256"
+          }
+,         {
+              "id"           : "clientsimulation-safari_184_osx_154",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_128_GCM_SHA256"
+          }
+,         {
+              "id"           : "clientsimulation-java_7u25",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.0 ECDHE-RSA-AES128-SHA"
+          }
+,         {
+              "id"           : "clientsimulation-java_80442",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_256_GCM_SHA384"
+          }
+,         {
+              "id"           : "clientsimulation-java_1102",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_128_GCM_SHA256"
+          }
+,         {
+              "id"           : "clientsimulation-java_1703",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_256_GCM_SHA384"
+          }
+,         {
+              "id"           : "clientsimulation-java_2106",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_256_GCM_SHA384"
+          }
+,         {
+              "id"           : "clientsimulation-go_1178",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_128_GCM_SHA256"
+          }
+,         {
+              "id"           : "clientsimulation-libressl_336",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_CHACHA20_POLY1305_SHA256"
+          }
+,         {
+              "id"           : "clientsimulation-openssl_102e",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.2 ECDHE-ECDSA-AES128-GCM-SHA256"
+          }
+,         {
+              "id"           : "clientsimulation-openssl_111d",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_256_GCM_SHA384"
+          }
+,         {
+              "id"           : "clientsimulation-openssl_315",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_256_GCM_SHA384"
+          }
+,         {
+              "id"           : "clientsimulation-openssl_350",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_256_GCM_SHA384"
+          }
+,         {
+              "id"           : "clientsimulation-apple_mail_16_0",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.2 ECDHE-ECDSA-AES128-GCM-SHA256"
+          }
+,         {
+              "id"           : "clientsimulation-thunderbird_91_9",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_128_GCM_SHA256"
+          }
+,         {
+              "id"           : "rating_spec",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "SSL Labs's 'SSL Server Rating Guide' (version 2009q from 2020-01-30)"
+          }
+,         {
+              "id"           : "rating_doc",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "https://github.com/ssllabs/research/wiki/SSL-Server-Rating-Guide"
+          }
+,         {
+              "id"           : "protocol_support_score",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "95"
+          }
+,         {
+              "id"           : "protocol_support_score_weighted",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "28"
+          }
+,         {
+              "id"           : "key_exchange_score",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "90"
+          }
+,         {
+              "id"           : "key_exchange_score_weighted",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "27"
+          }
+,         {
+              "id"           : "cipher_strength_score",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "90"
+          }
+,         {
+              "id"           : "cipher_strength_score_weighted",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "36"
+          }
+,         {
+              "id"           : "final_score",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "91"
+          }
+,         {
+              "id"           : "overall_grade",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "MEDIUM",
+              "finding"      : "B"
+          }
+,         {
+              "id"           : "grade_cap_reason_1",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "Grade capped to B. TLS 1.1 offered"
+          }
+,         {
+              "id"           : "grade_cap_reason_2",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "Grade capped to B. TLS 1.0 offered"
+          }
+,         {
+              "id"           : "grade_cap_reason_3",
+              "ip"           : "example.com/104.20.23.154",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "Grade capped to A. HSTS is not offered"
+          }
+,         {
+              "id"           : "service",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "HTTP"
+          }
+,         {
+              "id"           : "pre_128cipher",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "No 128 cipher limit bug"
+          }
+,         {
+              "id"           : "SSLv2",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "not offered"
+          }
+,         {
+              "id"           : "SSLv3",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "not offered"
+          }
+,         {
+              "id"           : "TLS1",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "offered (deprecated)"
+          }
+,         {
+              "id"           : "TLS1_1",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "offered (deprecated)"
+          }
+,         {
+              "id"           : "TLS1_2",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "offered"
+          }
+,         {
+              "id"           : "TLS1_3",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "offered with final"
+          }
+,         {
+              "id"           : "NPN",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "offered with h2, http/1.1 (advertised)"
+          }
+,         {
+              "id"           : "ALPN_HTTP2",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "h2"
+          }
+,         {
+              "id"           : "ALPN",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "http/1.1"
+          }
+,         {
+              "id"           : "cipherlist_NULL",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "cwe"          : "CWE-327",
+              "finding"      : "not offered"
+          }
+,         {
+              "id"           : "cipherlist_aNULL",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "cwe"          : "CWE-327",
+              "finding"      : "not offered"
+          }
+,         {
+              "id"           : "cipherlist_EXPORT",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "cwe"          : "CWE-327",
+              "finding"      : "not offered"
+          }
+,         {
+              "id"           : "cipherlist_LOW",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "cwe"          : "CWE-327",
+              "finding"      : "not offered"
+          }
+,         {
+              "id"           : "cipherlist_3DES_IDEA",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "MEDIUM",
+              "cwe"          : "CWE-310",
+              "finding"      : "offered"
+          }
+,         {
+              "id"           : "cipherlist_OBSOLETED",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "cwe"          : "CWE-310",
+              "finding"      : "offered"
+          }
+,         {
+              "id"           : "cipherlist_STRONG_NOFS",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "offered"
+          }
+,         {
+              "id"           : "cipherlist_STRONG_FS",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "offered"
+          }
+,         {
+              "id"           : "cipher_order-tls1",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "server"
+          }
+,         {
+              "id"           : "cipher-tls1_xc013",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1   xc013   ECDHE-RSA-AES128-SHA              ECDH 253   AES         128      TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA"
+          }
+,         {
+              "id"           : "cipher-tls1_x2f",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1   x2f     AES128-SHA                        RSA        AES         128      TLS_RSA_WITH_AES_128_CBC_SHA"
+          }
+,         {
+              "id"           : "cipher-tls1_xc014",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1   xc014   ECDHE-RSA-AES256-SHA              ECDH 253   AES         256      TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA"
+          }
+,         {
+              "id"           : "cipher-tls1_x35",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1   x35     AES256-SHA                        RSA        AES         256      TLS_RSA_WITH_AES_256_CBC_SHA"
+          }
+,         {
+              "id"           : "cipher-tls1_x0a",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "MEDIUM",
+              "finding"      : "TLSv1   x0a     DES-CBC3-SHA                      RSA        3DES        168      TLS_RSA_WITH_3DES_EDE_CBC_SHA"
+          }
+,         {
+              "id"           : "cipherorder_TLSv1",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "ECDHE-RSA-AES128-SHA AES128-SHA ECDHE-RSA-AES256-SHA AES256-SHA DES-CBC3-SHA"
+          }
+,         {
+              "id"           : "cipher_order-tls1_1",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "server"
+          }
+,         {
+              "id"           : "cipher-tls1_1_xc013",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1.1   xc013   ECDHE-RSA-AES128-SHA              ECDH 253   AES         128      TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA"
+          }
+,         {
+              "id"           : "cipher-tls1_1_x2f",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1.1   x2f     AES128-SHA                        RSA        AES         128      TLS_RSA_WITH_AES_128_CBC_SHA"
+          }
+,         {
+              "id"           : "cipher-tls1_1_xc014",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1.1   xc014   ECDHE-RSA-AES256-SHA              ECDH 253   AES         256      TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA"
+          }
+,         {
+              "id"           : "cipher-tls1_1_x35",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1.1   x35     AES256-SHA                        RSA        AES         256      TLS_RSA_WITH_AES_256_CBC_SHA"
+          }
+,         {
+              "id"           : "cipherorder_TLSv1_1",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "ECDHE-RSA-AES128-SHA AES128-SHA ECDHE-RSA-AES256-SHA AES256-SHA"
+          }
+,         {
+              "id"           : "cipher_order-tls1_2",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "server -- server prioritizes ChaCha ciphers when preferred by clients"
+          }
+,         {
+              "id"           : "cipher-tls1_2_xc02b",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "TLSv1.2   xc02b   ECDHE-ECDSA-AES128-GCM-SHA256     ECDH 253   AESGCM      128      TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256"
+          }
+,         {
+              "id"           : "cipher-tls1_2_xcca9",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "TLSv1.2   xcca9   ECDHE-ECDSA-CHACHA20-POLY1305     ECDH 253   ChaCha20    256      TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256"
+          }
+,         {
+              "id"           : "cipher-tls1_2_xc009",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1.2   xc009   ECDHE-ECDSA-AES128-SHA            ECDH 253   AES         128      TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA"
+          }
+,         {
+              "id"           : "cipher-tls1_2_xc02c",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "TLSv1.2   xc02c   ECDHE-ECDSA-AES256-GCM-SHA384     ECDH 253   AESGCM      256      TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384"
+          }
+,         {
+              "id"           : "cipher-tls1_2_xc00a",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1.2   xc00a   ECDHE-ECDSA-AES256-SHA            ECDH 253   AES         256      TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA"
+          }
+,         {
+              "id"           : "cipher-tls1_2_xc023",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1.2   xc023   ECDHE-ECDSA-AES128-SHA256         ECDH 253   AES         128      TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256"
+          }
+,         {
+              "id"           : "cipher-tls1_2_xc024",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1.2   xc024   ECDHE-ECDSA-AES256-SHA384         ECDH 253   AES         256      TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384"
+          }
+,         {
+              "id"           : "cipher-tls1_2_xc02f",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "TLSv1.2   xc02f   ECDHE-RSA-AES128-GCM-SHA256       ECDH 253   AESGCM      128      TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"
+          }
+,         {
+              "id"           : "cipher-tls1_2_xcca8",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "TLSv1.2   xcca8   ECDHE-RSA-CHACHA20-POLY1305       ECDH 253   ChaCha20    256      TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256"
+          }
+,         {
+              "id"           : "cipher-tls1_2_xc013",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1.2   xc013   ECDHE-RSA-AES128-SHA              ECDH 253   AES         128      TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA"
+          }
+,         {
+              "id"           : "cipher-tls1_2_x9c",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "TLSv1.2   x9c     AES128-GCM-SHA256                 RSA        AESGCM      128      TLS_RSA_WITH_AES_128_GCM_SHA256"
+          }
+,         {
+              "id"           : "cipher-tls1_2_x2f",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1.2   x2f     AES128-SHA                        RSA        AES         128      TLS_RSA_WITH_AES_128_CBC_SHA"
+          }
+,         {
+              "id"           : "cipher-tls1_2_xc030",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "TLSv1.2   xc030   ECDHE-RSA-AES256-GCM-SHA384       ECDH 253   AESGCM      256      TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"
+          }
+,         {
+              "id"           : "cipher-tls1_2_xc014",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1.2   xc014   ECDHE-RSA-AES256-SHA              ECDH 253   AES         256      TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA"
+          }
+,         {
+              "id"           : "cipher-tls1_2_x9d",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "TLSv1.2   x9d     AES256-GCM-SHA384                 RSA        AESGCM      256      TLS_RSA_WITH_AES_256_GCM_SHA384"
+          }
+,         {
+              "id"           : "cipher-tls1_2_x35",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1.2   x35     AES256-SHA                        RSA        AES         256      TLS_RSA_WITH_AES_256_CBC_SHA"
+          }
+,         {
+              "id"           : "cipher-tls1_2_xc027",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1.2   xc027   ECDHE-RSA-AES128-SHA256           ECDH 253   AES         128      TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256"
+          }
+,         {
+              "id"           : "cipher-tls1_2_x3c",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1.2   x3c     AES128-SHA256                     RSA        AES         128      TLS_RSA_WITH_AES_128_CBC_SHA256"
+          }
+,         {
+              "id"           : "cipher-tls1_2_xc028",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1.2   xc028   ECDHE-RSA-AES256-SHA384           ECDH 253   AES         256      TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384"
+          }
+,         {
+              "id"           : "cipher-tls1_2_x3d",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1.2   x3d     AES256-SHA256                     RSA        AES         256      TLS_RSA_WITH_AES_256_CBC_SHA256"
+          }
+,         {
+              "id"           : "cipherorder_TLSv1_2",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "ECDHE-ECDSA-AES128-GCM-SHA256 ECDHE-ECDSA-CHACHA20-POLY1305 ECDHE-ECDSA-AES128-SHA ECDHE-ECDSA-AES256-GCM-SHA384 ECDHE-ECDSA-AES256-SHA ECDHE-ECDSA-AES128-SHA256 ECDHE-ECDSA-AES256-SHA384 ECDHE-RSA-AES128-GCM-SHA256 ECDHE-RSA-CHACHA20-POLY1305 ECDHE-RSA-AES128-SHA AES128-GCM-SHA256 AES128-SHA ECDHE-RSA-AES256-GCM-SHA384 ECDHE-RSA-AES256-SHA AES256-GCM-SHA384 AES256-SHA ECDHE-RSA-AES128-SHA256 AES128-SHA256 ECDHE-RSA-AES256-SHA384 AES256-SHA256"
+          }
+,         {
+              "id"           : "prioritize_chacha_TLSv1_2",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "true"
+          }
+,         {
+              "id"           : "cipher_order-tls1_3",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "NOT a cipher order configured"
+          }
+,         {
+              "id"           : "cipher-tls1_3_x1302",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "TLSv1.3   x1302   TLS_AES_256_GCM_SHA384            ECDH/MLKEM AESGCM      256      TLS_AES_256_GCM_SHA384"
+          }
+,         {
+              "id"           : "cipher-tls1_3_x1303",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "TLSv1.3   x1303   TLS_CHACHA20_POLY1305_SHA256      ECDH/MLKEM ChaCha20    256      TLS_CHACHA20_POLY1305_SHA256"
+          }
+,         {
+              "id"           : "cipher-tls1_3_x1301",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "TLSv1.3   x1301   TLS_AES_128_GCM_SHA256            ECDH/MLKEM AESGCM      128      TLS_AES_128_GCM_SHA256"
+          }
+,         {
+              "id"           : "supportedciphers_TLSv1_3",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLS_AES_256_GCM_SHA384 TLS_CHACHA20_POLY1305_SHA256 TLS_AES_128_GCM_SHA256"
+          }
+,         {
+              "id"           : "cipher_order",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "server -- TLS 1.3 client determined"
+          }
+,         {
+              "id"           : "FS",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "offered"
+          }
+,         {
+              "id"           : "FS_ciphers",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLS_AES_256_GCM_SHA384 TLS_CHACHA20_POLY1305_SHA256 ECDHE-RSA-AES256-GCM-SHA384 ECDHE-ECDSA-AES256-GCM-SHA384 ECDHE-RSA-AES256-SHA384 ECDHE-ECDSA-AES256-SHA384 ECDHE-RSA-AES256-SHA ECDHE-ECDSA-AES256-SHA ECDHE-ECDSA-CHACHA20-POLY1305 ECDHE-RSA-CHACHA20-POLY1305 TLS_AES_128_GCM_SHA256 ECDHE-RSA-AES128-GCM-SHA256 ECDHE-ECDSA-AES128-GCM-SHA256 ECDHE-RSA-AES128-SHA256 ECDHE-ECDSA-AES128-SHA256 ECDHE-RSA-AES128-SHA ECDHE-ECDSA-AES128-SHA"
+          }
+,         {
+              "id"           : "FS_KEMs",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "X25519MLKEM768 X25519Kyber768Draft00"
+          }
+,         {
+              "id"           : "FS_ECDHE_curves",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "prime256v1 secp384r1 secp521r1 X25519"
+          }
+,         {
+              "id"           : "FS_TLS12_sig_algs",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "RSA-PSS-RSAE+SHA256 RSA+SHA256 RSA-PSS-RSAE+SHA384 ECDSA+SHA256 ECDSA+SHA384 ECDSA+SHA512"
+          }
+,         {
+              "id"           : "FS_TLS13_sig_algs",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "ECDSA+SHA256"
+          }
+,         {
+              "id"           : "TLS_extensions",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "'server name/#0' 'status request/#5' 'EC point formats/#11' 'application layer protocol negotiation/#16' 'signed certificate timestamps/#18' 'extended master secret/#23' 'compress_certificate/#27' 'session ticket/#35' 'supported versions/#43' 'key share/#51' 'next protocol/#13172' 'renegotiation info/#65281'"
+          }
+,         {
+              "id"           : "TLS_session_ticket",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "valid for 64800 seconds only (<daily)"
+          }
+,         {
+              "id"           : "SSL_sessionID_support",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "yes"
+          }
+,         {
+              "id"           : "sessionresumption_ticket",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "supported"
+          }
+,         {
+              "id"           : "sessionresumption_ID",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "supported"
+          }
+,         {
+              "id"           : "TLS_timestamp",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "off by 0 seconds from your localtime"
+          }
+,         {
+              "id"           : "certificate_compression",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "0002/Brotli"
+          }
+,         {
+              "id"           : "clientAuth",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "none"
+          }
+,         {
+              "id"           : "cert_numbers",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "2"
+          }
+,         {
+              "id"           : "cert_signatureAlgorithm <hostCert#1>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "SHA256 with RSA"
+          }
+,         {
+              "id"           : "cert_keySize <hostCert#1>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "RSA 2048 bits (exponent is 65537)"
+          }
+,         {
+              "id"           : "cert_keyUsage <hostCert#1>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "HIGH",
+              "finding"      : "Certificate incorrectly used for key encipherment: 'Digital Signature'"
+          }
+,         {
+              "id"           : "cert_extKeyUsage <hostCert#1>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLS Web Server Authentication"
+          }
+,         {
+              "id"           : "cert_serialNumber <hostCert#1>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "27FD65644D90AA4763B6CFB53D6DCCA3"
+          }
+,         {
+              "id"           : "cert_serialNumberLen <hostCert#1>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "16"
+          }
+,         {
+              "id"           : "cert_fingerprintSHA1 <hostCert#1>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "BBAF0CAAE3AFC4EAB1592ABE636A1F4B2A763A1B"
+          }
+,         {
+              "id"           : "cert_fingerprintSHA256 <hostCert#1>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "28A4EB5CE222C5BF4368AF8A0D64C59BDDD3C4EA561B592F063ABAEE3A7C20EF"
+          }
+,         {
+              "id"           : "cert <hostCert#1>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "-----BEGIN CERTIFICATE-----\nMIIFczCCBFugAwIBAgIQJ/1lZE2Qqkdjts+1PW3MozANBgkqhkiG9w0BAQsFADBRMQswCQYDVQQGEwJVUzEYMBYGA1UECgwPU1NMIENvcnBvcmF0aW9uMSgwJgYDVQQDDB9DbG91ZGZsYXJlIFRMUyBJc3N1aW5nIFJTQSBDQSAzMB4XDTI2MDUzMTIxMzkwMFoXDTI2MDgyOTIxNDEyNlowFjEUMBIGA1UEAwwLZXhhbXBsZS5jb20wggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQC7VM7Mq8MlMAqAgIuzPrlfwPuP91A6GsUV4WBiU3y7mn0Sl0C3isx9baaMsmWhkVpGHKSEjmLbMJ15a67YjZCYJrgHHC46PH6jCm0U3PxWSrpV8mFeSqXfoNXfotsWAPs7NfbCNmYpR73SLJFgktyNwatDGMzMs3ZAKeuC0D6//+/NSJvO+xhiYBHSxWt0QAm1Zteh0PRbC6RKDotWSP7I4zZ1+4MZaoT3p1pg1RlnID7LfJaQJtoWlg35kAzHUhly2SnMcsJdMDLOA8VMQcnGOiIgaMtr1Gf3oSySEaXTCznnyVjnwQKKZNF0e7s5PTeUBgcKnu6ZecgfqVPofl7DAgMBAAGjggKAMIICfDAMBgNVHRMBAf8EAjAAMB8GA1UdIwQYMBaAFJV1HRbz6EN8JFXJxODhVo4Yo+zvMGwGCCsGAQUFBwEBBGAwXjA5BggrBgEFBQcwAoYtaHR0cDovL2kuY2YtaS5zc2wuY29tL0Nsb3VkZmxhcmUtVExTLUktUjMuY2VyMCEGCCsGAQUFBzABhhVodHRwOi8vby5jZi1pLnNzbC5jb20wJQYDVR0RBB4wHIILZXhhbXBsZS5jb22CDSouZXhhbXBsZS5jb20wIwYDVR0gBBwwGjAIBgZngQwBAgEwDgYMKwYBBAGCqTABAwEBMBMGA1UdJQQMMAoGCCsGAQUFBwMBMFMGA1UdHwRMMEowSKBGoESGQmh0dHA6Ly9jLmNmLWkuc3NsLmNvbS9kY2NkMDZjOTM5ZmUwN2VlYTU2N2Q2OTU4YmEwOTA3ZjVhODBmNzg4LmNybDAOBgNVHQ8BAf8EBAMCB4AwDwYJKwYBBAGC2kssBAIFADCCAQQGCisGAQQB1nkCBAIEgfUEgfIA8AB2AMIxfldFGaNF7n843rKQQevHwiFaIr9/1bWtdprZDlLNAAABnoADBWMAAAQDAEcwRQIhAPOPpxlNVgDsY3R71gDSHss/D4M7PVZRQhK7FxSi1A1WAiBLo3QTfyAepPrH7CLAkPxod2vrs6rQuwPZ+4y4G2uj9wB2AMijxH/Hs625NWsBP2p6Em3jOk5DpcZG+ZetOXWZHc+aAAABnoADBXMAAAQDAEcwRQIhAMDK73ARa0lekFFP+dLRoawbrCD9yUVtLF6kM7q0Kgd+AiBOMwsJasbh18iMFQu7vnM5CdIBKZ2Q0w41k+1J/Lj0XjANBgkqhkiG9w0BAQsFAAOCAQEAMUyK8XjrVnp/p5dr57V88G3R/uid6lBUYiisT3zHj38iL9GvTVQvOExjHg//gmU6rxHkzVroWLPUsI+HRvIRUGSWWCKpveVJ5VT/eWl7hklEpCM+E6XocNAJbMhox07/UHnfAI3a6cJO+BAgZmZjf8O9cdnSF8irEaFk5RiPWLMjr+JswwC9t++YSY3MRjWUeWH945wjAKz/KdkqXkI3LXi89qSJd1D4VGb8y7KJ+UA4Mpjd3B5cYP/nSLlUY3+VE6aZeyP3RAYW3mmfY/3G2uLJOevc2dl5Exg6l65NZd00vYi+36mxFROA18Fa7U7bnPScvuzd3dfIFw2dGutm8g==\n-----END CERTIFICATE-----"
+          }
+,         {
+              "id"           : "cert_commonName <hostCert#1>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "example.com"
+          }
+,         {
+              "id"           : "cert_commonName_wo_SNI <hostCert#1>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "request w/o SNI didn't succeed"
+          }
+,         {
+              "id"           : "cert_subjectAltName <hostCert#1>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "example.com *.example.com"
+          }
+,         {
+              "id"           : "cert_trust <hostCert#1>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "Ok via SAN and CN (SNI mandatory)"
+          }
+,         {
+              "id"           : "cert_chain_of_trust <hostCert#1>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "passed."
+          }
+,         {
+              "id"           : "cert_certificatePolicies_EV <hostCert#1>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "no"
+          }
+,         {
+              "id"           : "cert_expirationStatus <hostCert#1>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "86 >= 60 days"
+          }
+,         {
+              "id"           : "cert_notBefore <hostCert#1>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "2026-05-31 21:39"
+          }
+,         {
+              "id"           : "cert_notAfter <hostCert#1>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "2026-08-29 21:41"
+          }
+,         {
+              "id"           : "cert_extlifeSpan <hostCert#1>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "certificate has no extended life time according to browser forum"
+          }
+,         {
+              "id"           : "cert_eTLS <hostCert#1>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "not present"
+          }
+,         {
+              "id"           : "cert_crlDistributionPoints <hostCert#1>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "http://c.cf-i.ssl.com/dccd06c939fe07eea567d6958ba0907f5a80f788.crl"
+          }
+,         {
+              "id"           : "cert_ocspURL <hostCert#1>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "http://o.cf-i.ssl.com"
+          }
+,         {
+              "id"           : "OCSP_stapling <hostCert#1>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "offered"
+          }
+,         {
+              "id"           : "cert_ocspRevoked <hostCert#1>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "not revoked"
+          }
+,         {
+              "id"           : "cert_mustStapleExtension <hostCert#1>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "--"
+          }
+,         {
+              "id"           : "DNS_CAArecord <hostCert#1>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "--"
+          }
+,         {
+              "id"           : "certificate_transparency <hostCert#1>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "yes (certificate extension)"
+          }
+,         {
+              "id"           : "certs_countServer <hostCert#1>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "4"
+          }
+,         {
+              "id"           : "certs_list_ordering_problem <hostCert#1>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "no"
+          }
+,         {
+              "id"           : "cert_caIssuers <hostCert#1>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "Cloudflare TLS Issuing RSA CA 3 (SSL Corporation from US)"
+          }
+,         {
+              "id"           : "intermediate_cert <#1> <hostCert#1>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "-----BEGIN CERTIFICATE-----\nMIIFTzCCAzegAwIBAgIQV+YU0PKwrtSy+C+AGzt4gTANBgkqhkiG9w0BAQsFADBPMQswCQYDVQQGEwJVUzEYMBYGA1UECgwPU1NMIENvcnBvcmF0aW9uMSYwJAYDVQQDDB1TU0wuY29tIFRMUyBUcmFuc2l0IFJTQSBDQSBSMjAeFw0yNTA1MjkxOTUxMTZaFw0zNTA1MjcxOTUxMTVaMFExCzAJBgNVBAYTAlVTMRgwFgYDVQQKDA9TU0wgQ29ycG9yYXRpb24xKDAmBgNVBAMMH0Nsb3VkZmxhcmUgVExTIElzc3VpbmcgUlNBIENBIDMwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQCf7MlKl6II7NWQtPWRalCiNJ4PN4t9tjIGfcvAXSLrxX7wryk0dVbrcSQu9303vWIyNgcE9fokvkSj/qxRIfIS8TjX2LK+HjIearYR12tVrwkHDvAIIJHuuJbHcZiYWDVRPGiAUCwsjxy0fGjwlPO29TwyvxIdDjt0aW42+jkByotiUIs9UiZkHyPt4ndfW4++Iea0PzqhFWaHVz/8nUaXp5hr/VIBmla4gjWup9qfbW8OQRbzNZBEYgXFah0n8bFXeoev9XLd+ZNc9/jPnnUjUDahgPrE3xrAg0yKOXNaT2QlEoX1gUCVkm7ULIAIKObpm6GgCiYw1j3dTNGvlcupAgMBAAGjggEjMIIBHzASBgNVHRMBAf8ECDAGAQH/AgEAMB8GA1UdIwQYMBaAFCFBNGOOHZEMw922JLCoh3uNZWAIMEgGCCsGAQUFBwEBBDwwOjA4BggrBgEFBQcwAoYsaHR0cDovL2NlcnQuc3NsLmNvbS9TU0wuY29tLVRMUy1ULVJTQS1SMi5jZXIwEQYDVR0gBAowCDAGBgRVHSAAMB0GA1UdJQQWMBQGCCsGAQUFBwMCBggrBgEFBQcDATA9BgNVHR8ENjA0MDKgMKAuhixodHRwOi8vY3Jscy5zc2wuY29tL1NTTC5jb20tVExTLVQtUlNBLVIyLmNybDAdBgNVHQ4EFgQUlXUdFvPoQ3wkVcnE4OFWjhij7O8wDgYDVR0PAQH/BAQDAgGGMA0GCSqGSIb3DQEBCwUAA4ICAQAaI9vmfyXLvSz7g6VNn7RI217Rjrkg35aJTv7f04GNVtrEkw/8AHnh2MoTvsafHwn2Jq9c2uzv+4ySskdshDgd0bAldXKTbv0v5shxCSSalobNX/RNoxneENIuckNwtcWH+bxN0JcR/4JKuCb4XezfcZa5fvvXqGrsiV2FXvy48raf4cOhK0BM0OK4BEEyU9VmnXHi0hUdbs7FVsURYJLbZQ37NCY04aFKb6nR6LTNe9/5EdBnwB4F9P3h5YjSx3kqOVJWJrEtQr3F6lC9ZFALCsJnkiOjvuzFoiMA5bDEhOsf0ly5+7gkT99WFyYNqOQvZhsXZ0mO2ADnbW6giqq9/juqCKtLhQtGYu0mUZQkCmL1bF1fAHAurj5RVBAWEb0NMdtGiE9u+Wh1ZKXNGG+yl2RGuTgUGNmdBVXyxCIpUDOeArGETS4KpUJTrmeO+7J6E4CMdQbWAOxkddfg7jEsW88bz7ySOK2iZGehAOvok7cF3s+dFBNw/BOXN5tcQYi2cbVAM6H2DFFu5lfbn77IlEnSS8xh1F9tmM/lolgeo8jR4W3ONu8qYVlrUPDe4wB986peSw8HxzbskQVUm/IewCZhUwVV2BTUYKIeUWzsj9Xdc45J3FGBXDYcdd29/fVGteIeFKd90rhgl+05ndb8ySrdNDEz9omUbOg1NoFaPw==\n-----END CERTIFICATE-----"
+          }
+,         {
+              "id"           : "intermediate_cert_fingerprintSHA256 <#1> <hostCert#1>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "F2EC7E0A2CF0E3550FD336CF16BAF09A71B4759DC4D98768021E8498943C7547"
+          }
+,         {
+              "id"           : "intermediate_cert_notBefore <#1> <hostCert#1>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "2025-05-29 19:51"
+          }
+,         {
+              "id"           : "intermediate_cert_notAfter <#1> <hostCert#1>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "2035-05-27 19:51"
+          }
+,         {
+              "id"           : "intermediate_cert_expiration <#1> <hostCert#1>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "ok > 40 days"
+          }
+,         {
+              "id"           : "intermediate_cert_chain <#1> <hostCert#1>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "Cloudflare TLS Issuing RSA CA 3 <-- SSL.com TLS Transit RSA CA R2"
+          }
+,         {
+              "id"           : "intermediate_cert <#2> <hostCert#1>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "-----BEGIN CERTIFICATE-----\n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\n-----END CERTIFICATE-----"
+          }
+,         {
+              "id"           : "intermediate_cert_fingerprintSHA256 <#2> <hostCert#1>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "FFE930442DFEB69CE29A908B6A639B370BD6BA6075F931AB83561D938B453A21"
+          }
+,         {
+              "id"           : "intermediate_cert_notBefore <#2> <hostCert#1>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "2022-10-21 17:02"
+          }
+,         {
+              "id"           : "intermediate_cert_notAfter <#2> <hostCert#1>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "2037-10-17 17:02"
+          }
+,         {
+              "id"           : "intermediate_cert_expiration <#2> <hostCert#1>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "ok > 40 days"
+          }
+,         {
+              "id"           : "intermediate_cert_chain <#2> <hostCert#1>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "SSL.com TLS Transit RSA CA R2 <-- SSL.com TLS RSA Root CA 2022"
+          }
+,         {
+              "id"           : "intermediate_cert <#3> <hostCert#1>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "-----BEGIN CERTIFICATE-----\n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\n-----END CERTIFICATE-----"
+          }
+,         {
+              "id"           : "intermediate_cert_fingerprintSHA256 <#3> <hostCert#1>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "D6DF0026E5939EF08BEDAC8C5838F1F0A6EFA7CAD5F6B8BB80AEB255DA96EBB3"
+          }
+,         {
+              "id"           : "intermediate_cert_notBefore <#3> <hostCert#1>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "2025-08-01 00:00"
+          }
+,         {
+              "id"           : "intermediate_cert_notAfter <#3> <hostCert#1>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "2028-12-31 23:59"
+          }
+,         {
+              "id"           : "intermediate_cert_expiration <#3> <hostCert#1>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "ok > 40 days"
+          }
+,         {
+              "id"           : "intermediate_cert_chain <#3> <hostCert#1>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "SSL.com TLS RSA Root CA 2022 <-- AAA Certificate Services"
+          }
+,         {
+              "id"           : "intermediate_cert_badOCSP <hostCert#1>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "intermediate certificate(s) is/are ok"
+          }
+,         {
+              "id"           : "cert_signatureAlgorithm <hostCert#2>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "ECDSA with SHA256"
+          }
+,         {
+              "id"           : "cert_keySize <hostCert#2>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "EC 256 bits (curve P-256)"
+          }
+,         {
+              "id"           : "cert_keyUsage <hostCert#2>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "Digital Signature"
+          }
+,         {
+              "id"           : "cert_extKeyUsage <hostCert#2>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLS Web Server Authentication"
+          }
+,         {
+              "id"           : "cert_serialNumber <hostCert#2>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "1AA73FEA257BE3334B9A29552E6F878E"
+          }
+,         {
+              "id"           : "cert_serialNumberLen <hostCert#2>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "16"
+          }
+,         {
+              "id"           : "cert_fingerprintSHA1 <hostCert#2>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "E7F60D1AFECDFFDF164B7479386BBE67CDD8E51E"
+          }
+,         {
+              "id"           : "cert_fingerprintSHA256 <hostCert#2>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "BEAB14CF39678FDA0EF1606EEDB818C2298BA2CC7A00886E7DC2D2410F24CD35"
+          }
+,         {
+              "id"           : "cert <hostCert#2>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "-----BEGIN CERTIFICATE-----\nMIID5zCCA42gAwIBAgIQGqc/6iV74zNLmilVLm+HjjAKBggqhkjOPQQDAjBRMQswCQYDVQQGEwJVUzEYMBYGA1UECgwPU1NMIENvcnBvcmF0aW9uMSgwJgYDVQQDDB9DbG91ZGZsYXJlIFRMUyBJc3N1aW5nIEVDQyBDQSAzMB4XDTI2MDUzMTIxMzkxMloXDTI2MDgyOTIxNDEyNlowFjEUMBIGA1UEAwwLZXhhbXBsZS5jb20wWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAR3K9vg9mgByiZluphXApVAUpQtIO9MPLbbdVxu2SDIKEYKZhTqszaA9lNa6oAGtsi++/m+uwI35sAG+zkIpAeOo4ICgDCCAnwwDAYDVR0TAQH/BAIwADAfBgNVHSMEGDAWgBSDA/3n9vVKTRVB9O0iFtMyCj7KZjBsBggrBgEFBQcBAQRgMF4wOQYIKwYBBQUHMAKGLWh0dHA6Ly9pLmNmLWkuc3NsLmNvbS9DbG91ZGZsYXJlLVRMUy1JLUUzLmNlcjAhBggrBgEFBQcwAYYVaHR0cDovL28uY2YtaS5zc2wuY29tMCUGA1UdEQQeMByCC2V4YW1wbGUuY29tgg0qLmV4YW1wbGUuY29tMCMGA1UdIAQcMBowCAYGZ4EMAQIBMA4GDCsGAQQBgqkwAQMBATATBgNVHSUEDDAKBggrBgEFBQcDATBTBgNVHR8ETDBKMEigRqBEhkJodHRwOi8vYy5jZi1pLnNzbC5jb20vYWU4MDFlZDFjNTViYjU3OWQ3OTIwOGIwZDc3MmFjZmI4Y2MzYTIwOC5jcmwwDgYDVR0PAQH/BAQDAgeAMA8GCSsGAQQBgtpLLAQCBQAwggEEBgorBgEEAdZ5AgQCBIH1BIHyAPAAdgCUTkOH+uzB74HzGSQmqBhlAcfTXzgCAT9yZ31VNy4Z2AAAAZ6AAzGJAAAEAwBHMEUCIQCBv0JM0mXaiiQ9efuArkk3O2t/RQ39q7O3oKtYCvOUhQIgdn2ut5rn+AWzBqZ9m1VOlMLpT/jy2M92Is6itMy9rR8AdgDIo8R/x7OtuTVrAT9qehJt4zpOQ6XGRvmXrTl1mR3PmgAAAZ6AAzGgAAAEAwBHMEUCIQCoc8r0LVigaz6pvG8sv0+uBqzf+LPNPxwYxtgkuVdNMwIgAbK/qRNJIWljIVp30PFWjmM+SnoT80ShaPJMGdbtNLMwCgYIKoZIzj0EAwIDSAAwRQIhALDciGbviRHUIMPez2CVH+Vc0NiaT8BrFrUGD7dej3D4AiAfs90UtVHGYKTXYYPIJlVqUK1amlBBby7M2KI7pSMjxA==\n-----END CERTIFICATE-----"
+          }
+,         {
+              "id"           : "cert_commonName <hostCert#2>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "example.com"
+          }
+,         {
+              "id"           : "cert_commonName_wo_SNI <hostCert#2>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "request w/o SNI didn't succeed, usual for EC certificates"
+          }
+,         {
+              "id"           : "cert_subjectAltName <hostCert#2>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "example.com *.example.com"
+          }
+,         {
+              "id"           : "cert_trust <hostCert#2>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "Ok via SAN and CN (SNI mandatory)"
+          }
+,         {
+              "id"           : "cert_chain_of_trust <hostCert#2>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "passed."
+          }
+,         {
+              "id"           : "cert_certificatePolicies_EV <hostCert#2>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "no"
+          }
+,         {
+              "id"           : "cert_expirationStatus <hostCert#2>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "86 >= 60 days"
+          }
+,         {
+              "id"           : "cert_notBefore <hostCert#2>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "2026-05-31 21:39"
+          }
+,         {
+              "id"           : "cert_notAfter <hostCert#2>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "2026-08-29 21:41"
+          }
+,         {
+              "id"           : "cert_extlifeSpan <hostCert#2>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "certificate has no extended life time according to browser forum"
+          }
+,         {
+              "id"           : "cert_eTLS <hostCert#2>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "not present"
+          }
+,         {
+              "id"           : "cert_crlDistributionPoints <hostCert#2>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "http://c.cf-i.ssl.com/ae801ed1c55bb579d79208b0d772acfb8cc3a208.crl"
+          }
+,         {
+              "id"           : "cert_ocspURL <hostCert#2>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "http://o.cf-i.ssl.com"
+          }
+,         {
+              "id"           : "OCSP_stapling <hostCert#2>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "offered"
+          }
+,         {
+              "id"           : "cert_ocspRevoked <hostCert#2>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "not revoked"
+          }
+,         {
+              "id"           : "cert_mustStapleExtension <hostCert#2>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "--"
+          }
+,         {
+              "id"           : "DNS_CAArecord <hostCert#2>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "--"
+          }
+,         {
+              "id"           : "certificate_transparency <hostCert#2>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "yes (certificate extension)"
+          }
+,         {
+              "id"           : "certs_countServer <hostCert#2>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "4"
+          }
+,         {
+              "id"           : "certs_list_ordering_problem <hostCert#2>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "no"
+          }
+,         {
+              "id"           : "cert_caIssuers <hostCert#2>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "Cloudflare TLS Issuing ECC CA 3 (SSL Corporation from US)"
+          }
+,         {
+              "id"           : "intermediate_cert <#1> <hostCert#2>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "-----BEGIN CERTIFICATE-----\nMIIC4jCCAmmgAwIBAgIQMe7oivuHzZ74M2YEdD+bJzAKBggqhkjOPQQDAzBPMQswCQYDVQQGEwJVUzEYMBYGA1UECgwPU1NMIENvcnBvcmF0aW9uMSYwJAYDVQQDDB1TU0wuY29tIFRMUyBUcmFuc2l0IEVDQyBDQSBSMjAeFw0yNTA1MjkxOTQ5NDVaFw0zNTA1MjcxOTQ5NDRaMFExCzAJBgNVBAYTAlVTMRgwFgYDVQQKDA9TU0wgQ29ycG9yYXRpb24xKDAmBgNVBAMMH0Nsb3VkZmxhcmUgVExTIElzc3VpbmcgRUNDIENBIDMwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAT9HRQUjiNCkybPcNCJ17Eecqw+XVlSgd8c9dYludZ3B4ULjRKxKz9AuR9yBuD/QFIKk0n4yXGwfu7go0VRGER0o4IBIzCCAR8wEgYDVR0TAQH/BAgwBgEB/wIBADAfBgNVHSMEGDAWgBQyosfYWIv/f8A88lVpM+zOzB+8lzBIBggrBgEFBQcBAQQ8MDowOAYIKwYBBQUHMAKGLGh0dHA6Ly9jZXJ0LnNzbC5jb20vU1NMLmNvbS1UTFMtVC1FQ0MtUjIuY2VyMBEGA1UdIAQKMAgwBgYEVR0gADAdBgNVHSUEFjAUBggrBgEFBQcDAgYIKwYBBQUHAwEwPQYDVR0fBDYwNDAyoDCgLoYsaHR0cDovL2NybHMuc3NsLmNvbS9TU0wuY29tLVRMUy1ULUVDQy1SMi5jcmwwHQYDVR0OBBYEFIMD/ef29UpNFUH07SIW0zIKPspmMA4GA1UdDwEB/wQEAwIBhjAKBggqhkjOPQQDAwNnADBkAjBkW/dgTArl36px6LVMWzfHLv0pFD+P9BoOYzirZ2aS2IwsQPHb0rQdZMY5NghTTk4CMCiwDU71fhtYVRulUc575HJroLXgj+BkpkBubdHnb2+aPpCH7LP6QNQ/Xm9NiqdxAw==\n-----END CERTIFICATE-----"
+          }
+,         {
+              "id"           : "intermediate_cert_fingerprintSHA256 <#1> <hostCert#2>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "F15F29ABEF73AA4DD9AB754BAEAE3685BDD3874B46B525071177628685718026"
+          }
+,         {
+              "id"           : "intermediate_cert_notBefore <#1> <hostCert#2>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "2025-05-29 19:49"
+          }
+,         {
+              "id"           : "intermediate_cert_notAfter <#1> <hostCert#2>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "2035-05-27 19:49"
+          }
+,         {
+              "id"           : "intermediate_cert_expiration <#1> <hostCert#2>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "ok > 40 days"
+          }
+,         {
+              "id"           : "intermediate_cert_chain <#1> <hostCert#2>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "Cloudflare TLS Issuing ECC CA 3 <-- SSL.com TLS Transit ECC CA R2"
+          }
+,         {
+              "id"           : "intermediate_cert <#2> <hostCert#2>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "-----BEGIN CERTIFICATE-----\nMIIDNDCCArmgAwIBAgIQYE2K+NALqHSLlVhTFyxfLjAKBggqhkjOPQQDAzBOMQswCQYDVQQGEwJVUzEYMBYGA1UECgwPU1NMIENvcnBvcmF0aW9uMSUwIwYDVQQDDBxTU0wuY29tIFRMUyBFQ0MgUm9vdCBDQSAyMDIyMB4XDTIyMTAyMTE3MDIyM1oXDTM3MTAxNzE3MDIyMlowTzELMAkGA1UEBhMCVVMxGDAWBgNVBAoMD1NTTCBDb3Jwb3JhdGlvbjEmMCQGA1UEAwwdU1NMLmNvbSBUTFMgVHJhbnNpdCBFQ0MgQ0EgUjIwdjAQBgcqhkjOPQIBBgUrgQQAIgNiAARk532ZA1NckR7q+NgjraG/LOJjie8oaPbt1/Dsq2iudyvkdpcbUOvbWSgtb7g2uauNl8pMIp7uidkCP/16czqQjSvMLzo3g9oNtC1FG3NyCWVfeCE954tmP0f9CSnWFA+jggFZMIIBVTASBgNVHRMBAf8ECDAGAQH/AgEBMB8GA1UdIwQYMBaAFImPL6PoK6AUVHvzVrgmX2c4C5zQMEwGCCsGAQUFBwEBBEAwPjA8BggrBgEFBQcwAoYwaHR0cDovL2NlcnQuc3NsLmNvbS9TU0xjb20tVExTLVJvb3QtMjAyMi1FQ0MuY2VyMD8GA1UdIAQ4MDYwNAYEVR0gADAsMCoGCCsGAQUFBwIBFh5odHRwczovL3d3dy5zc2wuY29tL3JlcG9zaXRvcnkwHQYDVR0lBBYwFAYIKwYBBQUHAwIGCCsGAQUFBwMBMEEGA1UdHwQ6MDgwNqA0oDKGMGh0dHA6Ly9jcmxzLnNzbC5jb20vU1NMY29tLVRMUy1Sb290LTIwMjItRUNDLmNybDAdBgNVHQ4EFgQUMqLH2FiL/3/APPJVaTPszswfvJcwDgYDVR0PAQH/BAQDAgGGMAoGCCqGSM49BAMDA2kAMGYCMQC4SkI+e2cts1nTN9MCRil97z624WxLAp94hT7tNZGPZLe9YiLIyzgKqW/bE0b2h9ACMQCvV5XMRcunAylQaCQc4J/GwR1p7yrPC0DRWWeyLAkQWi5Ylta9DxlX74QFFksFCP0=\n-----END CERTIFICATE-----"
+          }
+,         {
+              "id"           : "intermediate_cert_fingerprintSHA256 <#2> <hostCert#2>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "5D1BC399274E649E1C72697DE91A54AD725088C5221CB61E17EE9C290BC42A92"
+          }
+,         {
+              "id"           : "intermediate_cert_notBefore <#2> <hostCert#2>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "2022-10-21 17:02"
+          }
+,         {
+              "id"           : "intermediate_cert_notAfter <#2> <hostCert#2>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "2037-10-17 17:02"
+          }
+,         {
+              "id"           : "intermediate_cert_expiration <#2> <hostCert#2>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "ok > 40 days"
+          }
+,         {
+              "id"           : "intermediate_cert_chain <#2> <hostCert#2>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "SSL.com TLS Transit ECC CA R2 <-- SSL.com TLS ECC Root CA 2022"
+          }
+,         {
+              "id"           : "intermediate_cert <#3> <hostCert#2>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "-----BEGIN CERTIFICATE-----\nMIIEPjCCAyagAwIBAgIQFz3KYOqfjhAm2vzXKBDkjjANBgkqhkiG9w0BAQsFADB7MQswCQYDVQQGEwJHQjEbMBkGA1UECAwSR3JlYXRlciBNYW5jaGVzdGVyMRAwDgYDVQQHDAdTYWxmb3JkMRowGAYDVQQKDBFDb21vZG8gQ0EgTGltaXRlZDEhMB8GA1UEAwwYQUFBIENlcnRpZmljYXRlIFNlcnZpY2VzMB4XDTI1MDgwMTAwMDAwMFoXDTI4MTIzMTIzNTk1OVowTjELMAkGA1UEBhMCVVMxGDAWBgNVBAoMD1NTTCBDb3Jwb3JhdGlvbjElMCMGA1UEAwwcU1NMLmNvbSBUTFMgRUNDIFJvb3QgQ0EgMjAyMjB2MBAGByqGSM49AgEGBSuBBAAiA2IABEUpNXP6wrgjzhR9qLFNoFs27iosU8NgCTWyJGYmacCzldZdkkAZDsalE3D07xJRKF3nzL35PIXBz5SQySvOkkJYWWf9lCcQZIxPBLFNSeR7T5v15wj4A4j3p8OSSxlUgaOCAZcwggGTMB8GA1UdIwQYMBaAFKARCiM+lvEH7OKvKe+CpX/QMKS0MB0GA1UdDgQWBBSJjy+j6CugFFR781a4Jl9nOAuc0DAOBgNVHQ8BAf8EBAMCAYYwEgYDVR0TAQH/BAgwBgEB/wIBAjAdBgNVHSUEFjAUBggrBgEFBQcDAQYIKwYBBQUHAwIwgZIGA1UdIASBijCBhzAHBgVngQwBATAIBgZngQwBAgEwCAYGZ4EMAQICMAgGBmeBDAECAzAOBgwrBgEEAYKpMAEDAQEwDgYMKwYBBAGCqTABAwECMA4GDCsGAQQBgqkwAQMBAzAOBgwrBgEEAYKpMAEDAQQwDgYMKwYBBAGCqTABAwEFMA4GDCsGAQQBgqkwAQMBBjBDBgNVHR8EPDA6MDigNqA0hjJodHRwOi8vY3JsLmNvbW9kb2NhLmNvbS9BQUFDZXJ0aWZpY2F0ZVNlcnZpY2VzLmNybDA0BggrBgEFBQcBAQQoMCYwJAYIKwYBBQUHMAGGGGh0dHA6Ly9vY3NwLmNvbW9kb2NhLmNvbTANBgkqhkiG9w0BAQsFAAOCAQEAQ+Vw+0vuJDzwOCiGy95GwysrnGBYAFdba+jQTkXYvkJWGtID1xfyUhKf8tZupwURpkOoVB+9ZvsR15BZ8OSZrRw8Uh32Qz6bYale3PZ80izAhlAwSWR0PD7MQxMUxY9b2GsCvSb8z1XgJxfMoZSRRCTVgWDhua7WB2MBdtN+A88zoXdY/PhVnox0NZbMxXdCSWc2yojUEO3AwcGEcTL9+I1w6A89onNQ0SKfGXs/Xz6UajT8m0gH1BtdUUbur3aB3+n0zJ/U7u35DKiGv5mmNG81ldZrWjBTJ1T9fxVIWmmbTVzZvygNMtUumSs5DelljhlJAidAsTc+5iCBJmqRFg==\n-----END CERTIFICATE-----"
+          }
+,         {
+              "id"           : "intermediate_cert_fingerprintSHA256 <#3> <hostCert#2>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "BA06D3D3E348FCE7478CC84B422D0E638E9E221EF1A0B53ADC14CC70E04B8AB8"
+          }
+,         {
+              "id"           : "intermediate_cert_notBefore <#3> <hostCert#2>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "2025-08-01 00:00"
+          }
+,         {
+              "id"           : "intermediate_cert_notAfter <#3> <hostCert#2>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "2028-12-31 23:59"
+          }
+,         {
+              "id"           : "intermediate_cert_expiration <#3> <hostCert#2>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "ok > 40 days"
+          }
+,         {
+              "id"           : "intermediate_cert_chain <#3> <hostCert#2>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "SSL.com TLS ECC Root CA 2022 <-- AAA Certificate Services"
+          }
+,         {
+              "id"           : "intermediate_cert_badOCSP <hostCert#2>",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "intermediate certificate(s) is/are ok"
+          }
+,         {
+              "id"           : "HTTP_status_code",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "200 OK ('/')"
+          }
+,         {
+              "id"           : "HTTP_clock_skew",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "+8464 seconds from localtime"
+          }
+,         {
+              "id"           : "HTTP_headerTime",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "1780566874"
+          }
+,         {
+              "id"           : "HTTP_headerAge",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "8464 seconds"
+          }
+,         {
+              "id"           : "HSTS",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "not offered"
+          }
+,         {
+              "id"           : "HPKP",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "No support for HTTP Public Key Pinning"
+          }
+,         {
+              "id"           : "banner_server",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "cloudflare"
+          }
+,         {
+              "id"           : "banner_application",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "No application banner found"
+          }
+,         {
+              "id"           : "cookie_count",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "0 at '/'"
+          }
+,         {
+              "id"           : "security_headers",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "MEDIUM",
+              "finding"      : "--"
+          }
+,         {
+              "id"           : "banner_reverseproxy",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "cwe"          : "CWE-200",
+              "finding"      : "--"
+          }
+,         {
+              "id"           : "heartbleed",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "cve"          : "CVE-2014-0160",
+              "cwe"          : "CWE-119",
+              "finding"      : "not vulnerable, no heartbeat extension"
+          }
+,         {
+              "id"           : "CCS",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "cve"          : "CVE-2014-0224",
+              "cwe"          : "CWE-310",
+              "finding"      : "not vulnerable"
+          }
+,         {
+              "id"           : "ticketbleed",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "cve"          : "CVE-2016-9244",
+              "cwe"          : "CWE-200",
+              "finding"      : "not vulnerable"
+          }
+,         {
+              "id"           : "ROBOT",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "cve"          : "CVE-2017-17382 CVE-2017-17427 CVE-2017-17428 CVE-2017-13098 CVE-2017-1000385 CVE-2017-13099 CVE-2016-6883 CVE-2012-5081 CVE-2017-6168",
+              "cwe"          : "CWE-203",
+              "finding"      : "not vulnerable"
+          }
+,         {
+              "id"           : "secure_renego",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "cwe"          : "CWE-310",
+              "finding"      : "supported"
+          }
+,         {
+              "id"           : "secure_client_renego",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "cve"          : "CVE-2011-1473",
+              "cwe"          : "CWE-310",
+              "finding"      : "not vulnerable"
+          }
+,         {
+              "id"           : "CRIME_TLS",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "cve"          : "CVE-2012-4929",
+              "cwe"          : "CWE-310",
+              "finding"      : "not vulnerable"
+          }
+,         {
+              "id"           : "BREACH",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "MEDIUM",
+              "cve"          : "CVE-2013-3587",
+              "cwe"          : "CWE-310",
+              "finding"      : "potentially VULNERABLE, br gzip HTTP compression detected  - only supplied '/' tested"
+          }
+,         {
+              "id"           : "POODLE_SSL",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "cve"          : "CVE-2014-3566",
+              "cwe"          : "CWE-310",
+              "finding"      : "not vulnerable, no SSLv3"
+          }
+,         {
+              "id"           : "fallback_SCSV",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "supported"
+          }
+,         {
+              "id"           : "SWEET32",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "cve"          : "CVE-2016-2183 CVE-2016-6329",
+              "cwe"          : "CWE-327",
+              "finding"      : "uses 64 bit block ciphers"
+          }
+,         {
+              "id"           : "FREAK",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "cve"          : "CVE-2015-0204",
+              "cwe"          : "CWE-310",
+              "finding"      : "not vulnerable"
+          }
+,         {
+              "id"           : "DROWN",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "cve"          : "CVE-2016-0800 CVE-2016-0703",
+              "cwe"          : "CWE-310",
+              "finding"      : "not vulnerable on this host and port"
+          }
+,         {
+              "id"           : "DROWN_hint",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "cve"          : "CVE-2016-0800 CVE-2016-0703",
+              "cwe"          : "CWE-310",
+              "finding"      : "Make sure you don't use this certificate elsewhere with SSLv2 enabled services, see https://search.censys.io/search?resource=hosts&virtual_hosts=INCLUDE&q=28A4EB5CE222C5BF4368AF8A0D64C59BDDD3C4EA561B592F063ABAEE3A7C20EF"
+          }
+,         {
+              "id"           : "LOGJAM",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "cve"          : "CVE-2015-4000",
+              "cwe"          : "CWE-310",
+              "finding"      : "not vulnerable, no DH EXPORT ciphers,"
+          }
+,         {
+              "id"           : "LOGJAM-common_primes",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "cve"          : "CVE-2015-4000",
+              "cwe"          : "CWE-310",
+              "finding"      : "no DH key with <= TLS 1.2"
+          }
+,         {
+              "id"           : "BEAST_CBC_TLS1",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "MEDIUM",
+              "cve"          : "CVE-2011-3389",
+              "cwe"          : "CWE-20",
+              "finding"      : "ECDHE-RSA-AES128-SHA AES128-SHA ECDHE-RSA-AES256-SHA AES256-SHA DES-CBC3-SHA"
+          }
+,         {
+              "id"           : "BEAST",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "cve"          : "CVE-2011-3389",
+              "cwe"          : "CWE-20",
+              "finding"      : "VULNERABLE -- but also supports higher protocols  TLSv1.1 TLSv1.2 (likely mitigated)"
+          }
+,         {
+              "id"           : "LUCKY13",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "cve"          : "CVE-2013-0169",
+              "cwe"          : "CWE-310",
+              "finding"      : "potentially vulnerable, uses TLS CBC ciphers"
+          }
+,         {
+              "id"           : "winshock",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "cve"          : "CVE-2014-6321",
+              "cwe"          : "CWE-94",
+              "finding"      : "not vulnerable"
+          }
+,         {
+              "id"           : "RC4",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "OK",
+              "cve"          : "CVE-2013-2566 CVE-2015-2808",
+              "cwe"          : "CWE-310",
+              "finding"      : "not vulnerable"
+          }
+,         {
+              "id"           : "clientsimulation-android_70",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.2 ECDHE-ECDSA-AES128-GCM-SHA256"
+          }
+,         {
+              "id"           : "clientsimulation-android_81",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.2 ECDHE-ECDSA-AES128-GCM-SHA256"
+          }
+,         {
+              "id"           : "clientsimulation-android_90",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_128_GCM_SHA256"
+          }
+,         {
+              "id"           : "clientsimulation-android_X",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_128_GCM_SHA256"
+          }
+,         {
+              "id"           : "clientsimulation-android_11_12",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_128_GCM_SHA256"
+          }
+,         {
+              "id"           : "clientsimulation-android_13_14",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_128_GCM_SHA256"
+          }
+,         {
+              "id"           : "clientsimulation-android_15",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_128_GCM_SHA256"
+          }
+,         {
+              "id"           : "clientsimulation-chrome_101_win10",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_128_GCM_SHA256"
+          }
+,         {
+              "id"           : "clientsimulation-chromium_137_win11",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_128_GCM_SHA256"
+          }
+,         {
+              "id"           : "clientsimulation-firefox_100_win10",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_128_GCM_SHA256"
+          }
+,         {
+              "id"           : "clientsimulation-firefox_137_win11",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_128_GCM_SHA256"
+          }
+,         {
+              "id"           : "clientsimulation-ie_8_win7",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.0 ECDHE-RSA-AES128-SHA"
+          }
+,         {
+              "id"           : "clientsimulation-ie_11_win7",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.2 ECDHE-ECDSA-AES128-GCM-SHA256"
+          }
+,         {
+              "id"           : "clientsimulation-ie_11_win81",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.2 ECDHE-ECDSA-AES128-GCM-SHA256"
+          }
+,         {
+              "id"           : "clientsimulation-ie_11_winphone81",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.2 ECDHE-ECDSA-AES128-GCM-SHA256"
+          }
+,         {
+              "id"           : "clientsimulation-ie_11_win10",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.2 ECDHE-ECDSA-AES128-GCM-SHA256"
+          }
+,         {
+              "id"           : "clientsimulation-edge_15_win10",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.2 ECDHE-ECDSA-AES128-GCM-SHA256"
+          }
+,         {
+              "id"           : "clientsimulation-edge_101_win10_21h2",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_128_GCM_SHA256"
+          }
+,         {
+              "id"           : "clientsimulation-edge_133_win11_23h2",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_128_GCM_SHA256"
+          }
+,         {
+              "id"           : "clientsimulation-safari_184_ios_184",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_128_GCM_SHA256"
+          }
+,         {
+              "id"           : "clientsimulation-safari_154_osx_1231",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_128_GCM_SHA256"
+          }
+,         {
+              "id"           : "clientsimulation-safari_184_osx_154",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_128_GCM_SHA256"
+          }
+,         {
+              "id"           : "clientsimulation-java_7u25",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.0 ECDHE-RSA-AES128-SHA"
+          }
+,         {
+              "id"           : "clientsimulation-java_80442",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_256_GCM_SHA384"
+          }
+,         {
+              "id"           : "clientsimulation-java_1102",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_128_GCM_SHA256"
+          }
+,         {
+              "id"           : "clientsimulation-java_1703",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_256_GCM_SHA384"
+          }
+,         {
+              "id"           : "clientsimulation-java_2106",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_256_GCM_SHA384"
+          }
+,         {
+              "id"           : "clientsimulation-go_1178",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_128_GCM_SHA256"
+          }
+,         {
+              "id"           : "clientsimulation-libressl_336",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_CHACHA20_POLY1305_SHA256"
+          }
+,         {
+              "id"           : "clientsimulation-openssl_102e",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.2 ECDHE-ECDSA-AES128-GCM-SHA256"
+          }
+,         {
+              "id"           : "clientsimulation-openssl_111d",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_256_GCM_SHA384"
+          }
+,         {
+              "id"           : "clientsimulation-openssl_315",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_256_GCM_SHA384"
+          }
+,         {
+              "id"           : "clientsimulation-openssl_350",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_256_GCM_SHA384"
+          }
+,         {
+              "id"           : "clientsimulation-apple_mail_16_0",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.2 ECDHE-ECDSA-AES128-GCM-SHA256"
+          }
+,         {
+              "id"           : "clientsimulation-thunderbird_91_9",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_128_GCM_SHA256"
+          }
+,         {
+              "id"           : "rating_spec",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "SSL Labs's 'SSL Server Rating Guide' (version 2009q from 2020-01-30)"
+          }
+,         {
+              "id"           : "rating_doc",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "https://github.com/ssllabs/research/wiki/SSL-Server-Rating-Guide"
+          }
+,         {
+              "id"           : "protocol_support_score",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "95"
+          }
+,         {
+              "id"           : "protocol_support_score_weighted",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "28"
+          }
+,         {
+              "id"           : "key_exchange_score",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "90"
+          }
+,         {
+              "id"           : "key_exchange_score_weighted",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "27"
+          }
+,         {
+              "id"           : "cipher_strength_score",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "90"
+          }
+,         {
+              "id"           : "cipher_strength_score_weighted",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "36"
+          }
+,         {
+              "id"           : "final_score",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "91"
+          }
+,         {
+              "id"           : "overall_grade",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "MEDIUM",
+              "finding"      : "B"
+          }
+,         {
+              "id"           : "grade_cap_reason_1",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "Grade capped to B. TLS 1.1 offered"
+          }
+,         {
+              "id"           : "grade_cap_reason_2",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "Grade capped to B. TLS 1.0 offered"
+          }
+,         {
+              "id"           : "grade_cap_reason_3",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "Grade capped to A. HSTS is not offered"
+          }
+,         {
+              "id"           : "scanTime",
+              "ip"           : "example.com/172.66.147.243",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "149"
+          }
+]

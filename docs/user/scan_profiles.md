@@ -13,9 +13,10 @@ re-used by any agent for any target.
 
 ## Shipped profiles
 
-**19 profiles** ship by default across four families: 7 nmap baseline,
-5 NSE service recon, 2 DNS (dig + drill), 4 Phase-J non-nmap tools, and
-1 pentest demo. All are seeded by data migrations the first time you
+**21 profiles** ship by default across five families: 7 nmap baseline,
+5 NSE service recon, 2 DNS (dig + drill), 4 Phase-J non-nmap tools,
+**2 Phase-L deep-audit tools** (testssl.sh + ssh-audit), and 1 pentest
+demo. All are seeded by data migrations the first time you
 `nautobot-server migrate` after install. Most operators won't need to
 write their own; pick the closest fit and dispatch.
 
@@ -122,9 +123,46 @@ for the per-tool verification: `curl https://example.com` →
 100% loss, `severity=medium` auto-escalated; `openssl s_client
 example.com:443` → `days_until_expiry=35`, `verify_ok=True`.
 
+#### Phase L: deep audit pair (2 profiles)
+
+The Phase J `tls-quick-check` and the nmap `ssh-recon` NSE pair are
+**deliberately shallow** — one TLS handshake snapshot and two host-key
+scripts respectively. Phase L pairs them with **compliance-grade deep
+audit tools** that test every protocol, every cipher, every named
+vulnerability signature, and every algorithm offered. Both produce
+native JSON with ordinal severity baked in (`OK`/`LOW`/`MEDIUM`/`HIGH`/
+`CRITICAL` for testssl, `info`/`warn`/`fail` notes per algorithm for
+ssh-audit). Neither is pentest-class — both make standard handshakes,
+no exploit attempts.
+
+| Name | Tool | `tool_arguments` | What it produces |
+|---|---|---|---|
+| `tls-audit-deep` | `testssl` | *(empty — full audit)* | Per-target host-scope `NseFinding` with rich `elements`: `protocols_offered`, `cert_subject`, `vulnerabilities[]` (heartbleed, BEAST, POODLE, ROBOT, LUCKY13, CRIME, BREACH, CCS, ticketbleed, RC4, FREAK, LOGJAM, DROWN, SWEET32 — each with severity + finding text), `weak_ciphers[]`, `chain_issues[]`, `hsts`, `ocsp_stapling`, `severity_counts` histogram. The panel-level severity is the **worst** across all per-test rows. |
+| `ssh-audit` | `ssh-audit` | *(empty — bare audit)* | Per-target host-scope `NseFinding` with `elements`: `banner`, `software`, `version`, `kex_algos[]`, `host_keys[]`, `macs[]`, `ciphers[]`, `compression[]`, `fingerprints[]` (SHA256 + MD5 per host-key), `weak_algos[]` (every algorithm with fail/warn notes), `cves[]`, and a recommendation-count summary. Severity climbs from `info` → `low` → `medium` → `high` based on warn/fail notes and CVE CVSS scores. |
+
+Verified end-to-end during Phase L development:
+
+- `testssl example.com:443` (152s) → 255 tests per Cloudflare edge IP,
+  2 ParsedHosts (one per edge), 18 distinct vulnerability test rows
+  surfaced as a queryable table in the finding-detail UI (severity
+  badge per row), `severity=high` rolled up from one HIGH row in the
+  catalog.
+- `ssh-audit github.com` (29s) → banner captured, 9 KEX algos, 5 host
+  keys, 4 MACs, 6 ciphers, **8 weak algos flagged** (GitHub's
+  NSA-suspect ECDH curves trigger the `fail` notes), 6 fingerprints
+  recorded across SHA256 + MD5, `severity=medium` rolled up from
+  fail-note presence.
+
+The shallow Phase-J `tls-quick-check` and the nmap NSE `ssh-recon`
+profile **stay alongside** the new deep-audit pair — different points
+on the speed-vs-depth curve, picked per use case. Quick check for "is
+the cert still valid before this deploy?", deep audit for compliance
+review or "should we publish this externally?"
+
 Add your own non-nmap profile via **Scanner → Scan Profiles → Add**:
 set `tool` to one of `dig` / `drill` / `curl` / `mtr` / `masscan` /
-`openssl-s_client`, fill in `tool_arguments`, save. The agent's
+`openssl-s_client` / `testssl` / `ssh-audit`, fill in `tool_arguments`,
+save. The agent's
 capability probe declares which of these tools the host actually has
 on startup, so an unrecognized tool fails the dispatch cleanly with
 the missing-tool name in `Scan.error_message`.

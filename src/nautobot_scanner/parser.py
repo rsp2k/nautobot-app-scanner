@@ -834,6 +834,325 @@ def _first_match(pattern: str, text: str) -> str:
     return m.group(1).strip() if m else ""
 
 
+def _resolve_to_ip(host: str) -> str:
+    """Return an IP for ``host``. If host already looks like one, pass through.
+
+    Used by parsers whose source tools (ssh-audit, openssl s_client) only
+    emit hostnames in their output. The resulting IP is what
+    DiscoveredHost.ip_address (VarbinaryIPField) requires.
+
+    Returns the original string on DNS failure — let persist() raise the
+    ValidationError so the LocalBackend records a clean error_message
+    instead of corrupting the row.
+    """
+    import re as _re
+    import socket as _socket
+
+    # Already an IPv4 dot-quad or IPv6 hex+colon? Return as-is.
+    if _re.match(r"^\d{1,3}(?:\.\d{1,3}){3}$", host) or ":" in host and _re.match(r"^[0-9a-fA-F:]+$", host):
+        return host
+    try:
+        return _socket.gethostbyname(host)
+    except (_socket.gaierror, OSError):
+        return host
+
+
+# testssl.sh severity strings → SeverityChoices values.
+# WARN sits between OK and LOW in testssl's hierarchy — slot to low so
+# operators see it surfaced when rolling up to the panel-level severity.
+_TESTSSL_SEVERITY_MAP = {
+    "CRITICAL": "critical",
+    "HIGH": "high",
+    "MEDIUM": "medium",
+    "LOW": "low",
+    "WARN": "low",
+    "OK": "info",
+    "INFO": "info",
+    "DEBUG": "info",
+}
+
+# SeverityChoices ordering for max() rollup — higher number = worse.
+_SEVERITY_RANK = {"info": 0, "low": 1, "medium": 2, "high": 3, "critical": 4}
+
+
+def parse_testssl_json(raw: str, targets: list[str]) -> tuple[ParsedReport, list[ParsedHost]]:
+    """testssl.sh deep TLS audit parser.
+
+    testssl --jsonfile emits a JSON array of per-test rows shaped:
+        {"id":"BEAST_CBC_TLS1", "ip":"203.0.113.10/example.com",
+         "port":"443", "severity":"LOW", "finding":"BEAST: ..."}
+
+    Each scan target gets ONE host-scope NseFinding folding all rows
+    into structured ``elements``:
+      - protocols_offered: list of TLS versions seen
+      - vulnerabilities: per-named-vuln (heartbleed, BEAST, POODLE, ...)
+      - weak_ciphers / chain_issues: rolled up from cipher_* / chain_* rows
+      - hsts / ocsp_stapling: presence flags
+      - cert_subject / cert_san: identity context
+      - severity_counts: histogram of the per-test severities
+    The finding-level severity is the max() of all per-test severities
+    on the testssl ordinal scale (CRITICAL > HIGH > MEDIUM > LOW > OK).
+    """
+    import json as _json
+
+    try:
+        rows = _json.loads(raw)
+    except (_json.JSONDecodeError, ValueError):
+        return ParsedReport(), []
+
+    if not isinstance(rows, list):
+        return ParsedReport(), []
+
+    # Test-IDs that name TLS vulnerabilities — surface these as a list
+    # of {id, severity, finding} so operators can grep elements.vulnerabilities[].
+    vuln_id_prefixes = (
+        "heartbleed", "BEAST", "POODLE", "FREAK", "DROWN", "LOGJAM",
+        "CRIME", "BREACH", "LUCKY13", "SWEET32", "ROBOT", "RC4",
+        "CCS", "ticketbleed", "ROBOT", "RENEG", "fallback_SCSV",
+    )
+
+    # Group rows by (ip, port) so multi-target scans materialize one
+    # ParsedHost per target. testssl's "ip" field is "<hostname>/<ip>"
+    # (hostname FIRST when DNS resolved), so a naive split-take-first
+    # would collapse every resolved-name target into a single bucket.
+    # Pull the literal IP via regex — IPv4 dot-quad or IPv6 hex+colon —
+    # falling back to the raw field if nothing parses.
+    import re as _re
+    ip_pat = _re.compile(r"(\d{1,3}(?:\.\d{1,3}){3}|[0-9a-fA-F]{1,4}(?::[0-9a-fA-F]{0,4}){2,})")
+    groups: dict[tuple[str, str], list[dict]] = {}
+    for row in rows:
+        ip_field = row.get("ip", "")
+        port = str(row.get("port", "") or "")
+        m = ip_pat.search(ip_field)
+        ip = m.group(1) if m else ip_field
+        if ip in ("", "/"):
+            continue
+        groups.setdefault((ip, port), []).append(row)
+
+    out: list[ParsedHost] = []
+    for (ip, port), group_rows in groups.items():
+        if not ip:
+            continue
+
+        # Roll up severity across every test row in the group.
+        worst_rank = 0
+        sev_counts: dict[str, int] = {}
+        for row in group_rows:
+            sev = str(row.get("severity", "OK")).upper()
+            mapped = _TESTSSL_SEVERITY_MAP.get(sev, "info")
+            sev_counts[sev] = sev_counts.get(sev, 0) + 1
+            worst_rank = max(worst_rank, _SEVERITY_RANK[mapped])
+        finding_severity = {v: k for k, v in _SEVERITY_RANK.items()}[worst_rank]
+
+        # Bucket rows into typed element fields.
+        protocols_offered: list[str] = []
+        vulnerabilities: list[dict] = []
+        weak_ciphers: list[dict] = []
+        chain_issues: list[dict] = []
+        cert_subject = ""
+        cert_san = ""
+        hsts = "absent"
+        ocsp_stapling = "unknown"
+        cipher_negotiated = ""
+
+        for row in group_rows:
+            rid = str(row.get("id", ""))
+            sev = str(row.get("severity", "OK")).upper()
+            finding = str(row.get("finding", ""))
+
+            # Protocols arrive as per-version rows (SSLv2, SSLv3, TLS1, TLS1_1,
+            # TLS1_2, TLS1_3), each with finding either "offered..." or
+            # "not offered". Collect the ones marked offered.
+            _proto_names = {
+                "SSLv2": "SSLv2", "SSLv3": "SSLv3",
+                "TLS1": "TLSv1.0", "TLS1_1": "TLSv1.1",
+                "TLS1_2": "TLSv1.2", "TLS1_3": "TLSv1.3",
+            }
+            if rid in _proto_names:
+                if "not offered" not in finding.lower() and "offered" in finding.lower():
+                    pname = _proto_names[rid]
+                    if pname not in protocols_offered:
+                        protocols_offered.append(pname)
+            elif rid.startswith(vuln_id_prefixes):
+                vulnerabilities.append({"id": rid, "severity": sev, "finding": finding})
+            elif rid.startswith("cipher_") and sev in ("LOW", "MEDIUM", "HIGH", "CRITICAL"):
+                weak_ciphers.append({"id": rid, "severity": sev, "finding": finding})
+            elif rid.startswith("chain_") and sev != "OK":
+                chain_issues.append({"id": rid, "severity": sev, "finding": finding})
+            elif rid == "cert_commonName":
+                cert_subject = finding
+            elif rid == "cert_subjectAltName":
+                cert_san = finding
+            elif rid == "HSTS":
+                hsts = "present" if "offered" in finding.lower() and "not offered" not in finding.lower() else "absent"
+            elif rid == "OCSP_stapling":
+                ocsp_stapling = "present" if "offered" in finding.lower() else "absent"
+            elif rid == "cipher_negotiated":
+                cipher_negotiated = finding
+
+        elements = {
+            "target": f"{ip}:{port}" if port else ip,
+            "protocols_offered": protocols_offered,
+            "cert_subject": cert_subject,
+            "cert_san": cert_san,
+            "cipher_negotiated": cipher_negotiated,
+            "hsts": hsts,
+            "ocsp_stapling": ocsp_stapling,
+            "vulnerabilities": vulnerabilities,
+            "weak_ciphers": weak_ciphers,
+            "chain_issues": chain_issues,
+            "severity_counts": sev_counts,
+            "total_tests": len(group_rows),
+        }
+
+        out.append(ParsedHost(
+            ip_address=ip,
+            host_state="up",  # testssl only emits output for targets that responded
+            host_findings=[ParsedVulnerability(
+                nse_script="testssl",
+                output=f"testssl.sh deep TLS audit: {len(group_rows)} tests across protocols/ciphers/chain/vulns; "
+                       f"severity histogram {sev_counts}",
+                severity=finding_severity,
+                elements=elements,
+            )],
+        ))
+
+    return ParsedReport(), out
+
+
+def parse_ssh_audit_json(raw: str, targets: list[str]) -> tuple[ParsedReport, list[ParsedHost]]:
+    """ssh-audit deep SSH server audit parser.
+
+    `ssh-audit -j` emits one JSON document per invocation with top-level
+    keys: banner, compression, kex, key, mac, enc, cves, fingerprints,
+    recommendations, additional_notes, target.
+
+    Each invocation = one ParsedHost with one host-scope NseFinding.
+    Multi-target scans are handled at the argv-builder layer (one
+    sentinel-delimited shell loop, sentinel format in build_ssh_audit_argv).
+    Parser handles either a single JSON object or a list of them.
+    """
+    import json as _json
+
+    # Two shapes: single JSON object (one target) or array (multi-target wrapper).
+    try:
+        parsed = _json.loads(raw)
+    except (_json.JSONDecodeError, ValueError):
+        return ParsedReport(), []
+
+    docs = parsed if isinstance(parsed, list) else [parsed]
+    out: list[ParsedHost] = []
+
+    for doc in docs:
+        if not isinstance(doc, dict):
+            continue
+
+        target = doc.get("target", "")
+        # target is "host:port" — split into the host portion (hostname or IP).
+        # ssh-audit doesn't emit a separate IP field, so if the host portion is
+        # a name, resolve via DNS. Falls back to the original token if resolution
+        # fails — persist() will raise a ValidationError downstream and the
+        # LocalBackend will record a clean error_message.
+        host_token = (target.split(":", 1)[0] if target else "").strip()
+        if not host_token and targets:
+            host_token = targets[0].split(":", 1)[0]
+        if not host_token:
+            continue
+        ip = _resolve_to_ip(host_token)
+
+        banner = doc.get("banner", {}) or {}
+        kex = doc.get("kex", []) or []
+        key_algos = doc.get("key", []) or []
+        mac = doc.get("mac", []) or []
+        enc = doc.get("enc", []) or []
+        cves = doc.get("cves", []) or []
+        recommendations = doc.get("recommendations", {}) or {}
+
+        # Collect every algorithm that has fail/warn notes.
+        weak_algos: list[dict] = []
+        for category, items in (("kex", kex), ("key", key_algos), ("mac", mac), ("enc", enc)):
+            for it in items:
+                if not isinstance(it, dict):
+                    continue
+                notes = it.get("notes", {}) or {}
+                fails = notes.get("fail", []) or []
+                warns = notes.get("warn", []) or []
+                if fails or warns:
+                    weak_algos.append({
+                        "category": category,
+                        "algorithm": it.get("algorithm", ""),
+                        "fail": fails,
+                        "warn": warns,
+                    })
+
+        # Severity rollup. Sources, worst first:
+        #   - any CVE with cvssv2 >= 9.0 → critical
+        #   - any CVE with cvssv2 >= 7.0 OR recommendations.critical non-empty → high
+        #   - any fail note OR recommendations.warning non-empty → medium
+        #   - any warn note → low
+        #   - otherwise → info
+        worst_cvss = max((float(c.get("cvssv2") or 0.0) for c in cves if isinstance(c, dict)), default=0.0)
+        has_fail = any(a["fail"] for a in weak_algos)
+        has_warn = any(a["warn"] for a in weak_algos)
+        rec_critical = bool(recommendations.get("critical"))
+        rec_warning = bool(recommendations.get("warning"))
+
+        if worst_cvss >= 9.0:
+            severity = "critical"
+        elif worst_cvss >= 7.0 or rec_critical:
+            severity = "high"
+        elif has_fail or rec_warning:
+            severity = "medium"
+        elif has_warn:
+            severity = "low"
+        else:
+            severity = "info"
+
+        elements = {
+            "target": target or ip,
+            "banner": banner.get("raw", ""),
+            "software": banner.get("software", ""),
+            "version": banner.get("version", ""),
+            "protocol": banner.get("protocol", ""),
+            "kex_algos": [a.get("algorithm", "") for a in kex if isinstance(a, dict)],
+            "host_keys": [a.get("algorithm", "") for a in key_algos if isinstance(a, dict)],
+            "macs": [a.get("algorithm", "") for a in mac if isinstance(a, dict)],
+            "ciphers": [a.get("algorithm", "") for a in enc if isinstance(a, dict)],
+            "compression": doc.get("compression", []) or [],
+            "fingerprints": doc.get("fingerprints", []) or [],
+            "weak_algos": weak_algos,
+            "cves": cves,
+            "recommendations": {
+                # Flatten the recommendation categories to a count summary;
+                # the full text lives in elements.weak_algos[].
+                "critical": len(recommendations.get("critical", {}) or {}),
+                "warning": len(recommendations.get("warning", {}) or {}),
+                "informational": len(recommendations.get("informational", {}) or {}),
+            },
+        }
+
+        # Extract CVE links for the references field.
+        references = []
+        for c in cves:
+            if isinstance(c, dict) and c.get("name", "").startswith("CVE-"):
+                references.append(f"https://nvd.nist.gov/vuln/detail/{c['name']}")
+
+        out.append(ParsedHost(
+            ip_address=ip,
+            host_state="up",
+            host_findings=[ParsedVulnerability(
+                nse_script="ssh-audit",
+                output=f"ssh-audit: {banner.get('raw', '(no banner)')} — "
+                       f"{len(weak_algos)} weak algos, {len(cves)} CVE flags",
+                severity=severity,
+                elements=elements,
+                references=references,
+            )],
+        ))
+
+    return ParsedReport(), out
+
+
 # Map ToolChoices values → parser function. The dispatch picks one
 # at ingest based on the agent's X-Tool header (or the scan's profile).
 # Adding a new tool: write a parse_<tool>_<format>() returning the same
@@ -849,6 +1168,8 @@ PARSERS: dict[str, object] = {
     "mtr": parse_mtr_json,
     "masscan": parse_masscan_json,
     "openssl-s_client": parse_openssl_sclient_text,
+    "testssl": parse_testssl_json,
+    "ssh-audit": parse_ssh_audit_json,
 }
 
 

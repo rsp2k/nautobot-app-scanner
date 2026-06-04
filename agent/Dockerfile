@@ -19,18 +19,20 @@
 FROM nicolaka/netshoot:v0.13
 
 # netshoot ships nmap, dig, mtr, tcpdump, tshark, openssl, curl out
-# of the box. masscan + hping3 (needed for Phase I pentest mode) are
-# in Alpine's community repo; we add them here.
+# of the box. masscan + hping3 (Phase I pentest mode) and testssl.sh
+# + ssh-audit (Phase L deep audit) get added here.
 #
 # scapy is bundled as a Python package — agent.py can `import scapy`
 # directly without further setup.
-RUN apk add --no-cache libcap masscan hping3 \
+RUN apk add --no-cache libcap masscan hping3 testssl.sh py3-pip \
+    && pip install --break-system-packages --no-cache-dir ssh-audit \
     && adduser -D -u 1001 agent \
     # Raw-socket caps for the binaries that need them. nmap (SYN scans
     # + ARP probes), masscan (raw packet send at 10M pps), hping3
     # (manual TCP/UDP/ICMP probes). Without this, a non-root container
     # falls back to TCP connect() for nmap and refuses to run for
-    # masscan/hping3. dig + curl + mtr + openssl don't need raw sockets.
+    # masscan/hping3. dig + curl + mtr + openssl + testssl + ssh-audit
+    # don't need raw sockets (all are userspace TCP only).
     #
     # NOTE: setcap REPLACES any existing setuid bits. After this, the
     # container needs cap_add: [NET_RAW] in compose for the file caps

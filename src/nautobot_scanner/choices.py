@@ -42,6 +42,14 @@ class ToolChoices(ChoiceSet):
     CURL = "curl"
     MTR = "mtr"
     OPENSSL_SCLIENT = "openssl-s_client"
+    # Phase L: deep audit pair.
+    # testssl.sh and ssh-audit both produce native JSON with their own
+    # ordinal severity classifications that map 1:1 onto SeverityChoices.
+    # Both are info-only (no exploit attempts) so they don't widen
+    # PENTEST_TOOLS. See ADR-013 postscript and the Phase L scan
+    # profiles section in docs/user/scan_profiles.md.
+    TESTSSL = "testssl"
+    SSH_AUDIT = "ssh-audit"
 
     CHOICES = (
         (NMAP, "nmap — port/service/OS discovery (default)"),
@@ -53,7 +61,9 @@ class ToolChoices(ChoiceSet):
         (DRILL, "drill — DNS recon with DNSSEC validation"),
         (CURL, "curl — HTTP request/response capture"),
         (MTR, "mtr — path + latency baseline"),
-        (OPENSSL_SCLIENT, "openssl s_client — deep TLS enumeration"),
+        (OPENSSL_SCLIENT, "openssl s_client — quick TLS handshake snapshot"),
+        (TESTSSL, "testssl.sh — comprehensive TLS audit (Heartbleed, BEAST, POODLE, ROBOT, ...)"),
+        (SSH_AUDIT, "ssh-audit — SSH server compliance audit (KEX/cipher/MAC/host-key)"),
     )
 
 

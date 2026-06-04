@@ -52,16 +52,19 @@ The scanner dispatches one of seven tools per profile. Install only
 the tools you'll actually use; a profile that asks for a missing tool
 fails cleanly with the tool name in `Scan.error_message`.
 
-| OS | nmap-only | Full multi-tool set (Phase G + J) |
+| OS | nmap-only | Full multi-tool set (Phase G + J + L) |
 |----|---|---|
-| Debian / Ubuntu | `apt-get install nmap` | `apt-get install nmap masscan mtr-tiny ldnsutils dnsutils curl openssl` |
-| RHEL / Rocky / Fedora | `dnf install nmap` | `dnf install nmap masscan mtr ldns-utils bind-utils curl openssl` |
-| Arch | `pacman -S nmap` | `pacman -S nmap masscan mtr ldns bind-tools curl openssl` |
-| Alpine (containers) | `apk add nmap` | `apk add nmap masscan mtr ldns-utils bind-tools curl openssl` |
-| macOS (dev only) | `brew install nmap` | `brew install nmap masscan mtr ldns bind curl openssl` |
+| Debian / Ubuntu | `apt-get install nmap` | `apt-get install nmap masscan mtr-tiny ldnsutils dnsutils curl openssl testssl.sh && pip install ssh-audit` |
+| RHEL / Rocky / Fedora | `dnf install nmap` | `dnf install nmap masscan mtr ldns-utils bind-utils curl openssl testssl && pip install ssh-audit` |
+| Arch | `pacman -S nmap` | `pacman -S nmap masscan mtr ldns bind-tools curl openssl testssl.sh && pip install ssh-audit` |
+| Alpine (containers) | `apk add nmap` | `apk add nmap masscan mtr ldns-utils bind-tools curl openssl testssl.sh py3-pip && pip install --break-system-packages ssh-audit` |
+| macOS (dev only) | `brew install nmap` | `brew install nmap masscan mtr ldns bind curl openssl testssl ssh-audit` |
 
 (`drill` ships in the `ldns-utils` / `ldns` package on most distros;
-`dig` in `bind-utils` / `bind-tools` / `dnsutils`.)
+`dig` in `bind-utils` / `bind-tools` / `dnsutils`; `testssl.sh` is
+packaged on Debian as `testssl` without the `.sh` extension; `ssh-audit`
+is a Python package on every distro except macOS which has a Homebrew
+formula.)
 
 For container deploys see the dev `Dockerfile` in `development/` — it
 extends `nicolaka/netshoot` which bundles all seven tools out of the

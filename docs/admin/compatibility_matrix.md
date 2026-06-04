@@ -20,6 +20,8 @@ you'll dispatch.
 | mtr | 0.94+ | 0.95+ | Needs `-j` JSON output flag (introduced in mtr 0.86, mature by 0.94) |
 | masscan | 1.3+ | 1.3.2 | `-oJ -` JSON-to-stdout requires 1.3+ |
 | openssl | 1.1.1+ | 1.1.1 + 3.x | Parser handles both 1.1.x ("Cipher : X" / "Not Before:") and 3.x ("Cipher is X" / "v:NotBefore:") output shapes |
+| testssl.sh | 3.0+ | 3.2.1 | JSON output schema stabilized in 3.x; on Debian the binary is `testssl` (no `.sh`). `--jsonfile` interleaves progress on stdout — use a real temp file (the LocalBackend's argv builder does this). |
+| ssh-audit | 3.0+ | 3.3.0 | JSON-mode (`-j`) returns exit code 2/3/4 to signal severity (warn/info/fail). The LocalBackend tolerates non-zero exit for this tool via the `_TOLERATE_NONZERO_EXIT` allowlist. |
 
 ## Versioning policy
 
