@@ -15,6 +15,18 @@ x-nautobot-common: &nautobot-common
     dockerfile: development/Dockerfile
   image: nautobot-app-scanner-dev:latest
   restart: unless-stopped
+  # LocalBackend dispatches nmap as a synchronous subprocess in whatever
+  # container the call originates (`web` for shell-driven dispatch,
+  # `worker` for Job-driven). Raw-socket scan modes (-sS / -sI / -O / -f /
+  # --mtu) need NET_RAW + NET_ADMIN plus file caps on /usr/bin/nmap and
+  # Docker's `no_new_privs` disabled (it blocks file caps on non-root
+  # exec by default). Granted on the common anchor so either container
+  # can drive a pentest-class scan without retripping over this.
+  cap_add:
+    - NET_RAW
+    - NET_ADMIN
+  security_opt:
+    - no-new-privileges:false
   environment:
     NAUTOBOT_ALLOWED_HOSTS: "${DOMAIN} nautobot-web localhost 127.0.0.1"
     # Use the fully-qualified container name (not the short service alias)
