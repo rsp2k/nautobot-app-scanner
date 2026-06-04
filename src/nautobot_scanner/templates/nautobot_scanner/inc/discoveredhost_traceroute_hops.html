@@ -1,0 +1,56 @@
+{% comment %}
+Traceroute hops to this host.
+
+Hops exist only if --traceroute was in the profile's nmap arguments.
+Three states:
+1. Hops exist — render the table.
+2. --traceroute ran but produced no hops (host is 1 hop away, path filtered, etc.) — "0 hops".
+3. --traceroute wasn't requested — "Not requested" with explainer.
+{% endcomment %}
+{% with scan=object.scan hops=object.traceroute_hops.all %}
+{% if hops %}
+  <table class="table table-hover table-condensed" style="margin:0">
+    <thead>
+      <tr>
+        <th style="width:40px">#</th>
+        <th>IP</th>
+        <th>Hostname</th>
+        <th>RTT (ms)</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for h in hops %}
+        <tr>
+          <td><code>{{ h.hop_number }}</code></td>
+          <td><code>{{ h.hop_ip }}</code></td>
+          <td>{{ h.hop_hostname|default:"—" }}</td>
+          <td>
+            {% if h.rtt_ms %}<code>{{ h.rtt_ms|floatformat:2 }}</code>
+            {% else %}<em style="opacity:.5">no response</em>{% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% elif "--traceroute" in scan.profile.nmap_arguments %}
+  <div style="padding: 0.75rem; opacity: 0.7; font-size: .9em">
+    <strong>0 traceroute hops recorded.</strong>
+    The profile requested <code>--traceroute</code> but nmap didn't capture
+    any hops for this host. Common causes: the target is one hop away (no
+    intermediate routers), the path filters ICMP/UDP TTL probes, or the
+    target was unreachable.
+  </div>
+{% else %}
+  <div style="padding: 0.75rem; opacity: 0.75; font-size: .9em; border-left: 3px solid #888; margin: .25rem 0">
+    <strong>Traceroute not requested.</strong>
+    The <code>{{ scan.profile.name }}</code> profile didn't include
+    <code>--traceroute</code> in its nmap arguments, so no path was recorded.
+    <div style="margin-top: .5rem; opacity: .9">
+      The shipped <code>topology</code> profile pairs host discovery with
+      <code>--traceroute</code> to populate this panel. Or add
+      <code>--traceroute</code> to any existing profile's
+      <code>nmap_arguments</code> field.
+    </div>
+  </div>
+{% endif %}
+{% endwith %}

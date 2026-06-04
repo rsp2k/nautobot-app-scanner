@@ -375,6 +375,20 @@ class DiscoveredHost(PrimaryModel):
         return port_scope + host_scope
 
     @property
+    def port_findings(self):
+        """All port-scope ``NseFinding`` rows attached to this host's ports.
+
+        The two-hop reverse (NseFinding → DiscoveredPort → DiscoveredHost)
+        as a single queryset so templates and viewsets can iterate or
+        count without nested loops. Mirrors the ``host_findings`` reverse
+        manager which goes through the direct FK; together they cover
+        both NSE scopes per [ADR-012](../../../docs/dev/architecture.md).
+        """
+        from nautobot_scanner.models import NseFinding
+
+        return NseFinding.objects.filter(discovered_port__discovered_host=self)
+
+    @property
     def dns_records_pointing_here(self) -> dict:
         """A/AAAA records in nautobot-app-dns-models that resolve to this host.
 

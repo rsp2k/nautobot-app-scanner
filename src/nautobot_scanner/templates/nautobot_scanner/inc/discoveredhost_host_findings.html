@@ -1,0 +1,61 @@
+{% comment %}
+Host-scope NSE findings — scripts that attach to the host directly
+(smb-os-discovery, snmp-info, ssh-hostkey, ssh-auth-methods, etc.)
+rather than per-port.
+
+Three states:
+1. Findings exist — render the table.
+2. Scripts ran but produced no host-scope output — "0 found".
+3. No --script directives in this scan's profile — "Not scanned" with explainer.
+{% endcomment %}
+{% with scan=object.scan findings=object.host_findings.all %}
+{% if findings %}
+  <table class="table table-hover table-condensed" style="margin:0">
+    <thead>
+      <tr>
+        <th>Script</th>
+        <th>Severity</th>
+        <th>Output preview</th>
+        <th>Refs</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for f in findings %}
+        <tr>
+          <td><a href="{{ f.get_absolute_url }}"><code>{{ f.nse_script }}</code></a></td>
+          <td>
+            {% if f.severity == "critical" %}<span class="label label-danger">{{ f.severity }}</span>
+            {% elif f.severity == "high" %}<span class="label label-danger">{{ f.severity }}</span>
+            {% elif f.severity == "medium" %}<span class="label label-warning">{{ f.severity }}</span>
+            {% elif f.severity == "low" %}<span class="label label-info">{{ f.severity }}</span>
+            {% elif f.severity == "info" %}<span class="label label-default">{{ f.severity }}</span>
+            {% else %}<span class="label label-default">{{ f.severity }}</span>{% endif %}
+          </td>
+          <td>{{ f.output|truncatechars:80 }}</td>
+          <td>{{ f.references|length }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% elif "--script" in scan.profile.nmap_arguments %}
+  <div style="padding: 0.75rem; opacity: 0.7; font-size: .9em">
+    <strong>0 host-scope NSE findings.</strong>
+    The profile included <code>--script</code> directives but none of the
+    scripts produced host-scope output for this host. Port-scope findings
+    (if any) appear in the panel above.
+  </div>
+{% else %}
+  <div style="padding: 0.75rem; opacity: 0.75; font-size: .9em; border-left: 3px solid #888; margin: .25rem 0">
+    <strong>Not scanned for host-scope NSE findings.</strong>
+    The <code>{{ scan.profile.name }}</code> profile didn't include any
+    <code>--script</code> directives, so no NSE scripts ran against this host.
+    <div style="margin-top: .5rem; opacity: .9">
+      Profiles that produce host-scope findings include <code>smb-recon</code>
+      (smb-os-discovery / smb-protocols), <code>ssh-recon</code>
+      (ssh-hostkey / ssh-auth-methods), and <code>snmp-recon</code>
+      (snmp-info / snmp-sysdescr). Run one against this host to populate
+      this panel.
+    </div>
+  </div>
+{% endif %}
+{% endwith %}

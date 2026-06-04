@@ -327,6 +327,63 @@ class DiscoveredHostDnsRecordsPanel(Panel):
     body_content_template_path = "nautobot_scanner/inc/discoveredhost_dns_records.html"
 
 
+class DiscoveredHostOpenPortsPanel(Panel):
+    """Open Ports panel that distinguishes "scanned + 0 open" from "never scanned".
+
+    The generic ``ObjectsTablePanel(table_title="Open Ports")`` renders
+    "0" with the "No discovered ports found" empty state regardless of
+    whether port-scanning was actually attempted. For a host discovered
+    by ``-sn`` (the ``discovery`` profile) that's misleading — no ports
+    were probed, so "0" implies a probe found nothing when in fact the
+    scan never looked.
+
+    The template branches on ``Scan.ports_scanned`` (the nmap-XML
+    provenance field) — populated when nmap actually scanned ports,
+    null/0 otherwise.
+    """
+
+    label = "Open Ports"
+    body_content_template_path = "nautobot_scanner/inc/discoveredhost_open_ports.html"
+
+
+class DiscoveredHostPortFindingsPanel(Panel):
+    """Per-port NSE findings — branches on whether scripts ran AND ports were probed.
+
+    Same "ghost zero" problem as Open Ports: the generic panel rendered
+    "0" whether or not the scan had any --script directives. Now
+    explains *why* the panel is empty (no scripts, or no ports to
+    attach to) when applicable.
+    """
+
+    label = "Port Findings"
+    body_content_template_path = "nautobot_scanner/inc/discoveredhost_port_findings.html"
+
+
+class DiscoveredHostHostFindingsPanel(Panel):
+    """Host-scope NSE findings — branches on whether --script ran at all.
+
+    smb-os-discovery, snmp-info, ssh-hostkey etc. attach directly to
+    the host. The "Not requested" empty state names the profiles that
+    do produce host-scope findings so the operator has an actionable
+    next step.
+    """
+
+    label = "Host Findings"
+    body_content_template_path = "nautobot_scanner/inc/discoveredhost_host_findings.html"
+
+
+class DiscoveredHostTraceRouteHopsPanel(Panel):
+    """Traceroute hops — branches on whether --traceroute was in nmap args.
+
+    Most profiles don't include --traceroute, so the previous "0 hops"
+    badge was the misleading default state. Now it explicitly says
+    "Traceroute not requested" and points at the topology profile.
+    """
+
+    label = "Traceroute Hops"
+    body_content_template_path = "nautobot_scanner/inc/discoveredhost_traceroute_hops.html"
+
+
 class ScannerAgentUIViewSet(NautobotUIViewSet):
     """CRUD viewset for ScannerAgent."""
 
@@ -510,39 +567,21 @@ class DiscoveredHostUIViewSet(NautobotUIViewSet):
                 section=SectionChoices.LEFT_HALF,
                 weight=200,
             ),
-            ObjectsTablePanel(
+            DiscoveredHostOpenPortsPanel(
                 section=SectionChoices.RIGHT_HALF,
                 weight=100,
-                table_class=tables.DiscoveredPortTable,
-                table_filter="discovered_host",
-                table_title="Open Ports",
             ),
-            # Two-hop filter: NseFinding → DiscoveredPort → DiscoveredHost.
-            # Per-port NSE findings (vulners, ssl-cert, http-title) live here.
-            ObjectsTablePanel(
+            DiscoveredHostPortFindingsPanel(
                 section=SectionChoices.RIGHT_HALF,
                 weight=150,
-                table_class=tables.NseFindingTable,
-                table_filter="discovered_port__discovered_host",
-                table_title="Port Findings",
             ),
-            # Direct filter: NseFinding → DiscoveredHost.
-            # Host-scope NSE findings (smb-os-discovery, snmp-info, ssh-hostkey)
-            # attach directly to the host with no port. Same NseFinding table
-            # class — the underlying rows differ only in which FK is set.
-            ObjectsTablePanel(
+            DiscoveredHostHostFindingsPanel(
                 section=SectionChoices.RIGHT_HALF,
                 weight=175,
-                table_class=tables.NseFindingTable,
-                table_filter="discovered_host",
-                table_title="Host Findings",
             ),
-            ObjectsTablePanel(
+            DiscoveredHostTraceRouteHopsPanel(
                 section=SectionChoices.RIGHT_HALF,
                 weight=200,
-                table_class=tables.TraceRouteHopTable,
-                table_filter="discovered_host",
-                table_title="Traceroute Hops",
             ),
             DiscoveredHostDnsRecordsPanel(
                 section=SectionChoices.RIGHT_HALF,

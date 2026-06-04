@@ -1,0 +1,77 @@
+{% comment %}
+Open Ports panel.
+
+Three states the panel can land in:
+1. Ports exist on this host — render the table.
+2. No ports, but the scan DID probe ports (Scan.ports_scanned > 0) —
+   "no open ports found out of N probed" is the honest summary.
+3. No ports AND the scan did not probe any (ports_scanned is null/0) —
+   the panel previously read "0 open ports" which implied a probe
+   happened and found nothing. The "Not scanned yet" message makes
+   clear that running a port-scanning profile against this host is
+   the next step.
+{% endcomment %}
+{% with scan=object.scan ports=object.ports.all %}
+{% if ports %}
+  <table class="table table-hover table-condensed" style="margin:0">
+    <thead>
+      <tr>
+        <th>Port</th>
+        <th>Protocol</th>
+        <th>State</th>
+        <th>Service</th>
+        <th>Product</th>
+        <th>Version</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in ports %}
+        <tr>
+          <td><code>{{ p.port }}</code></td>
+          <td><code>{{ p.protocol }}</code></td>
+          <td>
+            {% if p.state == "open" %}
+              <span class="label label-success">{{ p.state }}</span>
+            {% elif p.state == "closed" %}
+              <span class="label label-default">{{ p.state }}</span>
+            {% elif p.state == "filtered" %}
+              <span class="label label-warning">{{ p.state }}</span>
+            {% else %}
+              <span class="label label-default">{{ p.state }}</span>
+            {% endif %}
+          </td>
+          <td>{{ p.service_name|default:"—" }}</td>
+          <td>{{ p.product|default:"—" }}</td>
+          <td>{{ p.version|default:"—" }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% elif scan.ports_scanned %}
+  <div style="padding: 0.75rem; opacity: 0.7; font-size: .9em">
+    <strong>0 open ports</strong>
+    found across <strong>{{ scan.ports_scanned }}</strong> probed.
+    The scan completed normally; this host simply isn't listening on any
+    of the ports in scope for the <code>{{ scan.profile.name }}</code>
+    profile.
+  </div>
+{% else %}
+  <div style="padding: 0.75rem; opacity: 0.75; font-size: .9em; border-left: 3px solid #888; margin: .25rem 0">
+    <strong>Not scanned yet.</strong>
+    The <code>{{ scan.profile.name }}</code> profile
+    {% if scan.profile.nmap_arguments %}(<code>{{ scan.profile.nmap_arguments }}</code>){% endif %}
+    only performed host discovery — no ports were probed, so &ldquo;0&rdquo;
+    here would be misleading rather than informational.
+    <div style="margin-top: .5rem; opacity: .9">
+      To populate this panel, dispatch a port-scanning profile against this host —
+      <code>top-100-tcp</code>, <code>full-tcp</code>, <code>vuln</code>, or
+      <code>os-detect</code> all probe ports. The
+      <strong>Rescan this host</strong> button uses this host's existing
+      <code>(agent, profile)</code> pair, so the easiest path is to dispatch a
+      new scan from the
+      <a href="{% url 'plugins:nautobot_scanner:scan_add' %}">Scan add form</a>
+      with the right profile selected and this host's IP in the targets.
+    </div>
+  </div>
+{% endif %}
+{% endwith %}
