@@ -163,6 +163,48 @@ services:
     networks:
       - internal
 
+  # Reference scanner agent on HOST networking — has L2 visibility to
+  # whatever LAN the docker host is on. Use this agent for any scan
+  # that needs MAC discovery (ARP works, unlike inside the bridge-
+  # networked worker), or that needs to reach 192.168.x.y / on-prem
+  # ranges directly. Polls the Nautobot REST API for assigned scans,
+  # runs the right probe tool locally, POSTs results back.
+  #
+  # Requires AGENT_ID + AGENT_TOKEN in .env (set after creating the
+  # ScannerAgent record in Nautobot's UI). Until those are set, this
+  # service will log "unauthorized" and back off — leave it commented
+  # if you don't need LAN scanning.
+  scanner-agent:
+    image: nautobot-scanner-agent:latest
+    build:
+      context: ../agent
+    container_name: ${COMPOSE_PROJECT_NAME}-scanner-agent
+    restart: unless-stopped
+    # Host networking is the whole point — without it nmap can't see
+    # ARP replies on the LAN and MAC discovery silently fails. Side
+    # effect: the agent reaches Nautobot via the loopback port mapping
+    # at 127.0.0.1:8087 (no docker DNS in host mode).
+    network_mode: host
+    user: "0"   # required for file-cap activation; cap_add bounds what's possible
+    cap_add:
+      - NET_RAW    # SYN scans, ICMP echo, ARP probes (nmap needs this for MAC)
+      - NET_ADMIN  # interface enumeration (some nmap scan types)
+    security_opt:
+      - no-new-privileges:false
+    environment:
+      NAUTOBOT_URL: ${SCANNER_AGENT_NAUTOBOT_URL:-http://127.0.0.1:8087}
+      AGENT_ID: ${SCANNER_AGENT_ID:-00000000-0000-0000-0000-000000000000}
+      AGENT_TOKEN: ${SCANNER_AGENT_TOKEN:-placeholder}
+      VERIFY_TLS: "false"
+      POLL_INTERVAL_SECONDS: "10"     # fast polling for dev demo
+      CHECKIN_INTERVAL_SECONDS: "30"
+      SCAN_TIMEOUT_SECONDS: "3600"
+      AGENT_VERSION: reference-agent/dev-host-mode
+      AGENT_LOG_LEVEL: INFO
+    depends_on:
+      nautobot-web:
+        condition: service_healthy
+
 volumes:
   postgres-data:
   redis-data:

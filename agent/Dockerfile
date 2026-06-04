@@ -24,7 +24,12 @@ FROM nicolaka/netshoot:v0.13
 #
 # scapy is bundled as a Python package — agent.py can `import scapy`
 # directly without further setup.
-RUN apk add --no-cache libcap masscan hping3 testssl.sh py3-pip \
+RUN apk add --no-cache libcap masscan hping3 py3-pip git \
+    # testssl.sh isn't in Alpine's repos — clone the official 3.2 branch
+    # (a bash script + bundled openssl variants, no compile step).
+    && git clone --depth 1 --branch 3.2 https://github.com/drwetter/testssl.sh.git /opt/testssl \
+    && ln -s /opt/testssl/testssl.sh /usr/local/bin/testssl \
+    && ln -s /opt/testssl/testssl.sh /usr/local/bin/testssl.sh \
     && pip install --break-system-packages --no-cache-dir ssh-audit \
     && adduser -D -u 1001 agent \
     # Raw-socket caps for the binaries that need them. nmap (SYN scans
