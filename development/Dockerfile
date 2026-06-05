@@ -22,10 +22,18 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends \
          nmap masscan mtr-tiny \
          bind9-dnsutils ldnsutils \
-         curl openssl \
+         curl openssl unzip \
          testssl.sh \
          libcap2-bin \
     && pip install --no-cache-dir ssh-audit \
+    # Phase L+1a: httpx (ProjectDiscovery). Single static Go binary from
+    # the upstream release tarball — not in apt.
+    && HTTPX_VERSION=1.6.10 \
+    && curl -fsSL "https://github.com/projectdiscovery/httpx/releases/download/v${HTTPX_VERSION}/httpx_${HTTPX_VERSION}_linux_amd64.zip" -o /tmp/httpx.zip \
+    && unzip -o /tmp/httpx.zip -d /tmp/httpx-unpack \
+    && mv /tmp/httpx-unpack/httpx /usr/local/bin/httpx \
+    && chmod +x /usr/local/bin/httpx \
+    && rm -rf /tmp/httpx.zip /tmp/httpx-unpack \
     && setcap cap_net_raw,cap_net_admin,cap_net_bind_service=+eip /usr/bin/nmap \
     && setcap cap_net_raw,cap_net_admin,cap_net_bind_service=+eip /usr/bin/masscan || true \
     && rm -rf /var/lib/apt/lists/*

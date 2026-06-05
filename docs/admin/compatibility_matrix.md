@@ -22,6 +22,7 @@ you'll dispatch.
 | openssl | 1.1.1+ | 1.1.1 + 3.x | Parser handles both 1.1.x ("Cipher : X" / "Not Before:") and 3.x ("Cipher is X" / "v:NotBefore:") output shapes |
 | testssl.sh | 3.0+ | 3.2.1 | JSON output schema stabilized in 3.x; on Debian the binary is `testssl` (no `.sh`). `--jsonfile` interleaves progress on stdout — use a real temp file (the LocalBackend's argv builder does this). |
 | ssh-audit | 3.0+ | 3.3.0 | JSON-mode (`-j`) returns exit code 2/3/4 to signal severity (warn/info/fail). The LocalBackend tolerates non-zero exit for this tool via the `_TOLERATE_NONZERO_EXIT` allowlist. |
+| httpx | 1.6+ | 1.6.10 | ProjectDiscovery single static Go binary; not in apt/apk. Installed via release tarball from `github.com/projectdiscovery/httpx/releases`. JSONL output via `-json`. Reads targets from stdin to sidestep argv-length limits on large prefix expansions. |
 
 ## Versioning policy
 

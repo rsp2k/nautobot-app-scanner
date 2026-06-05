@@ -52,6 +52,7 @@ _TOOL_BIN_ENV = {
     "openssl-s_client": ("OPENSSL_BIN", "/usr/bin/openssl"),
     "testssl": ("TESTSSL_BIN", "/usr/bin/testssl"),
     "ssh-audit": ("SSH_AUDIT_BIN", "/usr/local/bin/ssh-audit"),
+    "httpx": ("HTTPX_BIN", "/usr/local/bin/httpx"),
 }
 
 
@@ -128,7 +129,8 @@ class LocalBackend(ScannerBackend):
         if tool == "nmap":
             self._save_raw_xml(scan, result.stdout)
         else:
-            ext = "json" if tool in ("masscan", "mtr", "testssl", "ssh-audit") else "txt"
+            ext = "json" if tool in ("masscan", "mtr", "testssl", "ssh-audit") else \
+                  "jsonl" if tool == "httpx" else "txt"
             self._save_raw_output(scan, result.stdout, ext=ext)
 
         summary = persist(scan, parsed, report=parsed_report)
@@ -240,6 +242,17 @@ class LocalBackend(ScannerBackend):
                 # awk merges multiple JSON arrays into one: ][ → ,
                 "awk 'BEGIN{RS=\"\"} {gsub(/\\][[:space:]]*\\[/,\",\"); print}' ; "
                 f"{rm_cmd}",
+            ]
+        if tool == "httpx":
+            # httpx reads targets from stdin (one per line) — cleaner than
+            # passing as args because it sidesteps argv-length limits for
+            # large prefix expansions. JSONL output via -json.
+            quoted_args = " ".join(shlex.quote(a) for a in tool_args)
+            targets_str = "\\n".join(targets)
+            return [
+                "sh", "-c",
+                f"printf '%s\\n' {' '.join(shlex.quote(t) for t in targets)} | "
+                f"{shlex.quote(_tool_bin('httpx'))} -json -silent -no-color {quoted_args} 2>/dev/null",
             ]
         if tool == "ssh-audit":
             quoted_args = " ".join(shlex.quote(a) for a in tool_args)

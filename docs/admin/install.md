@@ -64,7 +64,10 @@ fails cleanly with the tool name in `Scan.error_message`.
 `dig` in `bind-utils` / `bind-tools` / `dnsutils`; `testssl.sh` is
 packaged on Debian as `testssl` without the `.sh` extension; `ssh-audit`
 is a Python package on every distro except macOS which has a Homebrew
-formula.)
+formula; `httpx` is a ProjectDiscovery Go binary not packaged anywhere
+— grab the latest release from
+`https://github.com/projectdiscovery/httpx/releases` and drop into
+`/usr/local/bin/httpx`.)
 
 For container deploys see the dev `Dockerfile` in `development/` — it
 extends `nicolaka/netshoot` which bundles all seven tools out of the

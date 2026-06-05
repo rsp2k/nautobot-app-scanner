@@ -447,12 +447,35 @@ def build_ssh_audit_argv(scan: dict) -> list[str]:
     ]
 
 
+def build_httpx_argv(scan: dict) -> list[str]:
+    """Compose httpx (ProjectDiscovery) argv for JSONL HTTP probing.
+
+    httpx reads targets from stdin (one per line) — cleaner than CLI
+    args for large prefix expansions. ``-json -silent -no-color`` gives
+    one JSON object per target on stdout with ~30 fields by default.
+
+    Phase L+1a info-only tool. No pentest gate, no credentials.
+    """
+    profile = scan["profile"]
+    httpx_bin = os.environ.get("HTTPX_BIN", "/usr/local/bin/httpx")
+    args = shlex.split(profile.get("tool_arguments", "") or "")
+    quoted_args = " ".join(shlex.quote(a) for a in args)
+    targets = _all_targets(scan)
+    targets_quoted = " ".join(shlex.quote(t) for t in targets)
+    return [
+        "sh", "-c",
+        f"printf '%s\\n' {targets_quoted} | "
+        f"{shlex.quote(httpx_bin)} -json -silent -no-color {quoted_args} 2>/dev/null",
+    ]
+
+
 # (argv_builder, content_type) per tool. Server's X-Tool header
 # dispatches the parser; here we pick the right binary + headers.
 # Phase J added curl/mtr/masscan/openssl-s_client — content-type
 # convention: text/plain for line-oriented output, application/json
 # for tools that emit structured JSON natively.
 # Phase L added testssl + ssh-audit — both JSON-native deep audit tools.
+# Phase L+1a added httpx (ProjectDiscovery suite first tool) — JSONL.
 TOOL_REGISTRY = {
     "nmap": (build_nmap_argv, "application/xml"),
     "dig": (build_dig_argv, "text/plain"),
@@ -462,6 +485,7 @@ TOOL_REGISTRY = {
     "masscan": (build_masscan_argv, "application/json"),
     "testssl": (build_testssl_argv, "application/json"),
     "ssh-audit": (build_ssh_audit_argv, "application/json"),
+    "httpx": (build_httpx_argv, "application/jsonl"),
     "openssl-s_client": (build_openssl_sclient_argv, "text/plain"),
 }
 

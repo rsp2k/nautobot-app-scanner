@@ -1153,6 +1153,140 @@ def parse_ssh_audit_json(raw: str, targets: list[str]) -> tuple[ParsedReport, li
     return ParsedReport(), out
 
 
+def parse_httpx_jsonl(raw: str, targets: list[str]) -> tuple[ParsedReport, list[ParsedHost]]:
+    """httpx (ProjectDiscovery) JSONL parser.
+
+    ``httpx -json -silent`` emits one JSON object per target per line.
+    The full shape is dense (~30 fields per target including a nested
+    ``tls`` sub-dict for HTTPS) — we surface the operationally
+    important slice and stash the rest in ``elements`` for later
+    queries.
+
+    Each line → one ParsedHost (using the resolved IP from ``host``
+    or the input string as fallback) with one host-scope NseFinding
+    capturing the HTTP probe's elements.
+
+    Severity heuristic:
+      - 5xx → medium (server error worth investigating)
+      - 4xx → low (404/403 etc are informational on probe)
+      - failed=true → low (DNS / connect / TLS failure)
+      - off-domain redirect → low (Location → different host)
+      - cert near expiry → medium <30d, high <7d (mirrors openssl-s_client)
+      - otherwise → info
+    """
+    import datetime as _dt
+    import json as _json
+
+    out: list[ParsedHost] = []
+    for line in raw.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            doc = _json.loads(line)
+        except (_json.JSONDecodeError, ValueError):
+            continue
+        if not isinstance(doc, dict):
+            continue
+
+        input_str = doc.get("input", "")
+        host_ip = doc.get("host", "")  # httpx writes the resolved IP here
+        ip = host_ip or _resolve_to_ip(input_str.split(":", 1)[0]) if input_str else ""
+        if not ip:
+            continue
+
+        status_code = doc.get("status_code")
+        failed = bool(doc.get("failed"))
+        location = doc.get("location", "")  # redirect target if any
+        tls = doc.get("tls", {}) or {}
+
+        # Severity logic — biggest concern first
+        severity = "info"
+        if failed:
+            severity = "low"
+        elif isinstance(status_code, int):
+            if status_code >= 500:
+                severity = "medium"
+            elif status_code >= 400:
+                severity = "low"
+        # Cert-expiry escalation overrides only when worse than HTTP severity
+        not_after = tls.get("not_after", "")
+        days_until_expiry = None
+        if not_after:
+            try:
+                expiry_dt = _dt.datetime.fromisoformat(not_after.replace("Z", "+00:00"))
+                days_until_expiry = (expiry_dt - _dt.datetime.now(_dt.timezone.utc)).days
+                if days_until_expiry is not None and days_until_expiry < 7 and severity != "critical":
+                    severity = "high"
+                elif days_until_expiry is not None and days_until_expiry < 30 and severity in ("info", "low"):
+                    severity = "medium"
+            except (ValueError, TypeError):
+                pass
+
+        # Off-domain redirect: low severity if not already higher
+        if location and severity == "info":
+            try:
+                from urllib.parse import urlparse as _urlparse
+                loc_host = _urlparse(location).hostname or ""
+                req_host = input_str.split(":", 1)[0]
+                if loc_host and req_host and loc_host != req_host and not loc_host.endswith(f".{req_host}"):
+                    severity = "low"
+            except (ValueError, TypeError):
+                pass
+
+        elements = {
+            "input": input_str,
+            "url": doc.get("url", ""),
+            "scheme": doc.get("scheme", ""),
+            "host_resolved": host_ip,
+            "port": doc.get("port", ""),
+            "status_code": status_code,
+            "title": doc.get("title", ""),
+            "webserver": doc.get("webserver", ""),
+            "content_type": doc.get("content_type", ""),
+            "content_length": doc.get("content_length"),
+            "tech": doc.get("tech") or [],
+            "method": doc.get("method", ""),
+            "path": doc.get("path", ""),
+            "response_time": doc.get("time", ""),
+            "words": doc.get("words"),
+            "lines": doc.get("lines"),
+            "failed": failed,
+            "location": location,
+            "cdn": doc.get("cdn", False),
+            "cdn_name": doc.get("cdn_name", ""),
+            # DNS resolution from httpx itself (saves a separate dig call)
+            "a_records": doc.get("a") or [],
+            "aaaa_records": doc.get("aaaa") or [],
+        }
+        if tls:
+            elements["tls"] = {
+                "version": tls.get("tls_version", ""),
+                "cipher": tls.get("cipher", ""),
+                "subject_cn": tls.get("subject_cn", ""),
+                "subject_an": tls.get("subject_an") or [],
+                "issuer_cn": tls.get("issuer_cn", ""),
+                "not_before": tls.get("not_before", ""),
+                "not_after": not_after,
+                "days_until_expiry": days_until_expiry,
+                "fingerprint_sha256": (tls.get("fingerprint_hash") or {}).get("sha256", ""),
+            }
+
+        out.append(ParsedHost(
+            ip_address=ip,
+            host_state="up",
+            host_findings=[ParsedVulnerability(
+                nse_script="httpx",
+                output=f"httpx: {doc.get('url', input_str)} → "
+                       f"{status_code or 'FAILED'} {doc.get('title', '')[:60]}",
+                severity=severity,
+                elements=elements,
+            )],
+        ))
+
+    return ParsedReport(), out
+
+
 # Map ToolChoices values → parser function. The dispatch picks one
 # at ingest based on the agent's X-Tool header (or the scan's profile).
 # Adding a new tool: write a parse_<tool>_<format>() returning the same
@@ -1170,6 +1304,7 @@ PARSERS: dict[str, object] = {
     "openssl-s_client": parse_openssl_sclient_text,
     "testssl": parse_testssl_json,
     "ssh-audit": parse_ssh_audit_json,
+    "httpx": parse_httpx_jsonl,
 }
 
 

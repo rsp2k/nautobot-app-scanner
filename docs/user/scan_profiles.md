@@ -13,10 +13,11 @@ re-used by any agent for any target.
 
 ## Shipped profiles
 
-**21 profiles** ship by default across five families: 7 nmap baseline,
+**22 profiles** ship by default across six families: 7 nmap baseline,
 5 NSE service recon, 2 DNS (dig + drill), 4 Phase-J non-nmap tools,
-**2 Phase-L deep-audit tools** (testssl.sh + ssh-audit), and 1 pentest
-demo. All are seeded by data migrations the first time you
+2 Phase-L deep-audit tools (testssl.sh + ssh-audit),
+**1 Phase-L+1a modern-web-recon tool** (httpx), and 1 pentest demo.
+All are seeded by data migrations the first time you
 `nautobot-server migrate` after install. Most operators won't need to
 write their own; pick the closest fit and dispatch.
 
@@ -159,10 +160,47 @@ on the speed-vs-depth curve, picked per use case. Quick check for "is
 the cert still valid before this deploy?", deep audit for compliance
 review or "should we publish this externally?"
 
+#### Phase L+1a: modern HTTP probe (1 profile)
+
+[ProjectDiscovery](https://projectdiscovery.io)'s `httpx` is the
+modern successor to the Phase J `http-probe` (curl) profile —
+JSONL-native, ~30 fields per target by default, includes TLS
+handshake metadata, technology fingerprinting (React, GitHub Pages,
+Cloudflare, etc.), CDN identification, and per-target DNS records.
+Replaces curl for compliance + inventory use cases while curl stays
+as the diagnostic-shell alternative.
+
+| Name | Tool | `tool_arguments` | What it produces |
+|---|---|---|---|
+| `http-probe-rich` | `httpx` | `-tls-grab -tech-detect -title -server -web-server -content-length -ip -response-time -status-code -timeout 15` | Per-target host-scope `NseFinding` with `elements`: `url`, `status_code`, `title`, `webserver`, `content_type`, `content_length`, `tech[]` (fingerprinted stack), `response_time`, `method`, `path`, `cdn`/`cdn_name`, `host_resolved` (IP from httpx's own resolver), `a_records[]`/`aaaa_records[]`. For HTTPS targets the nested `tls{}` sub-dict carries `version`, `cipher`, `subject_cn`, `subject_an[]`, `issuer_cn`, `not_before`, `not_after`, `days_until_expiry`, `fingerprint_sha256`. |
+
+Severity heuristic mirrors the rest of the Phase L+ tools:
+- 5xx response → `medium`
+- 4xx response or `failed=true` → `low`
+- Cert expiring `<7 days` → `high`, `<30 days` → `medium`
+- Off-domain redirect → `low` (Location header points elsewhere)
+- Otherwise → `info`
+
+Verified end-to-end during Phase L+1a development:
+
+- `httpx -json` against `example.com`, `github.com`, and the demo
+  Caddy edge in 2.0s total — 3 ParsedHosts. example.com gets
+  `tech=['Cloudflare']`, github.com gets
+  `tech=['Amazon S3', 'AWS', 'Contentful', 'GitHub Pages', 'HSTS', 'React']`,
+  the demo Caddy gets `tech=['HTTP/3']`. Cert `days_until_expiry`
+  populated for all three (58, 85, 81 respectively); all
+  `severity=info` (clean state — modern certs, 2xx responses).
+
+The Phase J `http-probe` (curl) profile **stays alongside** — curl
+shows you exactly which command-line flags produced the result, which
+is irreplaceable for diagnostic-shell troubleshooting. httpx is the
+JSON-shaped inventory tool; curl is the per-flag-traceable
+diagnostic tool. Pick by use case.
+
 Add your own non-nmap profile via **Scanner → Scan Profiles → Add**:
 set `tool` to one of `dig` / `drill` / `curl` / `mtr` / `masscan` /
-`openssl-s_client` / `testssl` / `ssh-audit`, fill in `tool_arguments`,
-save. The agent's
+`openssl-s_client` / `testssl` / `ssh-audit` / `httpx`, fill in
+`tool_arguments`, save. The agent's
 capability probe declares which of these tools the host actually has
 on startup, so an unrecognized tool fails the dispatch cleanly with
 the missing-tool name in `Scan.error_message`.

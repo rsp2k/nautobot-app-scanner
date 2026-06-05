@@ -24,13 +24,20 @@ FROM nicolaka/netshoot:v0.13
 #
 # scapy is bundled as a Python package — agent.py can `import scapy`
 # directly without further setup.
-RUN apk add --no-cache libcap masscan hping3 py3-pip git \
+RUN apk add --no-cache libcap masscan hping3 py3-pip git curl unzip \
     # testssl.sh isn't in Alpine's repos — clone the official 3.2 branch
     # (a bash script + bundled openssl variants, no compile step).
     && git clone --depth 1 --branch 3.2 https://github.com/drwetter/testssl.sh.git /opt/testssl \
     && ln -s /opt/testssl/testssl.sh /usr/local/bin/testssl \
     && ln -s /opt/testssl/testssl.sh /usr/local/bin/testssl.sh \
     && pip install --break-system-packages --no-cache-dir ssh-audit \
+    # Phase L+1a: httpx (ProjectDiscovery). Single static Go binary.
+    && HTTPX_VERSION=1.6.10 \
+    && curl -fsSL "https://github.com/projectdiscovery/httpx/releases/download/v${HTTPX_VERSION}/httpx_${HTTPX_VERSION}_linux_amd64.zip" -o /tmp/httpx.zip \
+    && unzip -o /tmp/httpx.zip -d /tmp/httpx-unpack \
+    && mv /tmp/httpx-unpack/httpx /usr/local/bin/httpx \
+    && chmod +x /usr/local/bin/httpx \
+    && rm -rf /tmp/httpx.zip /tmp/httpx-unpack \
     && adduser -D -u 1001 agent \
     # Raw-socket caps for the binaries that need them. nmap (SYN scans
     # + ARP probes), masscan (raw packet send at 10M pps), hping3

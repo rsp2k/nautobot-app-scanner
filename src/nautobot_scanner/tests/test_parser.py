@@ -291,3 +291,78 @@ class TestToolRegistriesInParity(TestCase):
             parsers_only,
             f"PARSERS has entries not in ToolChoices: {parsers_only}",
         )
+
+
+class TestParseHttpxJsonl(TestCase):
+    """Phase L+1a: httpx (ProjectDiscovery) JSONL parser.
+
+    Fixture captured against example.com / github.com /
+    nautobot-app-scanner-demo via:
+        httpx -json -silent -no-color -tls-grab -tech-detect -title \\
+              -server -web-server -content-length -ip -response-time \\
+              -status-code -timeout 10
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        from nautobot_scanner.parser import parse_httpx_jsonl
+        cls.parse = staticmethod(parse_httpx_jsonl)
+        cls.raw = _load("httpx-3targets.jsonl")
+
+    def test_jsonl_produces_one_host_per_target_line(self):
+        _, hosts = self.parse(self.raw, [])
+        # Fixture has 3 targets (example.com, github.com, demo Caddy)
+        self.assertEqual(len(hosts), 3)
+        for h in hosts:
+            self.assertEqual(h.host_state, "up")
+            self.assertEqual(h.host_findings[0].nse_script, "httpx")
+
+    def test_resolved_ip_used_as_host_address(self):
+        _, hosts = self.parse(self.raw, [])
+        for h in hosts:
+            ip = h.ip_address
+            # IPv4 dot-quad
+            parts = ip.split(".")
+            self.assertEqual(len(parts), 4)
+            for p in parts:
+                self.assertTrue(p.isdigit())
+
+    def test_status_code_extracted(self):
+        _, hosts = self.parse(self.raw, [])
+        codes = {h.host_findings[0].elements["status_code"] for h in hosts}
+        # 200 (example.com, github.com) and 302 (demo Caddy with HTTP→HTTPS redirect)
+        self.assertIn(200, codes)
+        self.assertIn(302, codes)
+
+    def test_tls_subdict_populated_for_https(self):
+        _, hosts = self.parse(self.raw, [])
+        for h in hosts:
+            tls = h.host_findings[0].elements.get("tls", {})
+            self.assertTrue(tls.get("subject_cn"))
+            self.assertTrue(tls.get("not_after"))
+            self.assertIsNotNone(tls.get("days_until_expiry"))
+
+    def test_tech_detection_array_returned(self):
+        _, hosts = self.parse(self.raw, [])
+        all_techs = []
+        for h in hosts:
+            all_techs.extend(h.host_findings[0].elements.get("tech", []))
+        # GitHub's fingerprint includes React, Cloudflare for example.com,
+        # HTTP/3 for Caddy — at least one is guaranteed
+        self.assertGreater(len(all_techs), 0)
+
+    def test_severity_info_for_2xx_with_fresh_cert(self):
+        _, hosts = self.parse(self.raw, [])
+        # All fixture targets have certs >30 days from expiry and 2xx/3xx
+        # responses — every finding should be info
+        for h in hosts:
+            f = h.host_findings[0]
+            self.assertEqual(f.severity, "info")
+
+    def test_empty_input_returns_empty_list(self):
+        _, hosts = self.parse("", [])
+        self.assertEqual(hosts, [])
+        # Garbage lines silently skipped (parser is line-tolerant)
+        _, hosts = self.parse("not json\n{bad\nstill not json", [])
+        self.assertEqual(hosts, [])

@@ -50,6 +50,13 @@ class ToolChoices(ChoiceSet):
     # profiles section in docs/user/scan_profiles.md.
     TESTSSL = "testssl"
     SSH_AUDIT = "ssh-audit"
+    # Phase L+1a: httpx (ProjectDiscovery suite, first tool).
+    # Modern HTTP probe — JSONL output with ~30 fields by default
+    # (status, title, server, tech-detect, tls.* sub-dict, IP, response
+    # time). Supersedes the curl profile for most HTTP probe use cases
+    # while curl stays as the diagnostic-shell-style alternative.
+    # Info-only — no exploit, no pentest gate.
+    HTTPX = "httpx"
 
     CHOICES = (
         (NMAP, "nmap — port/service/OS discovery (default)"),
@@ -64,6 +71,7 @@ class ToolChoices(ChoiceSet):
         (OPENSSL_SCLIENT, "openssl s_client — quick TLS handshake snapshot"),
         (TESTSSL, "testssl.sh — comprehensive TLS audit (Heartbleed, BEAST, POODLE, ROBOT, ...)"),
         (SSH_AUDIT, "ssh-audit — SSH server compliance audit (KEX/cipher/MAC/host-key)"),
+        (HTTPX, "httpx — modern HTTP probe (status, title, server, tech, TLS, IP) — JSONL"),
     )
 
 
