@@ -117,6 +117,7 @@ nav:
     - "Comparing Scans": "user/scan_diff.md"
     - "Pentest Mode": "user/pentest_mode.md"
     - "Promote to Device/IPAddress": "user/promotion.md"
+    - "IPAM Reconciliation": "user/reconciliation.md"
     - "Use Cases": "user/use_cases.md"
     - "Models": "user/models.md"
     - "External Interactions": "user/external_interactions.md"

@@ -608,3 +608,154 @@ and the structural back-and-forth that produced the
 keeping for the same reason the ADRs are: a commit message captures
 the resolved decision; the thread captures the rejected
 alternatives and the methodology that surfaced each defect.
+
+## ADR-016: Anti-noise ranking for the IPAM reconciliation surface
+
+The reconciliation report exists to answer "which live discovered
+hosts don't yet have an IPAM record?" — but the naive shape of that
+question, one flat list of every undocumented host, produces a
+report where the first hundred rows are all `10.128.144.x` phantom
+Docker container IPs and the operator has to scroll past a thousand
+rows of noise to find the two real access-switch VLANs they need to
+document. Four design decisions shape how the surface handles the
+noise problem; each was negotiated in the design thread at
+`docs/agent-threads/ipam-reconciliation-report/` and each has an
+explicit "why not the obvious alternative" that would otherwise get
+re-litigated.
+
+### 1. Rank prefixes by `discovered_count / prefix_size`, lower first
+
+Every prefix header in the report carries a **rank** — the ratio of
+discovered hosts to prefix size — and prefixes sort **ascending by
+rank**. A `/24` with 22 discovered hosts (rank `0.086`) sorts above
+a `/24` with 268 discovered hosts (rank `1.047`).
+
+- **Why lower is better.** A well-organized real subnet is
+  populated at a *fraction* of its address space — the `dell01`
+  management LAN has 22 devices out of 254 usable IPs, rank `0.09`.
+  A phantom-full prefix is the signature of ephemeral container IPs
+  (Docker overlays, Kubernetes pod networks) that were seen once by
+  a monitoring host and won't come back. The `10.128.144.0/24`
+  Docker bridge in the dev stack recorded 268 discovered hosts —
+  more than the prefix contains — because container IPs churn
+  faster than they age out of the bitemporal window.
+- **Why not sort by absolute count.** Ranking by count alone puts
+  every enterprise `/16` at the top just because they contain many
+  hosts, and hides the small-but-real `/28` DMZ segment nobody has
+  documented yet. Ratio normalizes across prefix size.
+- **Why not filter noise instead of ranking.** Filtering forces a
+  binary "trust this signal / distrust this signal" decision per
+  prefix — but the signal is a gradient. A `/24` with 100 out of
+  256 IPs might be a legitimate high-density VoIP VLAN OR a
+  container network; the operator's eye can tell in a second which
+  it is, and ranking preserves that signal instead of hiding it.
+
+### 2. RFC1918 scope on by default, IANA special-use excluded
+
+The scope filter defaults to **RFC1918 only** and the
+**Exclude reserved** checkbox defaults **on**. Public prefixes stay
+in the data model — they show up if the operator flips scope to
+`All ranges` — but the default view assumes "we're documenting our
+private network."
+
+- **Why RFC1918 default.** External asset discovery (public IPs a
+  scanner saw during recon) has different semantics from internal
+  IPAM — you don't promote a public IP into your Global namespace
+  the same way you promote an internal one, because you probably
+  don't own the prefix. Making the operator flip a knob before
+  seeing public IPs surfaces the semantic difference.
+- **Why exclude IANA special-use.** The 2026-05 pre-launch scan
+  populated the report with hundreds of entries in `192.88.99.0/24`
+  (6to4 relay), `169.254.0.0/16` (link-local), and `224.0.0.0/4`
+  (multicast) — all valid observations, none of which should ever
+  land in IPAM. The excluder walks a hard-coded list of IANA
+  special-use ranges (RFC 6890 registry) and drops them pre-render.
+- **Why not fold "reserved" into "public" instead.** The two knobs
+  represent different questions. Scope controls "which address
+  space am I working on?" (private vs. public); Exclude Reserved
+  controls "am I doing forensic archaeology or day-to-day IPAM?"
+  (special-use noise on/off). An operator debugging a strange 6to4
+  relay observation wants scope=`All` AND exclude=`off`; someone
+  documenting the corporate LAN wants scope=`RFC1918` AND
+  exclude=`on`. Keeping them orthogonal keeps the semantics clear.
+
+### 3. `Provisional` status default for newly-promoted rows
+
+Bulk-promote defaults the status of newly-created `IPAddress` rows
+to **`Provisional`** (amber `#ffc107`), not `Active`. The status is
+attached to both `ipam.IPAddress` and `ipam.Prefix` content types by
+migration `0023_seed_provisional_status.py` and shipped
+`get_or_create` for idempotency.
+
+- **Why not `Active`.** Bulk-promoted rows are enrichment
+  candidates, not verified IPAM records. Defaulting to `Active`
+  would blend them indistinguishably with hand-curated records, and
+  a downstream reviewer wouldn't know which rows still needed the
+  "is this actually a real device or a scan artifact?" pass. The
+  amber color reads as "attention needed" without being a hard
+  warning.
+- **Why not a scanner-specific status.** The design thread's
+  initial proposal was `ScannerCreated` — reserved specifically for
+  this app. That closed off the natural workflow of using
+  `Provisional` for **any** enrichment-created row across other
+  automation (Prowler imports, Netbox sync, manual bulk-add). The
+  wider status is more useful and the amber color naturally
+  matches the shared "needs verification" semantic.
+- **Why attached to Prefix too, not just IPAddress.** Same
+  workflow applies at the prefix level — someone bulk-imports
+  prefixes from another CMDB, they land as `Provisional` for
+  review, then get promoted to `Active` after verification. Not
+  used by the scanner today, but the migration adds it at both
+  content types so operators can start using it for prefix-side
+  workflows without a follow-up migration.
+
+### 4. Idempotent `_commit()` — lookup-or-create, not create-only
+
+The `DiscoveredHostBulkPromoteView._commit()` method uses a
+lookup-then-create pattern instead of a plain `create()`. Before
+creating a new `IPAddress`, it queries for an existing one at
+`(parent__namespace=<target>, host=<ip>)`. If found, the
+`DiscoveredHost.linked_ipaddress` FK is set to the existing row and
+no create happens.
+
+- **The failure mode this prevents.** The preview page checks
+  `DiscoveredHost.linked_ipaddress_id` to render the "Already
+  Linked?" column — a scanner-side field. But IPAM might already
+  contain a row for that IP: an operator added it manually months
+  ago, or a prior partial-batch promoted it without setting the
+  scanner-side FK, or a completely different automation created
+  it. The scanner-side check says "no", the operator confirms, and
+  `IPAddress.objects.create()` blows up on the
+  `(parent_id, host)` unique constraint — rolling back the entire
+  atomic batch on a single unlucky row. Discovered during the docs-
+  screenshot UAT session; the fix landed the same commit as this
+  ADR draft.
+- **Why lookup-then-create instead of `get_or_create`.** The Django
+  ORM shortcut expects a single-object lookup key; the natural key
+  here spans `parent__namespace=<ns>, host=<ip>` which is a join
+  through the FK, not a plain field lookup. The two-line
+  `.filter(...).first()` + `.create(...)` split is more explicit
+  and avoids the ambiguity of "`defaults`" for the created-case
+  fields.
+- **Why not just catch `IntegrityError` and continue.** Catching
+  exceptions inside `transaction.atomic()` is a Django footgun —
+  the atomic block enters an aborted state, subsequent queries
+  raise `TransactionManagementError`, and the entire batch has to
+  be re-executed. Explicit pre-checks keep the transaction healthy.
+- **What the operator sees.** The success page counts a
+  lookup-linked row the same as a create-linked row — both are
+  "your DiscoveredHost is now connected to IPAM." The distinction
+  is only visible if the operator jumps to the IPAM detail page
+  and sees that the description doesn't say
+  "Bulk-promoted from scanner DiscoveredHost <pk>" — an existing
+  row's description is preserved untouched.
+
+### Files touched
+
+Six files carry ADR-016 in code form: `reconciliation.py` (the
+engine), `views_reconciliation.py` (the standalone report),
+`forms_reconciliation.py` (the filter form), `views_bulk_promote.py`
+(the preview → confirm view), `views_scan_tab.py` (the per-scan tab),
+and `jobs_reconciliation.py` (the CSV-emitting Job). Migration
+`0023_seed_provisional_status.py` seeds the status. User-facing
+docs at [`docs/user/reconciliation.md`](../user/reconciliation.md).

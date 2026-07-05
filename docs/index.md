@@ -56,6 +56,13 @@ real `ipam.IPAddress`, a user explicitly clicks **Promote to IPAddress**
 on the host detail page — with full permission checks against
 `ipam.add_ipaddress`. See [Promote to IPAddress](user/promotion.md).
 
+For batch enrichment against many discovered hosts at once, the
+[**IPAM Reconciliation**](user/reconciliation.md) surface groups
+undocumented hosts by prefix, ranks them by an anti-noise signal
+(sparse-but-real subnets sort above phantom-full container blocks),
+and offers a preview-then-confirm bulk-promote flow — all inside a
+single database transaction.
+
 ## Documentation
 
 - **[User Guide](user/app_overview.md)** — what scans are, how to run them,
