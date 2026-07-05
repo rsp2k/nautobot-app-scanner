@@ -308,7 +308,7 @@ def parse_dig_text(raw: str, targets: list[str]) -> tuple[ParsedReport, list[Par
 
 
 def parse_drill_text(raw: str, targets: list[str]) -> tuple[ParsedReport, list[ParsedHost]]:
-    """drill parser — like dig, plus DNSSEC validation status from flags.
+    """Drill parser — like dig, plus DNSSEC validation status from flags.
 
     drill emits the same ``name TTL IN TYPE value`` answer-section lines
     that dig does (so we reuse ``_parse_dns_answer_records``), but it
@@ -1154,7 +1154,7 @@ def parse_ssh_audit_json(raw: str, targets: list[str]) -> tuple[ParsedReport, li
 
 
 def parse_httpx_jsonl(raw: str, targets: list[str]) -> tuple[ParsedReport, list[ParsedHost]]:
-    """httpx (ProjectDiscovery) JSONL parser.
+    """Httpx (ProjectDiscovery) JSONL parser.
 
     ``httpx -json -silent`` emits one JSON object per target per line.
     The full shape is dense (~30 fields per target including a nested
@@ -1695,15 +1695,16 @@ def persist(scan: Scan, parsed: list[ParsedHost], report: ParsedReport | None = 
     """
     # Imports inside the function to avoid Django-app-loading-order issues
     # when this module is imported at app-config time.
+    # Driver-agnostic shim — psycopg2.extras.DateTimeTZRange can't be adapted
+    # under psycopg3 (Nautobot 3.x). See models/results.py for the full note.
+    from django.db.backends.postgresql.psycopg_any import DateTimeTZRange
     from nautobot.dcim.models import Device
-
-    from psycopg2.extras import DateTimeTZRange
 
     from nautobot_scanner.models import (
         DiscoveredHost,
         DiscoveredPort,
-        TraceRouteHop,
         NseFinding,
+        TraceRouteHop,
     )
 
     summary = {

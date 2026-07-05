@@ -13,7 +13,6 @@ Three Jobs are registered:
 
 from __future__ import annotations
 
-import datetime
 import logging
 
 from django.conf import settings
@@ -71,7 +70,13 @@ class RunScan(Job):
         model=ScannerAgent,
         description="Which agent will execute the scan.",
     )
-    profile = ObjectVar(
+    # NOTE: named `scan_profile`, NOT `profile`. Nautobot 3.x reserves `profile`
+    # as a keyword-only arg on JobResult.enqueue_job (its cProfile toggle), and
+    # both the UI run-view and `runjob` spread the job's serialized data as
+    # **kwargs into that call — a variable literally named `profile` collides
+    # ("got multiple values for keyword argument 'profile'") and the job can
+    # never launch from the UI/API/CLI. `scan_profile` sidesteps the reserved name.
+    scan_profile = ObjectVar(
         model=ScanProfile,
         description="The nmap argument profile to use.",
     )
@@ -108,7 +113,7 @@ class RunScan(Job):
         # rolled back, no orphan state left behind.
         commit_default = True
 
-    def run(self, agent, profile, target_prefixes=None, target_ipaddresses=None, allow_overlap=False):
+    def run(self, agent, scan_profile, target_prefixes=None, target_ipaddresses=None, allow_overlap=False):
         """Create the Scan, dispatch through the agent's backend, log a link."""
         target_prefixes = list(target_prefixes or [])
         target_ipaddresses = list(target_ipaddresses or [])
@@ -130,11 +135,11 @@ class RunScan(Job):
         # the bool return value is stamped on Scan.was_pentest_mode so
         # the audit answer to "was THIS scan a pentest run?" is rowed-up
         # and won't change if someone edits the profile later.
-        was_pentest_mode = check_pentest_permission(self.user, profile)
+        was_pentest_mode = check_pentest_permission(self.user, scan_profile)
 
         scan = Scan.objects.create(
             agent=agent,
-            profile=profile,
+            profile=scan_profile,
             job_result=self.job_result,
             was_pentest_mode=was_pentest_mode,
         )
@@ -145,7 +150,7 @@ class RunScan(Job):
             "Created scan %s on agent %s with profile %s (%d prefix targets, %d IP targets).",
             scan.pk,
             agent.name,
-            profile.name,
+            scan_profile.name,
             len(target_prefixes),
             len(target_ipaddresses),
         )
@@ -182,7 +187,9 @@ class ScanPrefix(Job):
         required=False,
         description="Optional override; defaults to the first agent (alphabetical).",
     )
-    profile = ObjectVar(
+    # See RunScan.scan_profile — `profile` is a reserved enqueue_job kwarg in
+    # Nautobot 3.x, so the form variable must be named `scan_profile`.
+    scan_profile = ObjectVar(
         model=ScanProfile,
         required=False,
         description="Optional override; defaults to the first profile (alphabetical).",
@@ -196,22 +203,22 @@ class ScanPrefix(Job):
         has_sensitive_variables = False
         commit_default = True
 
-    def run(self, prefix, agent=None, profile=None):
+    def run(self, prefix, agent=None, scan_profile=None):
         """Resolve defaults if not specified, then delegate to the RunScan logic."""
         if agent is None:
             agent = ScannerAgent.objects.order_by("name").first()
             if agent is None:
                 self.logger.error("No ScannerAgent records exist — create one before scanning.")
                 raise ValueError("No agent available.")
-        if profile is None:
-            profile = ScanProfile.objects.order_by("name").first()
-            if profile is None:
+        if scan_profile is None:
+            scan_profile = ScanProfile.objects.order_by("name").first()
+            if scan_profile is None:
                 self.logger.error("No ScanProfile records exist — create one before scanning.")
                 raise ValueError("No profile available.")
 
-        was_pentest_mode = check_pentest_permission(self.user, profile)
+        was_pentest_mode = check_pentest_permission(self.user, scan_profile)
         scan = Scan.objects.create(
-            agent=agent, profile=profile, job_result=self.job_result,
+            agent=agent, profile=scan_profile, job_result=self.job_result,
             was_pentest_mode=was_pentest_mode,
         )
         scan.target_prefixes.add(prefix)
