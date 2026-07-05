@@ -1733,7 +1733,23 @@ def persist(scan: Scan, parsed: list[ParsedHost], report: ParsedReport | None = 
     import datetime as _dt
     boot_anchor = scan.completed_at or scan.started_at or _dt.datetime.now(_dt.timezone.utc)
 
+    # Overlapping target ranges make nmap report the same host more than once
+    # (e.g. a /24 and a /26 inside it both selected, or the same CIDR modeled
+    # in two VRFs). The bitemporal unique constraint permits only one current
+    # belief per (scan, ip_address), so a duplicate INSERT would abort the
+    # entire persist mid-scan and lose every host after it. Track the IPs we've
+    # already recorded for this scan and skip repeats — the repeat is the same
+    # host, so first-observation-wins is correct and the job completes cleanly.
+    seen_ips: set = set()
+
     for ph in parsed:
+        if ph.ip_address in seen_ips:
+            # Same host from an overlapping target range; count it in the
+            # summary so the dedupe is visible, and move on. First-wins.
+            summary["hosts_duplicate"] = summary.get("hosts_duplicate", 0) + 1
+            continue
+        seen_ips.add(ph.ip_address)
+
         # Auto-resolve linked Device by primary IP match.
         # We look at primary_ip4 OR primary_ip6 since the discovered host
         # could be either. Falls back to None if no match.
