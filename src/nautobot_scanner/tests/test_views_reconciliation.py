@@ -16,7 +16,7 @@ the view.
 from __future__ import annotations
 
 from django.contrib.auth import get_user_model
-from django.test import RequestFactory, TestCase
+from django.test import RequestFactory, TestCase, override_settings
 from django.urls import NoReverseMatch, reverse
 from django.utils import timezone
 from nautobot.extras.models import Status
@@ -59,6 +59,7 @@ def _reverse_or_skip(test_case, url_name: str = RECONCILIATION_URL_NAME) -> str:
         return ""
 
 
+@override_settings(ALLOWED_HOSTS=["*"])
 class ReconciliationViewTestBase(TestCase):
     """Shared fixture: scanner scaffolding + a superuser + one undocumented host.
 
@@ -115,6 +116,7 @@ class ReconciliationViewTestBase(TestCase):
         )
 
 
+@override_settings(ALLOWED_HOSTS=["*"])
 class TestParseAsOfParam(TestCase):
     """The ``?as_of=`` URL-param parser: valid ISO parses, garbage → None."""
 
@@ -139,6 +141,7 @@ class TestParseAsOfParam(TestCase):
         self.assertIsNone(_parse_as_of_param("2026-13-45"))
 
 
+@override_settings(ALLOWED_HOSTS=["*"])
 class TestReconciliationFilterFormBinding(TestCase):
     """Basic sanity: the form accepts an ISO ``as_of`` value cleanly."""
 

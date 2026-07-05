@@ -23,7 +23,7 @@ from django.contrib.auth.models import AnonymousUser
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.http import HttpResponseNotAllowed
-from django.test import RequestFactory, TestCase
+from django.test import RequestFactory, TestCase, override_settings
 from nautobot.extras.models import Status
 from nautobot.ipam.models import IPAddress, Namespace, Prefix
 
@@ -44,6 +44,7 @@ User = get_user_model()
 # Shared fixture — Scan + a handful of discovered hosts inside a /24.
 # ---------------------------------------------------------------------------
 
+@override_settings(ALLOWED_HOSTS=["*"])
 class BulkPromoteTestBase(TestCase):
     """Builds a Scan → DiscoveredHost fixture for both entry points.
 
@@ -104,6 +105,14 @@ class BulkPromoteTestBase(TestCase):
             username="bp-tester", password="p", is_superuser=True,
         )
 
+    def _attach_messages(self, request):
+        """RequestFactory bypasses middleware — attach a FallbackStorage so
+        the view's ``messages.success/warning/error`` calls don't raise
+        MessageFailure."""
+        from django.contrib.messages.storage.fallback import FallbackStorage
+        request.session = {}
+        request._messages = FallbackStorage(request)
+
     def _post(self, data, *, user=None):
         """Drive the view directly via RequestFactory (URL wire-up deferred)."""
         rf = RequestFactory()
@@ -111,12 +120,14 @@ class BulkPromoteTestBase(TestCase):
         request.user = user if user is not None else self.user
         # RequestFactory doesn't invoke session middleware; that's fine
         # because LoginRequiredMixin only checks `request.user.is_authenticated`.
+        self._attach_messages(request)
         return DiscoveredHostBulkPromoteView.as_view()(request)
 
     def _get(self, *, user=None):
         rf = RequestFactory()
         request = rf.get("/bulk-promote/")
         request.user = user if user is not None else self.user
+        self._attach_messages(request)
         return DiscoveredHostBulkPromoteView.as_view()(request)
 
 
@@ -220,7 +231,10 @@ class TestBulkPromoteViewCommit(BulkPromoteTestBase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(IPAddress.objects.count(), 1)
         new_ip = IPAddress.objects.get()
-        self.assertEqual(new_ip.namespace, self.namespace)
+        # Nautobot 3.x moved the namespace off IPAddress and onto the
+        # parent Prefix. IPAddress has `_namespace` under the hood; the
+        # accessible read path is via `parent.namespace`.
+        self.assertEqual(new_ip.parent.namespace, self.namespace)
         self.assertEqual(new_ip.status, self.provisional)
 
 
@@ -240,15 +254,19 @@ class TestBulkPromoteViewPermissions(BulkPromoteTestBase):
         self.assertEqual(IPAddress.objects.count(), 0)
 
     def test_user_without_permission_is_forbidden(self):
+        from django.core.exceptions import PermissionDenied
+
         weak = User.objects.create_user(username="weak", password="p")
-        response = self._post(
-            {"discovered_host_id": [str(self.host_a.pk)]},
-            user=weak,
-        )
-        # PermissionRequiredMixin's stock behavior for authenticated-but-
-        # unauthorized users is 403. Accept the raise_exception=True path
-        # (default in modern Django) OR a 302 to login as a fallback.
-        self.assertIn(response.status_code, (302, 403))
+        # PermissionRequiredMixin (Django default with raise_exception on
+        # class) raises PermissionDenied when hit via RequestFactory
+        # rather than returning a 302/403 — Client() would convert the
+        # exception to a response via middleware, but RequestFactory
+        # doesn't. Assert the exception directly.
+        with self.assertRaises(PermissionDenied):
+            self._post(
+                {"discovered_host_id": [str(self.host_a.pk)]},
+                user=weak,
+            )
         self.assertEqual(IPAddress.objects.count(), 0)
 
 

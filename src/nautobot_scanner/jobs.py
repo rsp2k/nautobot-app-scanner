@@ -298,5 +298,7 @@ class MarkStaleAgents(Job):
 # Registration — picked up by Nautobot's job-discovery at startup
 # ----------------------------------------------------------------------------
 
-jobs = [RunScan, ScanPrefix, MarkStaleAgents]
+from nautobot_scanner.jobs_reconciliation import ReconciliationReport
+
+jobs = [RunScan, ScanPrefix, MarkStaleAgents, ReconciliationReport]
 register_jobs(*jobs)

@@ -22,6 +22,8 @@ from nautobot.apps.forms import (
 )
 from nautobot.ipam.models import Namespace, VRF
 
+from nautobot_scanner.models import DiscoveredHost
+
 
 # Choice tuple lives at module level so the view (and any future JSON
 # schema surface) can share it without repeating the string values.
@@ -34,16 +36,18 @@ SCOPE_CHOICES: tuple[tuple[str, str], ...] = (
 class ReconciliationFilterForm(NautobotFilterForm):
     """Sidebar-style filter form for the reconciliation report.
 
-    Not backed by a Model — it drives a pure-function query engine
-    (``nautobot_scanner.reconciliation.build_reconciliation``) rather
-    than a queryset filter, so ``NautobotFilterForm`` is used only for
-    its rendering polish (search-input styling, dynamic-model widgets,
-    the tag-input UX). ``model`` is intentionally omitted; the parent
-    handles that gracefully for detached filter forms.
+    Not backed by a queryset — drives the pure-function query engine
+    ``nautobot_scanner.reconciliation.build_reconciliation`` — but
+    ``NautobotFilterForm`` still requires a ``model`` attribute so its
+    ContentType wiring works. Points at ``DiscoveredHost`` because that
+    IS the primary data being surfaced by the report (even though the
+    engine also touches ipam.IPAddress and ipam.Prefix).
 
     All fields are ``required=False`` — an empty submit is the default
     "current beliefs, RFC1918, no reserved noise" report.
     """
+
+    model = DiscoveredHost
 
     # RFC1918-only is the safe default per the proposal (see section
     # "Feasibility summary — what's genuinely new", item 1). Excluding

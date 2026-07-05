@@ -8,6 +8,9 @@ from django.urls import path
 from nautobot.apps.urls import NautobotUIViewSetRouter
 
 from nautobot_scanner import views
+from nautobot_scanner import views_bulk_promote
+from nautobot_scanner import views_reconciliation
+from nautobot_scanner import views_scan_tab
 
 app_name = "nautobot_scanner"
 
@@ -53,5 +56,31 @@ urlpatterns = router.urls + [
         "findings/<uuid:pk>/",
         views.NseFindingDetailView.as_view(),
         name="nsefinding",
+    ),
+    # IPAM reconciliation report — standalone nav-level surface. Prefix-
+    # grouped diff of live DiscoveredHosts against ipam.IPAddress; ranked
+    # by discovered_count / prefix_size so sparse-but-real subnets sort
+    # above phantom-full blocks. See docs/agent-threads/ipam-
+    # reconciliation-report/ for the design contract.
+    path(
+        "reconciliation/",
+        views_reconciliation.ReconciliationView.as_view(),
+        name="reconciliation",
+    ),
+    # Bulk promote — POST-only two-step preview → confirm flow. Batches
+    # single-host promotes inside one transaction.atomic(). Defaults
+    # created IPAddresses to status=Provisional (see migration 0023).
+    path(
+        "discovered-hosts/bulk-promote/",
+        views_bulk_promote.DiscoveredHostBulkPromoteView.as_view(),
+        name="discoveredhost_bulk_promote",
+    ),
+    # Per-Scan reconciliation view — same engine, scoped to one scan.
+    # Linked from the standalone report + optionally surfaced on the
+    # Scan detail page.
+    path(
+        "scans/<uuid:pk>/reconciliation/",
+        views_scan_tab.ScanReconciliationTabView.as_view(),
+        name="scan_reconciliation_tab",
     ),
 ]
