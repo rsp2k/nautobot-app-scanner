@@ -1,0 +1,247 @@
+{% extends "base.html" %}
+{% load form_helpers %}
+
+{% comment %}
+IPAM reconciliation report — standalone view.
+
+Renders one collapsible section per ReconciliationGroup, sorted by
+rank_signal (sparse-but-real subnets first, phantom-full blocks last —
+the anti-noise property enforced by the engine).
+
+Bulk-promote wire-up is deferred: the button targets a URL name that
+lands in the maintainer's integration commit. We assign the reverse
+result with "as bulk_url" — Django's url tag swallows NoReverseMatch
+in the "as" form and leaves the variable empty, and the "default:#"
+filter renders "#" until the URL wires up.
+{% endcomment %}
+
+{% block title %}IPAM Reconciliation{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-md-12">
+
+    {# ---------- Header + headline counts ---------- #}
+    <div class="panel panel-default">
+      <div class="panel-heading">
+        <strong>IPAM Reconciliation</strong>
+        <small class="text-muted" style="margin-left:.6rem">
+          bitemporally anchored at
+          <code>{{ as_of|date:"Y-m-d H:i:s T" }}</code>
+        </small>
+      </div>
+      <div class="panel-body"
+           style="display:grid;grid-template-columns:repeat(3, 1fr);gap:1rem;align-items:center">
+        <div style="text-align:center">
+          <div style="font-size:1.8em;color:#f0ad4e">{{ report.total_rows }}</div>
+          <div style="opacity:.6">undocumented rows</div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:1.8em;opacity:.5">{{ report.groups|length }}</div>
+          <div style="opacity:.6">prefixes</div>
+        </div>
+        <div style="text-align:center">
+          {% if report.include_stale_ipam %}
+            <div style="font-size:1.8em;color:#5bc0de">{{ report.total_stale_rows }}</div>
+            <div style="opacity:.6">stale IPAM rows</div>
+          {% else %}
+            <div style="font-size:1.8em;opacity:.3">off</div>
+            <div style="opacity:.6">stale-IPAM check</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    {# ---------- Filter form ---------- #}
+    {% comment %}
+      auto-submit on change is a nice-to-have but requires JS wiring the
+      main-branch integration commit will pull in. For now the submit
+      button is explicit; the form still renders unbound field defaults
+      on first load.
+    {% endcomment %}
+    <div class="panel panel-default">
+      <div class="panel-heading"><strong>Filters</strong></div>
+      <div class="panel-body">
+        <form method="get" class="form">
+          {% for field in form %}
+            {% render_field field %}
+          {% endfor %}
+          <div style="margin-top:.75rem;display:flex;gap:.5rem">
+            <button type="submit" class="btn btn-primary">
+              <i class="mdi mdi-filter"></i> Apply
+            </button>
+            <a href="?" class="btn btn-default">
+              <i class="mdi mdi-refresh"></i> Reset
+            </a>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    {# ---------- Undocumented section ---------- #}
+    {% if report.groups %}
+      {% url 'plugins:nautobot_scanner:discoveredhost_bulk_promote' as bulk_url %}
+      <form method="post" action="{{ bulk_url|default:'#' }}">
+        {% csrf_token %}
+
+        {% for group in report.groups %}
+          <div class="panel panel-default">
+            <div class="panel-heading">
+              <details open>
+                <summary style="cursor:pointer;display:inline">
+                  <strong><code>{{ group.prefix }}</code></strong>
+                  <small class="text-muted" style="margin-left:.6rem">
+                    {{ group.rank_signal|floatformat:3 }} rank,
+                    {{ group.rows|length }}/{{ group.total_prefix_size }}
+                    {% if group.prefix_role %}
+                      &middot; role <code>{{ group.prefix_role }}</code>
+                    {% endif %}
+                    {% if group.prefix_description %}
+                      &middot; {{ group.prefix_description }}
+                    {% endif %}
+                  </small>
+                </summary>
+              </details>
+            </div>
+            <table class="table table-hover">
+              <thead>
+                <tr>
+                  <th style="width:2rem"></th>
+                  <th>IP</th>
+                  <th>Hostname</th>
+                  <th>MAC</th>
+                  <th>Vendor</th>
+                  <th>Open ports</th>
+                  <th>Services</th>
+                  <th>OS</th>
+                  <th>First seen at</th>
+                  <th style="width:8rem">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in group.rows %}
+                  <tr>
+                    <td>
+                      {# select-for-bulk checkbox — name is the URL param the bulk view will consume #}
+                      <input type="checkbox"
+                             name="discovered_host_id"
+                             value="{{ row.discovered_host_id }}"
+                             aria-label="select for bulk promote">
+                    </td>
+                    <td><code>{{ row.ip_address }}</code></td>
+                    <td>{{ row.hostname|default:"" }}</td>
+                    <td>{{ row.mac_address|default:"" }}</td>
+                    <td>{{ row.mac_vendor|default:"" }}</td>
+                    <td>
+                      {% for port_proto in row.open_ports %}
+                        <code style="margin-right:.3rem">{{ port_proto.0 }}/{{ port_proto.1 }}</code>
+                      {% endfor %}
+                    </td>
+                    <td>
+                      {% for svc in row.services %}
+                        <span class="label label-default" style="margin-right:.2rem">{{ svc }}</span>
+                      {% endfor %}
+                    </td>
+                    <td>{{ row.os_family|default:"" }}{% if row.os_type %} / {{ row.os_type }}{% endif %}</td>
+                    <td>
+                      {% if row.seen_at %}
+                        <span title="{{ row.seen_at|date:'c' }}">{{ row.seen_at|date:"Y-m-d H:i" }}</span>
+                      {% endif %}
+                    </td>
+                    <td>
+                      <a class="btn btn-xs btn-default"
+                         href="/plugins/scanner/discovered-hosts/{{ row.discovered_host_id }}/promote/"
+                         title="Promote this single host to IPAddress">
+                        <i class="mdi mdi-rocket-launch"></i> Promote
+                      </a>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% endfor %}
+
+        <div style="margin:1rem 0 2rem">
+          <button type="submit" class="btn btn-primary">
+            <i class="mdi mdi-rocket-launch"></i> Bulk promote selected
+          </button>
+          <small class="text-muted" style="margin-left:.6rem">
+            Selected rows will be batched into a single IPAM write.
+          </small>
+        </div>
+      </form>
+    {% else %}
+      <div class="panel panel-default">
+        <div class="panel-body" style="text-align:center;padding:2rem">
+          <strong>No undocumented hosts</strong>
+          <br>
+          <small class="text-muted">
+            Every live discovered host under the current filters has a
+            matching <code>ipam.IPAddress</code>.
+          </small>
+        </div>
+      </div>
+    {% endif %}
+
+    {# ---------- Stale IPAM section (opt-in) ---------- #}
+    {% if report.include_stale_ipam %}
+      <h3 style="margin-top:2rem">Stale IPAM</h3>
+      <p class="text-muted">
+        IPAM records that no live host has matched at the current anchor.
+      </p>
+
+      {% if report.stale_groups %}
+        {% for group in report.stale_groups %}
+          <div class="panel panel-default">
+            <div class="panel-heading">
+              <details>
+                <summary style="cursor:pointer;display:inline">
+                  <strong><code>{{ group.prefix }}</code></strong>
+                  <small class="text-muted" style="margin-left:.6rem">
+                    {{ group.rank_signal|floatformat:3 }} rank,
+                    {{ group.rows|length }}/{{ group.total_prefix_size }}
+                    {% if group.prefix_role %}
+                      &middot; role <code>{{ group.prefix_role }}</code>
+                    {% endif %}
+                    {% if group.prefix_description %}
+                      &middot; {{ group.prefix_description }}
+                    {% endif %}
+                  </small>
+                </summary>
+              </details>
+            </div>
+            <table class="table table-hover">
+              <thead>
+                <tr>
+                  <th>IP</th>
+                  <th>DNS name</th>
+                  <th>Prefix role</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in group.rows %}
+                  <tr>
+                    <td><code>{{ row.ip_address }}</code></td>
+                    <td>{{ row.hostname|default:"" }}</td>
+                    <td>{{ row.prefix_role|default:"" }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% endfor %}
+      {% else %}
+        <div class="panel panel-default">
+          <div class="panel-body" style="text-align:center;padding:1rem">
+            <small class="text-muted">
+              No stale IPAM rows under the current filters.
+            </small>
+          </div>
+        </div>
+      {% endif %}
+    {% endif %}
+
+  </div>
+</div>
+{% endblock %}
