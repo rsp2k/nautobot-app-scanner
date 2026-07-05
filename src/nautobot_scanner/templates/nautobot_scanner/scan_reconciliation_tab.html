@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{# ---------------------------------------------------------------------- #}
+{# Per-Scan reconciliation drill-in                                       #}
+{#                                                                        #}
+{# The engine returns a ReconciliationReport with a `groups` tuple. Each  #}
+{# group is a containing prefix + the undocumented rows inside it, sorted #}
+{# by rank_signal ascending (sparse-but-real first, phantom-full last).   #}
+{#                                                                        #}
+{# This template is intentionally the same compact form the standalone    #}
+{# view will render — the maintainer's follow-up integration commit may   #}
+{# extract a shared partial once both surfaces are wired up.              #}
+{# ---------------------------------------------------------------------- #}
+
+{% block title %}Reconciliation — scan {{ scan.pk|truncatechars:8 }}{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-md-12">
+
+    {# ---------- Header ---------- #}
+    <div class="panel panel-default">
+      <div class="panel-heading">
+        <strong>Reconciliation for scan {{ scan }}</strong>
+        &mdash;
+        <span>{{ report.total_rows }} undocumented host{{ report.total_rows|pluralize }}</span>
+        <small class="text-muted" style="margin-left:.6rem">
+          {% if as_of %}
+            bitemporally anchored at <code>{{ as_of|date:"Y-m-d H:i:s" }}</code>
+          {% else %}
+            bitemporally anchored at <em>now</em> (current beliefs)
+          {% endif %}
+        </small>
+      </div>
+      <div class="panel-body" style="font-size:.9em;opacity:.85">
+        Live-and-discovered IPs from this scan that have no matching
+        <code>ipam.IPAddress</code>. Groups are sorted so sparse-but-real
+        subnets (low rank signal) appear first &mdash; the phantom-full
+        blocks a single misbehaving device answers for sort to the
+        bottom.
+        {% if standalone_url %}
+          <div style="margin-top:.5rem">
+            <a href="{{ standalone_url }}" class="btn btn-default btn-xs">
+              Open full reconciliation view (pre-filtered to this scan)
+            </a>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    {# ---------- Empty state ---------- #}
+    {% if report.total_rows == 0 %}
+    <div class="panel panel-default">
+      <div class="panel-body" style="text-align:center;padding:2rem">
+        <strong>No undocumented hosts in this scan</strong>
+        <br>
+        <small class="text-muted">
+          Every live-and-up host observed in this scan is already
+          recorded in IPAM (or falls outside the RFC1918 default
+          scope).
+        </small>
+      </div>
+    </div>
+    {% else %}
+
+    {# ---------- Groups ---------- #}
+    {% for group in report.groups %}
+    <div class="panel panel-default">
+      <div class="panel-heading" style="display:flex;justify-content:space-between;align-items:baseline;gap:.5rem">
+        <div>
+          <strong><code>{{ group.prefix }}</code></strong>
+          {% if group.prefix_role %}
+            <span class="label label-info" style="margin-left:.4rem">{{ group.prefix_role }}</span>
+          {% endif %}
+          {% if group.prefix_description %}
+            <small class="text-muted" style="margin-left:.4rem">{{ group.prefix_description }}</small>
+          {% endif %}
+        </div>
+        <div style="font-size:.85em;opacity:.7">
+          {{ group.rows|length }} / {{ group.total_prefix_size }} undocumented
+          <span style="margin-left:.5rem">rank signal <code>{{ group.rank_signal|floatformat:4 }}</code></span>
+        </div>
+      </div>
+      <table class="table table-hover" style="margin-bottom:0">
+        <thead>
+          <tr>
+            <th>IP</th>
+            <th>Hostname</th>
+            <th>MAC</th>
+            <th>Vendor</th>
+            <th>OS</th>
+            <th>Open ports</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in group.rows %}
+          <tr>
+            <td><code>{{ row.ip_address }}</code></td>
+            <td>{{ row.hostname|default:"—" }}</td>
+            <td><code style="font-size:.85em">{{ row.mac_address|default:"—" }}</code></td>
+            <td>{{ row.mac_vendor|default:"—" }}</td>
+            <td>{{ row.os_family|default:"—" }}</td>
+            <td>
+              {% for port_proto in row.open_ports %}
+                <code style="margin-right:.3rem">{{ port_proto.0 }}/{{ port_proto.1 }}</code>
+              {% empty %}
+                <span style="opacity:.4">—</span>
+              {% endfor %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endfor %}
+
+    {% endif %}
+
+    <p>
+      <a href="{{ scan.get_absolute_url }}" class="btn btn-default">
+        &larr; Back to scan detail
+      </a>
+    </p>
+  </div>
+</div>
+{% endblock %}
