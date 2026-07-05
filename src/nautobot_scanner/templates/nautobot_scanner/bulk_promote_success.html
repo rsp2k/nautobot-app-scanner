@@ -55,8 +55,6 @@
         {% endif %}
 
         <div style="margin-top:1.5rem; display:flex; gap:0.5rem">
-          {# `as var` fallback while the reconciliation URL wire-up is deferred
-             to the follow-up commit. Renders as '#' if the URL isn't wired yet. #}
           {% url 'plugins:nautobot_scanner:reconciliation' as recon_url %}
           <a href="{{ recon_url|default:'#' }}" class="btn btn-primary">
             <i class="mdi mdi-arrow-left"></i> Back to Reconciliation

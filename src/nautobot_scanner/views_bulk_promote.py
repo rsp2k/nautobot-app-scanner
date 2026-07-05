@@ -261,7 +261,7 @@ class DiscoveredHostBulkPromoteView(LoginRequiredMixin, PermissionRequiredMixin,
             return None
 
     def _commit(self, hosts, *, namespace, status):
-        """Create IPAddresses and set ``linked_ipaddress`` for each host.
+        """Create IPAddresses (or link to existing ones) for each host.
 
         Runs in one ``transaction.atomic()`` so a mid-batch failure rolls
         the whole set back — an operator would rather retry a batch than
@@ -269,8 +269,15 @@ class DiscoveredHostBulkPromoteView(LoginRequiredMixin, PermissionRequiredMixin,
         Hosts already carrying a ``linked_ipaddress`` are skipped
         silently (race protection against concurrent promoters).
 
+        If an ``IPAddress`` already exists at ``(namespace, host_ip)`` —
+        because an operator added it manually, or an earlier partial
+        batch left an orphan row — this method LINKS to the existing
+        row rather than trying to create a duplicate (which would blow
+        up the whole batch on the (parent_id, host) unique constraint).
+        That makes bulk-promote idempotent and self-healing.
+
         Returns ``(promoted_list, skipped_count)`` where ``promoted_list``
-        is a list of ``(host, new_ip)`` tuples ready for the success page.
+        is a list of ``(host, ip)`` tuples ready for the success page.
         """
         promoted: list[tuple[models.DiscoveredHost, IPAddress]] = []
         skipped = 0
@@ -283,6 +290,16 @@ class DiscoveredHostBulkPromoteView(LoginRequiredMixin, PermissionRequiredMixin,
                 ip_str = str(host.ip_address)
                 mask = "/128" if ":" in ip_str else "/32"
                 address = f"{ip_str}{mask}"
+
+                existing = IPAddress.objects.filter(
+                    parent__namespace=namespace,
+                    host=ip_str,
+                ).first()
+                if existing is not None:
+                    host.linked_ipaddress = existing
+                    host.save(update_fields=["linked_ipaddress"])
+                    promoted.append((host, existing))
+                    continue
 
                 new_ip = IPAddress.objects.create(
                     address=address,

@@ -20,11 +20,13 @@ router.register("profiles", views.ScanProfileUIViewSet)
 router.register("scans", views.ScanUIViewSet)
 router.register("discovered-hosts", views.DiscoveredHostUIViewSet)
 
-# Custom action URL — sits OUTSIDE the router because it's not a CRUD
-# operation. Mounts at /plugins/scanner/discovered-hosts/<uuid>/promote/.
-# Order matters: the router's <pk>/ catch-all is fine because Django's
-# URL resolver tries longer paths first.
-urlpatterns = router.urls + [
+# Custom action URLs — sit OUTSIDE the router because they're not CRUD
+# operations. Ordering NOTE: the router generates a `<pk>` pattern that
+# accepts any string, so `discovered-hosts/bulk-promote/` would collide
+# with `discovered-hosts/<pk>=bulk-promote/` and route to the CRUD
+# viewset. Put custom paths FIRST so the resolver matches them before
+# falling through to the router.
+urlpatterns = [
     path(
         "discovered-hosts/<uuid:pk>/promote/",
         views.DiscoveredHostPromoteView.as_view(),
@@ -83,4 +85,4 @@ urlpatterns = router.urls + [
         views_scan_tab.ScanReconciliationTabView.as_view(),
         name="scan_reconciliation_tab",
     ),
-]
+] + router.urls

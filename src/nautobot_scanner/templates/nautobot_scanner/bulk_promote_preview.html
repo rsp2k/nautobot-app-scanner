@@ -107,9 +107,6 @@
               <i class="mdi mdi-rocket-launch"></i>
               Confirm — create {{ hosts|length }} IPAddress{{ hosts|length|pluralize:"es" }}
             </button>
-            {# {% url 'plugins:nautobot_scanner:reconciliation' as recon_url %} uses the
-               `as var` fallback so this template renders cleanly during the
-               interval between this commit and the URL wire-up follow-up. #}
             {% url 'plugins:nautobot_scanner:reconciliation' as recon_url %}
             <a href="{{ recon_url|default:'#' }}" class="btn btn-default">
               <i class="mdi mdi-close"></i> Cancel
