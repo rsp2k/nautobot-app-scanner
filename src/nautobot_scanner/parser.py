@@ -1699,6 +1699,7 @@ def persist(scan: Scan, parsed: list[ParsedHost], report: ParsedReport | None = 
     # under psycopg3 (Nautobot 3.x). See models/results.py for the full note.
     from django.db.backends.postgresql.psycopg_any import DateTimeTZRange
     from nautobot.dcim.models import Device
+    from nautobot.ipam.models import IPAddress
 
     from nautobot_scanner.models import (
         DiscoveredHost,
@@ -1758,6 +1759,18 @@ def persist(scan: Scan, parsed: list[ParsedHost], report: ParsedReport | None = 
             or Device.objects.filter(primary_ip6__host=ph.ip_address).first()
         )
 
+        # Auto-resolve linked IPAddress by exact host match. Symmetric to
+        # linked_device: if IPAM already contains a row at this host, wire
+        # the FK on ingest so the reconciliation surface doesn't flag it
+        # as undocumented. Falls back to None if no IPAM row exists — that
+        # host is still a promotion candidate.
+        #
+        # Multi-namespace tiebreaker: `.first()` on an unordered queryset
+        # is the same convention linked_device uses. If two Namespaces
+        # legitimately hold the same host address, the operator can fix
+        # the FK by hand via the DiscoveredHost detail page.
+        linked_ipaddress = IPAddress.objects.filter(host=ph.ip_address).first()
+
         # Derive last_boot_at if we got uptime info. Storing the absolute
         # boot time means filters/sorts work in the DB ("hosts booted in
         # the last hour") without needing to subtract uptime at query time.
@@ -1784,6 +1797,7 @@ def persist(scan: Scan, parsed: list[ParsedHost], report: ParsedReport | None = 
             os_alternative_matches=ph.os_alternative_matches,
             host_state=ph.host_state,
             linked_device=linked_device,
+            linked_ipaddress=linked_ipaddress,
             distance_hops=ph.distance_hops,
             uptime_seconds=ph.uptime_seconds,
             last_boot_at=last_boot_at,
