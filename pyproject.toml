@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "nautobot-app-scanner"
-version = "2026.7.4.1"
+version = "2026.7.5.1"
 description = "nmap-based network scanner integration for Nautobot — discovers hosts, ports, services, and vulnerabilities against IPAM-defined targets, surfaces results on Device/IPAddress/Prefix pages."
 requires-python = ">=3.10"
 authors = [{ name = "Ryan Malloy", email = "ryan@supported.systems" }]
@@ -59,6 +59,13 @@ dev = [
     "ruff>=0.6",
 ]
 
+[tool.hatch.metadata]
+# The nautobot-dns-models-bitemporal fork is pinned via git URL (see the
+# dependencies block above for the pin rationale). Hatchling refuses direct
+# references by default as a PyPI-hygiene guard; enabling this is required
+# for the wheel build. Downstream consumers pin their own copy the same way.
+allow-direct-references = true
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/nautobot_scanner"]
 
@@ -76,6 +83,14 @@ exclude = [
     "dist/",
     "build/",
     "development/",
+    # Agent-thread messages carry real IPs / hostnames from live coordination
+    # with ops (bingham-ops etc.). Kept in repo for audit trail, never
+    # shipped to PyPI.
+    "docs/agent-threads/",
+    # Screenshots + intermediate assets under artifacts/ show real MAC /
+    # vendor / IP data at pixel scale. Docs consumers get the docs/images/
+    # copies which are the sanitized-for-shipping subset.
+    "artifacts/",
 ]
 
 [tool.ruff]
