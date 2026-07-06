@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}Bulk Promote — Done{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-md-10 col-md-offset-1">
+    <div class="panel panel-default">
+      <div class="panel-heading">
+        <strong>Bulk Promote — Complete</strong>
+      </div>
+      <div class="panel-body">
+        <p style="margin-bottom:1rem">
+          Promoted
+          <strong>{{ promoted|length }}</strong>
+          host{{ promoted|length|pluralize }}
+          into <code>{{ namespace.name }}</code>
+          with status <code>{{ status.name }}</code>.
+          {% if skipped %}
+            <br>
+            <strong>{{ skipped }}</strong>
+            host{{ skipped|pluralize }} skipped — already linked to an
+            <code>IPAddress</code> (probably promoted by another operator
+            between the preview and the confirm click).
+          {% endif %}
+        </p>
+
+        {% if promoted %}
+        <table class="table table-hover">
+          <thead>
+            <tr>
+              <th>DiscoveredHost</th>
+              <th>New IPAddress</th>
+              <th>Hostname</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for host, new_ip in promoted %}
+              <tr>
+                <td>
+                  <a href="{{ host.get_absolute_url }}">
+                    <code>{{ host.ip_address }}</code>
+                  </a>
+                </td>
+                <td>
+                  <a href="{{ new_ip.get_absolute_url }}">
+                    <code>{{ new_ip.address }}</code>
+                  </a>
+                </td>
+                <td>{{ host.hostname|default:"—" }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% endif %}
+
+        <div style="margin-top:1.5rem; display:flex; gap:0.5rem">
+          {% url 'plugins:nautobot_scanner:reconciliation' as recon_url %}
+          <a href="{{ recon_url|default:'#' }}" class="btn btn-primary">
+            <i class="mdi mdi-arrow-left"></i> Back to Reconciliation
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

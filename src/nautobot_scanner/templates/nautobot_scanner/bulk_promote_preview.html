@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block title %}Bulk Promote — Preview{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-md-10 col-md-offset-1">
+    <div class="panel panel-default">
+      <div class="panel-heading">
+        <strong>Bulk Promote — Preview</strong>
+      </div>
+      <div class="panel-body">
+        {% if hosts %}
+          <p style="margin-bottom:1rem">
+            You are about to create
+            <strong>{{ hosts|length }}</strong>
+            <code>ipam.IPAddress</code> record{{ hosts|length|pluralize }}. Review the
+            list below, choose the Namespace and Status to stamp on the new
+            rows, then click <strong>Confirm</strong> to commit. The commit
+            runs inside a single database transaction; any host that has
+            been promoted concurrently since you loaded this page will be
+            skipped.
+          </p>
+        {% else %}
+          <div class="alert alert-warning" role="alert">
+            No hosts were selected. Head back to the reconciliation view,
+            tick one or more rows, and click <strong>Bulk Promote</strong>
+            again.
+          </div>
+        {% endif %}
+
+        {% if hosts %}
+        <table class="table table-hover">
+          <thead>
+            <tr>
+              <th>IP Address</th>
+              <th>Hostname</th>
+              <th>Containing Prefix</th>
+              <th>Already Linked?</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in host_rows %}
+              <tr>
+                <td><code>{{ row.host.ip_address }}</code></td>
+                <td>{{ row.host.hostname|default:"—" }}</td>
+                <td>
+                  {% if row.containing_prefix %}
+                    <code>{{ row.containing_prefix.prefix }}</code>
+                  {% else %}
+                    <span style="opacity:0.6">— none in namespace</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if row.host.linked_ipaddress_id %}
+                    <span class="label label-warning">will skip — already linked</span>
+                  {% else %}
+                    <span class="label label-default">no</span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+
+        <form method="post" style="margin-top:1.5rem">
+          {% csrf_token %}
+          {% for host in hosts %}
+            <input type="hidden" name="discovered_host_id" value="{{ host.pk }}">
+          {% endfor %}
+          <input type="hidden" name="confirm" value="1">
+
+          <div class="form-group">
+            <label for="bulk-promote-namespace">Namespace</label>
+            <select id="bulk-promote-namespace" name="namespace" class="form-control">
+              {% for ns in namespaces %}
+                <option value="{{ ns.pk }}"
+                  {% if default_namespace and ns.pk == default_namespace.pk %}selected{% endif %}>
+                  {{ ns.name }}
+                </option>
+              {% endfor %}
+            </select>
+            <p class="help-block" style="opacity:0.7">
+              Defaults to <code>Global</code>. New <code>IPAddress</code> rows
+              live in this namespace.
+            </p>
+          </div>
+
+          <div class="form-group">
+            <label for="bulk-promote-status">Status</label>
+            <select id="bulk-promote-status" name="status" class="form-control">
+              {% for st in statuses %}
+                <option value="{{ st.pk }}"
+                  {% if default_status and st.pk == default_status.pk %}selected{% endif %}>
+                  {{ st.name }}
+                </option>
+              {% endfor %}
+            </select>
+            <p class="help-block" style="opacity:0.7">
+              Defaults to <code>Provisional</code> so downstream reviewers can
+              filter for enrichment-created rows that still need validation.
+            </p>
+          </div>
+
+          <div style="margin-top:1rem; display:flex; gap:0.5rem">
+            <button type="submit" class="btn btn-primary">
+              <i class="mdi mdi-rocket-launch"></i>
+              Confirm — create {{ hosts|length }} IPAddress{{ hosts|length|pluralize:"es" }}
+            </button>
+            {% url 'plugins:nautobot_scanner:reconciliation' as recon_url %}
+            <a href="{{ recon_url|default:'#' }}" class="btn btn-default">
+              <i class="mdi mdi-close"></i> Cancel
+            </a>
+          </div>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

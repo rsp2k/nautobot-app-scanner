@@ -53,6 +53,15 @@ menu_items = (
                         name="Discovered Hosts",
                         permissions=["nautobot_scanner.view_discoveredhost"],
                     ),
+                    # IPAM reconciliation report — surfaces the bidirectional
+                    # diff between DiscoveredHost and ipam.IPAddress. Same
+                    # permission as Discovered Hosts because the report is a
+                    # derived view over the same data.
+                    NavMenuItem(
+                        link="plugins:nautobot_scanner:reconciliation",
+                        name="IPAM Reconciliation",
+                        permissions=["nautobot_scanner.view_discoveredhost"],
+                    ),
                 ),
             ),
         ),

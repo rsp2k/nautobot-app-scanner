@@ -308,7 +308,7 @@ def parse_dig_text(raw: str, targets: list[str]) -> tuple[ParsedReport, list[Par
 
 
 def parse_drill_text(raw: str, targets: list[str]) -> tuple[ParsedReport, list[ParsedHost]]:
-    """drill parser — like dig, plus DNSSEC validation status from flags.
+    """Drill parser — like dig, plus DNSSEC validation status from flags.
 
     drill emits the same ``name TTL IN TYPE value`` answer-section lines
     that dig does (so we reuse ``_parse_dns_answer_records``), but it
@@ -1154,7 +1154,7 @@ def parse_ssh_audit_json(raw: str, targets: list[str]) -> tuple[ParsedReport, li
 
 
 def parse_httpx_jsonl(raw: str, targets: list[str]) -> tuple[ParsedReport, list[ParsedHost]]:
-    """httpx (ProjectDiscovery) JSONL parser.
+    """Httpx (ProjectDiscovery) JSONL parser.
 
     ``httpx -json -silent`` emits one JSON object per target per line.
     The full shape is dense (~30 fields per target including a nested
@@ -1695,15 +1695,16 @@ def persist(scan: Scan, parsed: list[ParsedHost], report: ParsedReport | None = 
     """
     # Imports inside the function to avoid Django-app-loading-order issues
     # when this module is imported at app-config time.
+    # Driver-agnostic shim — psycopg2.extras.DateTimeTZRange can't be adapted
+    # under psycopg3 (Nautobot 3.x). See models/results.py for the full note.
+    from django.db.backends.postgresql.psycopg_any import DateTimeTZRange
     from nautobot.dcim.models import Device
-
-    from psycopg2.extras import DateTimeTZRange
 
     from nautobot_scanner.models import (
         DiscoveredHost,
         DiscoveredPort,
-        TraceRouteHop,
         NseFinding,
+        TraceRouteHop,
     )
 
     summary = {
@@ -1732,7 +1733,23 @@ def persist(scan: Scan, parsed: list[ParsedHost], report: ParsedReport | None = 
     import datetime as _dt
     boot_anchor = scan.completed_at or scan.started_at or _dt.datetime.now(_dt.timezone.utc)
 
+    # Overlapping target ranges make nmap report the same host more than once
+    # (e.g. a /24 and a /26 inside it both selected, or the same CIDR modeled
+    # in two VRFs). The bitemporal unique constraint permits only one current
+    # belief per (scan, ip_address), so a duplicate INSERT would abort the
+    # entire persist mid-scan and lose every host after it. Track the IPs we've
+    # already recorded for this scan and skip repeats — the repeat is the same
+    # host, so first-observation-wins is correct and the job completes cleanly.
+    seen_ips: set = set()
+
     for ph in parsed:
+        if ph.ip_address in seen_ips:
+            # Same host from an overlapping target range; count it in the
+            # summary so the dedupe is visible, and move on. First-wins.
+            summary["hosts_duplicate"] = summary.get("hosts_duplicate", 0) + 1
+            continue
+        seen_ips.add(ph.ip_address)
+
         # Auto-resolve linked Device by primary IP match.
         # We look at primary_ip4 OR primary_ip6 since the discovered host
         # could be either. Falls back to None if no match.

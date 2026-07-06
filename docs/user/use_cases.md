@@ -68,18 +68,23 @@ Per-host view: drill into any `DiscoveredHost` from the scan; the
 
 ## "Which discovered hosts aren't yet in IPAM?"
 
-**Where**: **Scanner → Discovered Hosts** → filter **Linked IP
-Address** is empty.
+**Where**: **Scanner → Results → IPAM Reconciliation** for the batch
+answer, or **Scanner → Discovered Hosts** filtered by empty **Linked
+IP Address** for the raw list.
 
-The list view's **Linked IP Address** column is a click-through to the
-matching `ipam.IPAddress`, populated by the
-[Promote to IPAddress](promotion.md) action. Rows where the column
-shows `—` haven't been promoted yet.
+The [IPAM Reconciliation report](reconciliation.md) is purpose-built
+for this question — it groups undocumented hosts by containing prefix,
+ranks each prefix by an anti-noise signal so sparse-but-real subnets
+sort above phantom-full container blocks, and offers a preview-then-
+confirm bulk-promote flow with a `Provisional` status default for
+downstream review.
 
-For each candidate row, hit **Promote to IPAddress** (or **Promote to
-Device** if it's real network equipment) — the form pre-fills from the
-discovered host's IP and hostname; you supply namespace / status / parent
-prefix and submit.
+For per-row inspection, the Discovered Hosts list view's **Linked IP
+Address** column is a click-through to the matching `ipam.IPAddress`,
+populated by the [Promote to IPAddress](promotion.md) action. Rows
+where the column shows `—` haven't been promoted yet — hit **Promote
+to IPAddress** (or **Promote to Device** if it's real network
+equipment) to convert one at a time.
 
 ---
 

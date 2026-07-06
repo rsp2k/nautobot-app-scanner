@@ -31,13 +31,20 @@ import uuid
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.postgres.fields import DateTimeRangeField
 from django.db import models
+
+# Driver-agnostic DateTimeTZRange. Django's psycopg_any shim resolves to the
+# right type for the installed driver (psycopg2.extras.DateTimeTZRange under
+# psycopg2, psycopg.types.range.Range under psycopg3). Importing
+# psycopg2.extras directly breaks under psycopg3 (Nautobot 3.x) — the object
+# can't be adapted, raising "cannot adapt type 'DateTimeTZRange' using
+# placeholder '%t'" on every bitemporal INSERT.
+from django.db.backends.postgresql.psycopg_any import DateTimeTZRange
 from django.utils import timezone
 from nautobot.apps.constants import CHARFIELD_MAX_LENGTH
 from nautobot.apps.models import BaseModel, PrimaryModel
-from nautobot.extras.utils import extras_features
 from nautobot.core.models.querysets import RestrictedQuerySet
+from nautobot.extras.utils import extras_features
 from nautobot.ipam.fields import VarbinaryIPField
-from psycopg2.extras import DateTimeTZRange
 
 from nautobot_scanner.choices import HostStateChoices, PortStateChoices, ProtocolChoices, SeverityChoices
 
