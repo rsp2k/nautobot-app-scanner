@@ -141,12 +141,18 @@ class Command(BaseCommand):
         # may report the same port on the same device across multiple
         # scans; each tuple → one Service.
         #
-        # Two sinks:
-        # - `plan_create` — port needs a fresh Service row
-        # - `plan_append` — port belongs on an EXISTING Service (same
-        #   device+name) whose ports array doesn't yet include it
+        # Two sinks. The schema has a unique_device_service_name
+        # constraint, so a "web server on ports 80 + 8080" case where
+        # both ports fingerprint as 'http' must become one Service with
+        # ports=[80, 8080], not two Services both named 'http'.
+        #
+        # - `plan_create` (dict keyed by (device_pk, name)) — a fresh
+        #   Service row. Multiple ports with the same (device, name)
+        #   collapse into one entry with a growing port list.
+        # - `plan_append` — an existing Service (device, name) gets
+        #   an additional port added to its ports array.
         seen_tuples: set[tuple[str, str, int]] = set()
-        plan_create: list[tuple[DiscoveredPort, str, str]] = []
+        plan_create: dict[tuple[str, str], dict] = {}
         plan_append: list[tuple[Service, int]] = []
         walked = 0
         would_skip_exists = 0
@@ -176,22 +182,32 @@ class Command(BaseCommand):
             # Name preference: nmap-identified service_name, else fallback.
             name = (dp.service_name or "").strip() or f"{dp.protocol}-{dp.port}"
 
-            # If a Service with the same (device, name) already exists —
-            # e.g. two IPP ports on a printer both fingerprint as 'ipp' —
-            # append our port to its ports array rather than trying to
-            # INSERT a duplicate row. The schema has a
-            # unique_device_service_name constraint that would blow up
-            # a naive re-INSERT anyway, so this branch is load-bearing
-            # for correctness, not just cleanliness.
+            # Case 1: a Service with (device, name) already exists in the
+            # DB — append our port to it.
             existing_same_name = Service.objects.filter(device=dev, name=name).first()
             if existing_same_name is not None:
                 plan_append.append((existing_same_name, int(dp.port)))
                 continue
 
-            # Description: combine product / version / extra_info if any.
+            # Case 2: another port earlier in this same run is already
+            # planning to create (device, name). Collapse: add our port
+            # to that pending create's port list.
+            plan_key = (str(dev.pk), name)
+            if plan_key in plan_create:
+                plan_create[plan_key]["ports"].add(int(dp.port))
+                continue
+
+            # Case 3: no collision — fresh planned create.
             desc_parts = [x for x in (dp.product, dp.version, dp.extra_info) if x]
             description = " ".join(desc_parts)[:200]  # Service.description is 200 chars
-            plan_create.append((dp, name, description))
+            plan_create[plan_key] = {
+                "dp": dp,
+                "device": dev,
+                "protocol": dp.protocol,
+                "name": name,
+                "description": description,
+                "ports": {int(dp.port)},
+            }
 
         self.stdout.write(f"Walked (open DPs on Device-linked DHs, current):  {walked}")
         self.stdout.write(f"Distinct (device, protocol, port) seen:            {len(seen_tuples)}")
@@ -200,13 +216,15 @@ class Command(BaseCommand):
         self.stdout.write(f"Would append port to existing (same-name) Service:  {len(plan_append)}")
 
         # Sample the first 5 planned creates for eyeball verification.
-        if plan_create:
+        create_list = list(plan_create.values())
+        if create_list:
             self.stdout.write("")
             self.stdout.write("Sample of first 5 planned CREATES:")
-            for dp, name, desc in plan_create[:5]:
-                dev = dp.discovered_host.linked_device
+            for entry in create_list[:5]:
+                ports_sorted = sorted(entry["ports"])
                 self.stdout.write(
-                    f"  {dev.name[:30]:30s}  {dp.protocol}/{dp.port:5d}  name={name!r:16s}  desc={(desc or '-')!r}"
+                    f"  {entry['device'].name[:30]:30s}  {entry['protocol']}/{ports_sorted}  "
+                    f"name={entry['name']!r:16s}  desc={(entry['description'] or '-')!r}"
                 )
         if plan_append:
             self.stdout.write("")
@@ -239,19 +257,18 @@ class Command(BaseCommand):
                 appended += 1
 
         created = 0
-        for dp, name, description in plan_create:
-            dev = dp.discovered_host.linked_device
+        for entry in create_list:
             svc = Service.objects.create(
-                device=dev,
-                protocol=dp.protocol,
-                ports=[int(dp.port)],
-                name=name,
-                description=description,
+                device=entry["device"],
+                protocol=entry["protocol"],
+                ports=sorted(entry["ports"]),
+                name=entry["name"],
+                description=entry["description"],
             )
             # If the parent DiscoveredHost has a linked IPAddress, tie the
             # Service to it. That's what turns the Service from "runs on
             # this Device" into "runs on this Device at this specific IP".
-            linked_ip = dp.discovered_host.linked_ipaddress
+            linked_ip = entry["dp"].discovered_host.linked_ipaddress
             if linked_ip is not None:
                 svc.ip_addresses.add(linked_ip)
             created += 1
