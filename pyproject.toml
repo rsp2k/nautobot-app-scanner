@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "nautobot-app-scanner"
-version = "2026.7.5.1"
+version = "2026.7.5.2"
 description = "nmap-based network scanner integration for Nautobot — discovers hosts, ports, services, and vulnerabilities against IPAM-defined targets, surfaces results on Device/IPAddress/Prefix pages."
 requires-python = ">=3.10"
 authors = [{ name = "Ryan Malloy", email = "ryan@supported.systems" }]
