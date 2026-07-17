@@ -88,7 +88,7 @@ Same shape both tools follow.
 | Enum | `src/nautobot_scanner/choices.py` — `ToolChoices` | Add `HTTPX = "httpx"` |
 | Argv builder | `agent/agent.py` — `TOOL_REGISTRY` | `build_httpx_argv(scan)`: `httpx -json -tech-detect -favicon -tls-probe -follow-redirects -status-code -title -web-server -content-length -content-type -location -target <ip>[,<ip>...]` |
 | Parser | `src/nautobot_scanner/parser.py` — `PARSERS` | `parse_httpx_json(raw, targets)` → `(ParsedReport, list[ParsedHost])`. Emits one host-scope `NseFinding` per target with structured `elements` dict |
-| Image | `agent/Dockerfile` | `apk add go && go install github.com/projectdiscovery/httpx/cmd/httpx@latest` OR pre-built binary from GitHub Releases |
+| Image | `agent/Dockerfile` | Pre-built binary from `github.com/projectdiscovery/httpx/releases/latest`, COPY'd in with a `# httpx v1.6.x — bump manually` comment above the URL. Smaller image (no Go toolchain), reproducible version-pin. See Resolved Decisions §1. |
 | Profile | `src/nautobot_scanner/migrations/0025_seed_phase_m_profiles.py` | New profile `http-fingerprint`, `tool="httpx"`, target-shape = `target_raw_ips` list, description references reconciliation-driven dispatch |
 | Docs | `docs/user/scan_profiles.md` + `docs/dev/architecture.md` | ADR-017 postscript, new profile row |
 
@@ -259,6 +259,12 @@ Threshold: ≥4 points and a single dominant vendor → high-confidence
 identification. Score of 2-3 → medium (surface in reconciliation UI
 for operator to confirm). Below 2 → don't propose auto-promote.
 
+The confidence value is a **single tunable number**, defaulting to
+`0.7` at M.2 launch. Per-vendor thresholds (weaker `GoAhead-Webs` at
+`0.85`, distinctive `Axis` at `0.55`) are a possible follow-up
+refinement once we have real-world false-positive/false-negative
+data — see Resolved Decisions §2.
+
 Fusion output:
 
 ```python
@@ -369,36 +375,68 @@ Even inside "one PR bundle," ship in a strict order:
    table. Still no fusion, no auto-promote — just the extra signal
    source landing on `NseFinding`. Pentest-mode gated.
 3. **Phase M.2** — fusion module + `Identification` dataclass +
-   `auto_promote_identified` management command with high default
-   confidence threshold (`0.85`). Operator reviews every promote at
-   first.
-4. **Phase M.3** — lower the confidence threshold once operator
-   trust is established. Add the "SNMP-probe undocumented" and
-   "HTTP-fingerprint undocumented" action buttons to the
-   reconciliation report UI.
+   `auto_promote_identified` management command with default
+   confidence threshold `0.7`. Operator reviews every promote at
+   first. Includes a **one-shot Axis-rows cleanup** step: the two
+   MAC-named auto-generated Axis Devices on netmon-2
+   (`00:40:8c:9f:d7:a4` and `ac:cc:8e:4c:1b:be`, created 2026-07-05)
+   get renamed/re-roled based on their fingerprint output. See
+   Resolved Decisions §3.
+4. **Phase M.3** — retune the confidence threshold once operator
+   trust is established (possibly per-vendor). Add the "SNMP-probe
+   undocumented" and "HTTP-fingerprint undocumented" action buttons
+   to the reconciliation report UI.
 
 Each phase is independently shippable. Any halt in a middle phase
 leaves the operator with the earlier phases' value intact.
 
-## Open questions
+## Resolved decisions
 
-1. **httpx binary distribution.** Go install at image-build time
-   requires Go toolchain (adds ~150 MB to build image, discarded in
-   multi-stage). Alternative: pre-built binary from
-   `github.com/projectdiscovery/httpx/releases` COPY'd in — smaller
-   build, but pins the version at Dockerfile-edit time. Recommend
-   pre-built + version pin comment.
-2. **SNMPv3 opt-in profile.** Design brief says "opt-in" but doesn't
-   specify the actual profile. Second design pass once M.1 lands.
-3. **Confidence threshold for auto-promote.** Currently a single
-   number (default `0.7`). Might want per-vendor thresholds — Axis
-   fingerprints are strong signal because their headers are
-   distinctive; generic-GoAhead is weaker (many white-label
-   camera vendors share the platform). Revisit after M.2 dry-runs.
-4. **What to do with the two auto-created Axis rows on netmon-2**
-   (the MAC-named ones from 2026-07-05). Once we have the vendor
-   OID pipeline, they should get proper names + roles. Might be a
-   one-shot cleanup rather than a M.x feature.
+Four open questions from the initial draft, resolved 2026-07-16:
+
+### §1. httpx binary distribution — pre-built COPY, version-pinned
+
+Use the pre-built binary from
+`github.com/projectdiscovery/httpx/releases/latest`, COPY'd into the
+agent image with an inline `# httpx vX.Y.Z — bump manually` comment
+above the URL. Smaller build layer (no Go toolchain in the image
+graph), reproducible version-pin, one-line bump when we want a newer
+httpx. Rejected: `go install` in-image (adds ~150 MB build stage even
+with multi-stage discard, and floats the version at every build).
+
+### §2. Confidence threshold shape — single number for M.2
+
+M.2 ships with a single `--confidence 0.7` flag on
+`auto_promote_identified`. Per-vendor thresholds (`Axis 0.55`,
+`GoAhead-Webs 0.85`) are a follow-up refinement once we have
+real-world false-positive/false-negative data from the first few
+production dry-runs. The `Identification.signals` audit list already
+carries the per-signal detail needed to tune this — no schema change
+required to add per-vendor gating later.
+
+### §3. Two auto-created Axis rows on netmon-2 — one-shot cleanup in M.2
+
+The pair created 2026-07-05 (`Axis Communications AB 00:40:8c:9f:d7:a4`
+and `Axis Communications AB ac:cc:8e:4c:1b:be`) get processed as part
+of M.2's first fingerprint-fusion run. Because the httpx pass will
+identify them via `Server: Axis` header or the Axis favicon, the
+fusion module will emit an Identification pointing at the same vendor
+they already have. The auto-promote extension needs a special-case
+branch: if a matching Device already exists (by MAC or by
+manufacturer+primary_ip), rename the Device to the DNS name from
+httpx output, assign `role=Camera`, and update the tag set. No new
+Device row created. Belongs to M.2 rather than a M.x sidebar because
+it exercises the exact same code path.
+
+### §4. SNMPv3 opt-in profile — second design pass after M.1
+
+Deferred. The M.0 + M.1 + M.2 sequence establishes the credential-
+isolation architecture, the vendor OID table, and the fusion module.
+Once those land and we have SNMPv1/v2c data, a second design brief
+covers SNMPv3 users specifically — with its own risk model
+(authenticated-failure account lockouts on Cisco IOS-XE) and its own
+default-user wordlist (`admin`, `snmp`, etc.). No implementation work
+in Phase M itself.
 
 ## Related
 
