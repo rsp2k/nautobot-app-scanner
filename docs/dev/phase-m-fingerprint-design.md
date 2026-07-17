@@ -1,7 +1,7 @@
 # Phase M — httpx + snmp-recon: reconciliation-driven device fingerprinting
 
-**Status:** M.0 landed (2026-07-16), M.1 + M.2 + M.3 pending.
-Feature branch: `feat/httpx-snmp-fingerprint`.
+**Status:** M.0 landed (2026-07-16), M.1 landed (2026-07-16),
+M.2 + M.3 pending. Feature branch: `feat/httpx-snmp-fingerprint`.
 
 **Shipped-state check performed 2026-07-16** revealed that the httpx
 tool integration originally sketched in this doc's Phase M.0 section
@@ -342,20 +342,38 @@ src/nautobot_scanner/tests/test_fingerprint.py               new, ~290 lines (15
 M.0 total: ~570 LOC, no new migration, no Dockerfile change, no
 choices.py touch, no new profiles. 15/15 tests pass in 0.17s.
 
-### M.1 — SNMP recon (pending)
+### M.1 — landed 2026-07-16
 
 ```
-agent/Dockerfile                                             +1 line (snmp-defaults.txt COPY)
-agent/snmp-defaults.txt                                      new,  25 lines
-src/nautobot_scanner/parser.py                               +~80 lines (snmp-info NSE elements handling)
-src/nautobot_scanner/snmp_vendor_oids.py                     new,  ~50 lines
-src/nautobot_scanner/migrations/0025_seed_snmp_recon_profile.py  new, ~50 lines
-src/nautobot_scanner/management/commands/snmp_recon_undocumented.py   new, ~200 lines
-src/nautobot_scanner/tests/test_snmp_vendor_oids.py          new,  ~80 lines
-tests/fixtures/nmap-snmp-info.xml                            new (captured from real SNMP probe)
+agent/Dockerfile                                             +10 lines (mkdir + COPY + chmod)
+agent/snmp-defaults.txt                                       new,  25 lines
+src/nautobot_scanner/snmp_vendor_oids.py                      new, ~130 lines (27 vendors, longest-prefix-match)
+src/nautobot_scanner/migrations/0025_seed_snmp_recon_deep_profile.py  new, ~105 lines
+src/nautobot_scanner/management/commands/snmp_recon_undocumented.py   new, ~240 lines
+src/nautobot_scanner/tests/test_snmp_vendor_oids.py           new, ~170 lines (16 test cases)
+docs/user/scan_profiles.md                                     +2 lines (new profile row)
 ```
 
-M.1 estimate: ~500 LOC, 1 migration, 1 test module, 1 fixture.
+M.1 actual: ~680 LOC, 1 migration, 1 test module (16 tests), no
+new fixture (deferred — real snmp-info XML captured in M.2).
+
+Note: **existing `snmp-recon` profile is preserved for back-compat**.
+`snmp-recon-deep` (this migration) is the credential-attempt variant
+with the wordlist. Also **no parser changes**: nmap's snmp-info NSE
+output already gets stored as host-scope NseFinding by the existing
+Phase G parser handling. The vendor-OID matching (via
+`snmp_vendor_oids.vendor_from_oid`) is invoked by the M.2 fusion
+module, not at parse time.
+
+**Credential-attempt gating deferred.** `ScanProfile.is_pentest_mode`
+computes from `tool in PENTEST_TOOLS` (masscan only) or specific
+nmap flag fields (decoys/fragments/MTU/source-port). None cleanly
+represent "SNMP wordlist attempt against remote systems." Proper
+gating requires a new `is_credential_attempt` schema field on
+ScanProfile — deferred to a follow-up refactor. In the meantime the
+sibling management command's restricted targeting (undocumented set
+only) and the profile description's loud `*** CREDENTIAL ATTEMPT ***`
+prefix carry the guardrail.
 
 ### M.2 — fusion + auto-promote (pending)
 
@@ -427,9 +445,15 @@ Even inside "one PR bundle," ship in a strict order:
    reconciliation-undocumented set. Zero credential-attempt risk.
    Both-null filter enforced; 24h cooldown default; per-prefix scope
    available via `--prefix`. 15/15 tests pass.
-2. **Phase M.1** — SNMP wordlist + `snmp-recon` profile + vendor OID
-   table. Still no fusion, no auto-promote — just the extra signal
-   source landing on `NseFinding`. Pentest-mode gated.
+2. **Phase M.1** — **landed 2026-07-16.** SNMP wordlist file baked
+   into agent image (`chmod 444`), `snmp-recon-deep` profile
+   (migration 0025), vendor OID table (27 vendors,
+   longest-prefix-match), `snmp_recon_undocumented` management
+   command with credential-attempt banner. Still no fusion, no
+   auto-promote — the extra signal source lands on `NseFinding` via
+   the existing Phase G parser handling. Pentest-mode gating
+   deferred (see M.1 Files touched section for the schema-refactor
+   note).
 3. **Phase M.2** — fusion module + `Identification` dataclass +
    `auto_promote_identified` management command with default
    confidence threshold `0.7`. Operator reviews every promote at
