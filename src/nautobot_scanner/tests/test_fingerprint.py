@@ -48,6 +48,10 @@ from nautobot_scanner.fingerprint import (
     SIGNAL_WEIGHTS,
     VENDOR_PATTERNS,
     fuse_signals,
+    match_existing_device,
+    resolve_or_create_device_type,
+    resolve_or_create_manufacturer,
+    resolve_or_create_role,
     resolve_undocumented_targets,
 )
 from nautobot_scanner.models import (
@@ -493,3 +497,126 @@ class TestFuseSignalsPatternIntegrity(FusionTestBase):
                 for p in patterns:
                     self.assertIsInstance(p, re.Pattern,
                                           f"{vendor}.{cat} has non-regex entry: {p!r}")
+
+
+# =====================================================================
+# M.2.5 — auto-provision helpers + match-existing tests
+# =====================================================================
+
+
+class TestResolveOrCreateManufacturer(FingerprintTestBase):
+    """resolve_or_create_manufacturer() reuses existing / creates fresh."""
+
+    def test_creates_fresh_manufacturer(self):
+        """Unknown vendor → new Manufacturer row."""
+        result = resolve_or_create_manufacturer("Nonexistent Vendor XYZ")
+        self.assertEqual(result.name, "Nonexistent Vendor XYZ")
+        self.assertTrue(Manufacturer.objects.filter(name="Nonexistent Vendor XYZ").exists())
+
+    def test_reuses_existing_manufacturer_by_substring(self):
+        """'Axis' vendor matches existing 'Axis Communications AB' via icontains."""
+        pre_existing = Manufacturer.objects.create(name="Axis Communications AB")
+        result = resolve_or_create_manufacturer("Axis")
+        self.assertEqual(result.pk, pre_existing.pk)
+        # Confirm we didn't create a duplicate
+        self.assertEqual(Manufacturer.objects.filter(name__icontains="axis").count(), 1)
+
+
+class TestResolveOrCreateDeviceType(FingerprintTestBase):
+    """resolve_or_create_device_type() builds vendor + hint model naming."""
+
+    def test_creates_fresh_device_type_with_naming_convention(self):
+        """DeviceType model name follows 'Vendor Auto-identified hint' convention."""
+        result = resolve_or_create_device_type("Uniview", "camera")
+        self.assertEqual(result.model, "Uniview Auto-identified camera")
+        self.assertEqual(result.manufacturer.name, "Uniview")
+
+    def test_reuses_existing_device_type(self):
+        """Second call with same vendor+hint reuses row (unique key semantics)."""
+        first = resolve_or_create_device_type("Bosch", "camera")
+        second = resolve_or_create_device_type("Bosch", "camera")
+        self.assertEqual(first.pk, second.pk)
+
+
+class TestResolveOrCreateRole(FingerprintTestBase):
+    """resolve_or_create_role() attaches dcim.device content type."""
+
+    def test_creates_role_with_device_content_type(self):
+        """New Role can be assigned to a Device immediately."""
+        from django.contrib.contenttypes.models import ContentType
+        role = resolve_or_create_role("M2.5 test role")
+        device_ct = ContentType.objects.get(app_label="dcim", model="device")
+        self.assertTrue(role.content_types.filter(pk=device_ct.pk).exists())
+
+    def test_second_call_does_not_duplicate_content_type(self):
+        """Idempotent — content type stays attached exactly once."""
+        role1 = resolve_or_create_role("M2.5 idempotent role")
+        role2 = resolve_or_create_role("M2.5 idempotent role")
+        self.assertEqual(role1.pk, role2.pk)
+        device_ct_count = role2.content_types.filter(app_label="dcim", model="device").count()
+        self.assertEqual(device_ct_count, 1)
+
+
+class TestMatchExistingDevice(FingerprintTestBase):
+    """match_existing_device() finds Devices by primary_ip4 or MAC."""
+
+    def _make_ip(self, host_str):
+        """Create an IPAddress and its containing Prefix."""
+        Prefix.objects.get_or_create(
+            prefix="10.100.0.0/24",
+            namespace=self.namespace,
+            defaults={"status": self.active},
+        )
+        return IPAddress.objects.create(
+            address=f"{host_str}/32",
+            namespace=self.namespace,
+            status=self.active,
+        )
+
+    def test_match_by_primary_ip4(self):
+        """A Device with primary_ip4 matching the DH IP is returned."""
+        ip = self._make_ip("10.100.0.5")
+        self.device.primary_ip4 = ip
+        self.device.save(update_fields=["primary_ip4"])
+        host = self._make_host("10.100.0.5")
+        result = match_existing_device(host)
+        self.assertIsNotNone(result)
+        self.assertEqual(result.pk, self.device.pk)
+
+    def test_match_by_interface_mac(self):
+        """A Device with an Interface carrying the DH's MAC is returned."""
+        from nautobot.dcim.models import Interface
+        Interface.objects.create(
+            device=self.device,
+            name="eth0-match",
+            type="virtual",
+            mac_address="AA:BB:CC:DD:EE:FF",
+            status=self.active,
+        )
+        host = self._make_host("10.100.0.99")
+        host.mac_address = "AA:BB:CC:DD:EE:FF"
+        host.save(update_fields=["mac_address"])
+        result = match_existing_device(host)
+        self.assertIsNotNone(result)
+        self.assertEqual(result.pk, self.device.pk)
+
+    def test_no_match_returns_none(self):
+        """A DH with no matching IP or MAC returns None."""
+        host = self._make_host("10.200.0.1")  # not in DB anywhere
+        result = match_existing_device(host)
+        self.assertIsNone(result)
+
+    def test_empty_mac_does_not_false_match(self):
+        """A DH with empty mac_address doesn't accidentally match Interfaces with empty MAC."""
+        from nautobot.dcim.models import Interface
+        Interface.objects.create(
+            device=self.device,
+            name="eth0-empty-mac",
+            type="virtual",
+            mac_address=None,
+            status=self.active,
+        )
+        host = self._make_host("10.200.0.2")  # no matching IP
+        # host.mac_address defaults to empty
+        result = match_existing_device(host)
+        self.assertIsNone(result)

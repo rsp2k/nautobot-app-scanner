@@ -111,15 +111,58 @@ class Command(BaseCommand):
                 "exits without modifying any rows."
             ),
         )
+        # -----------------------------------------------------------------
+        # M.2.5 — Device auto-create flags. Optional; when omitted, the
+        # command falls back to M.2's IPAddress-only promotion path.
+        # -----------------------------------------------------------------
+        parser.add_argument(
+            "--create-devices",
+            action="store_true",
+            help=(
+                "M.2.5: promote identified hosts into full dcim.Device "
+                "rows (with Interface + IPAddress + Role assignment) "
+                "rather than just IPAddress. Requires --location. "
+                "Auto-creates Manufacturer + DeviceType + Role if "
+                "they don't exist. Matches existing Devices by MAC / "
+                "primary_ip4 to rename rather than duplicate (fixes "
+                "MAC-named auto-created rows like the netmon-2 Axis "
+                "pair from 2026-07-05)."
+            ),
+        )
+        parser.add_argument(
+            "--location",
+            default=None,
+            help=(
+                "Nautobot Location name for auto-created Devices "
+                "(required with --create-devices). Every Nautobot "
+                "Device requires a Location — the fingerprint pipeline "
+                "can't infer this from scan output, so the operator "
+                "supplies it."
+            ),
+        )
+        parser.add_argument(
+            "--interface-name",
+            default="eth0",
+            help=(
+                "Interface name to auto-create on new Devices. "
+                "Default 'eth0'. Not used on the match-existing-Device "
+                "path (existing Interfaces are preserved)."
+            ),
+        )
 
     def handle(self, *args, **options):
         """Iterate identifications, preview or commit per --confirm."""
         # Deferred imports so `--help` works before Django app-ready.
+        from django.db import transaction
+        from nautobot.dcim.models import Device, Interface, Location
         from nautobot.extras.models import Status
         from nautobot.ipam.models import IPAddress, Namespace
         from nautobot_scanner.fingerprint import (
             MAX_SCORE,
             fuse_all_undocumented,
+            match_existing_device,
+            resolve_or_create_device_type,
+            resolve_or_create_role,
         )
         from nautobot_scanner.models import DiscoveredHost
 
@@ -129,6 +172,18 @@ class Command(BaseCommand):
         limit = options["limit"]
         namespace_name = options["namespace"]
         status_name = options["status"]
+        create_devices = options["create_devices"]
+        location_name = options["location"]
+        interface_name = options["interface_name"]
+
+        # --- Guardrail: --create-devices requires --location.
+        if create_devices and not location_name:
+            self.stdout.write(self.style.ERROR(
+                "--create-devices requires --location <name>. Every "
+                "Nautobot Device requires a Location; the fingerprint "
+                "pipeline can't infer this from scan output."
+            ))
+            return
 
         # --- Validate the target namespace + status up front.
         try:
@@ -146,6 +201,18 @@ class Command(BaseCommand):
                 f"if you're expecting the Provisional status."
             ))
             return
+
+        # --- Resolve location for --create-devices.
+        location = None
+        if create_devices:
+            try:
+                location = Location.objects.get(name=location_name)
+            except Location.DoesNotExist:
+                self.stdout.write(self.style.ERROR(
+                    f"Location {location_name!r} not found. Available "
+                    f"locations: {list(Location.objects.values_list('name', flat=True)[:10])}"
+                ))
+                return
 
         # --- Compute identifications for every undocumented host.
         # Use min_confidence=0.0 so preview mode shows every attempt.
@@ -174,6 +241,10 @@ class Command(BaseCommand):
         self.stdout.write(f"Vendor filter:  {vendor_filter or '(none)'}")
         self.stdout.write(f"Namespace:      {namespace.name}")
         self.stdout.write(f"Status:         {status.name}")
+        self.stdout.write(f"Create Devices: {create_devices}")
+        if create_devices:
+            self.stdout.write(f"Location:       {location.name}")
+            self.stdout.write(f"Interface:      {interface_name}")
         self.stdout.write(f"MAX_SCORE:      {MAX_SCORE}")
 
         # --- Preview: top 20 above-threshold identifications.
@@ -214,47 +285,64 @@ class Command(BaseCommand):
 
         if not confirm:
             self.stdout.write("")
+            mode_desc = (
+                "creates/updates Device+Interface+IPAddress rows"
+                if create_devices else
+                "creates/links IPAddress rows only (pass --create-devices for full promotion)"
+            )
             self.stdout.write(self.style.WARNING(
-                "Dry-run — no rows written. Re-run with --confirm to "
-                "link IPAddress records for the above-threshold set. "
-                "Note: full Device auto-create is deferred to M.2.5; "
-                "--confirm here only creates/links IPAddress rows and "
-                "stamps fingerprint metadata in the description."
+                f"Dry-run — no rows written. Re-run with --confirm to "
+                f"process the above-threshold set. --confirm {mode_desc}."
             ))
             return
 
-        # --- Commit path: create IPAddress with identification metadata.
-        # We reuse the idempotent lookup-then-create pattern from
-        # views_bulk_promote._commit() — if an IPAddress at (namespace,
-        # host_ip) already exists, we link to it rather than raising on
-        # the (parent_id, host) unique constraint.
+        # =================================================================
+        # Commit path
+        # =================================================================
         self.stdout.write("")
-        self.stdout.write(f"Committing {len(above)} identifications…")
+        if create_devices:
+            self._commit_with_devices(
+                above=above,
+                namespace=namespace,
+                status=status,
+                location=location,
+                interface_name=interface_name,
+            )
+        else:
+            self._commit_ipaddress_only(
+                above=above,
+                namespace=namespace,
+                status=status,
+            )
+
+    # ------------------------------------------------------------------
+    # Commit helpers
+    # ------------------------------------------------------------------
+
+    def _commit_ipaddress_only(self, *, above, namespace, status):
+        """M.2 legacy path — link IPAddress records with fusion metadata."""
+        from nautobot.ipam.models import IPAddress
+        from nautobot_scanner.models import DiscoveredHost
+
+        self.stdout.write(f"Committing {len(above)} identifications (IPAddress only)…")
         created = 0
         linked_existing = 0
         skipped = 0
 
         for ident in above:
             host = DiscoveredHost.objects.filter(pk=ident.discovered_host_id).first()
-            if host is None:
-                skipped += 1
-                continue
-            # If bulk-promote already set linked_ipaddress after this run
-            # started, respect that.
-            if host.linked_ipaddress_id is not None:
+            if host is None or host.linked_ipaddress_id is not None:
                 skipped += 1
                 continue
 
             ip_str = str(host.ip_address)
             mask = "/128" if ":" in ip_str else "/32"
-            address = f"{ip_str}{mask}"
-
             description = (
                 f"Auto-identified as {ident.vendor} ({ident.device_type_hint}) "
                 f"at confidence {ident.confidence:.3f}. "
                 f"Signals: {','.join(s.signal for s in ident.signals)}. "
                 f"scanner DH {ident.discovered_host_id[:8]}."
-            )[:200]  # IPAddress.description is CharField(200)
+            )[:200]
 
             existing = IPAddress.objects.filter(
                 parent__namespace=namespace,
@@ -267,7 +355,7 @@ class Command(BaseCommand):
                 continue
 
             new_ip = IPAddress.objects.create(
-                address=address,
+                address=f"{ip_str}{mask}",
                 namespace=namespace,
                 status=status,
                 dns_name=host.hostname or "",
@@ -281,12 +369,137 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(
             f"Done. Created {created} new IPAddress rows, "
             f"linked to {linked_existing} pre-existing, "
-            f"skipped {skipped} (concurrent-promoted or missing)."
+            f"skipped {skipped}."
         ))
-        self.stdout.write(
-            f"Full Device auto-create (with role assignment) is queued "
-            f"for M.2.5 — meantime, review the promoted IPAddresses "
-            f"and use the existing 'Promote to Device' UI action to "
-            f"finish the promotion with the operator's chosen "
-            f"Location + DeviceType."
+
+    def _commit_with_devices(self, *, above, namespace, status, location, interface_name):
+        """M.2.5 path — create/update Device+Interface+IPAddress atomically.
+
+        For each identification:
+          1. Look for an existing Device (by primary_ip4 or MAC) →
+             rename + re-role rather than duplicate.
+          2. Otherwise, auto-create Manufacturer + DeviceType + Role,
+             then Device + Interface + IPAddress in one transaction.
+        """
+        from django.db import transaction
+        from nautobot.dcim.models import Device, Interface
+        from nautobot.ipam.models import IPAddress
+        from nautobot_scanner.fingerprint import (
+            match_existing_device,
+            resolve_or_create_device_type,
+            resolve_or_create_role,
         )
+        from nautobot_scanner.models import DiscoveredHost
+
+        self.stdout.write(f"Committing {len(above)} identifications (Devices + IPAddress)…")
+        created_devices = 0
+        updated_devices = 0
+        skipped = 0
+        no_role = 0
+
+        for ident in above:
+            host = DiscoveredHost.objects.filter(pk=ident.discovered_host_id).first()
+            if host is None:
+                skipped += 1
+                continue
+            if host.linked_device_id is not None:
+                # Already promoted by another flow — respect.
+                skipped += 1
+                continue
+            if ident.proposed_role is None:
+                # No VENDOR_TO_ROLE mapping — surface but don't auto-create.
+                no_role += 1
+                continue
+
+            proposed_name = (host.hostname or str(host.ip_address)).split(".", 1)[0]
+
+            try:
+                with transaction.atomic():
+                    role = resolve_or_create_role(ident.proposed_role)
+                    device_type = resolve_or_create_device_type(ident.vendor, ident.device_type_hint)
+
+                    # --- Match-existing branch: rename + re-role.
+                    existing_dev = match_existing_device(host)
+                    if existing_dev is not None:
+                        existing_dev.name = proposed_name
+                        existing_dev.role = role
+                        # Only update device_type when the current type
+                        # is one of ours ("Auto-identified ..."). Leave
+                        # operator-set DeviceTypes alone.
+                        if "Auto-identified" in (existing_dev.device_type.model or ""):
+                            existing_dev.device_type = device_type
+                        existing_dev.save()
+                        host.linked_device = existing_dev
+                        host.save(update_fields=["linked_device"])
+                        updated_devices += 1
+                        continue
+
+                    # --- Fresh Device path.
+                    device = Device.objects.create(
+                        name=proposed_name,
+                        location=location,
+                        role=role,
+                        device_type=device_type,
+                        status=status,
+                    )
+
+                    # IPAddress: reuse if already linked, otherwise
+                    # lookup-or-create against the namespace.
+                    if host.linked_ipaddress is not None:
+                        ip = host.linked_ipaddress
+                    else:
+                        ip_str = str(host.ip_address)
+                        mask = "/128" if ":" in ip_str else "/32"
+                        ip = IPAddress.objects.filter(
+                            parent__namespace=namespace,
+                            host=ip_str,
+                        ).first()
+                        if ip is None:
+                            ip = IPAddress.objects.create(
+                                address=f"{ip_str}{mask}",
+                                namespace=namespace,
+                                status=status,
+                                dns_name=host.hostname or "",
+                                description=(
+                                    f"Auto-identified as {ident.vendor} "
+                                    f"({ident.device_type_hint}) at "
+                                    f"confidence {ident.confidence:.3f}."
+                                )[:200],
+                            )
+
+                    iface = Interface.objects.create(
+                        device=device,
+                        name=interface_name,
+                        type="virtual",
+                        mac_address=host.mac_address or None,
+                        status=status,
+                    )
+                    ip.assigned_object = iface
+                    ip.save()
+
+                    if ":" in str(host.ip_address):
+                        device.primary_ip6 = ip
+                    else:
+                        device.primary_ip4 = ip
+                    device.save()
+
+                    host.linked_ipaddress = ip
+                    host.linked_device = device
+                    host.save(update_fields=["linked_ipaddress", "linked_device"])
+                    created_devices += 1
+            except Exception as exc:
+                # Fail-open per-row rather than aborting the batch on
+                # one bad Identification. The next --confirm run picks
+                # up whatever this one skipped.
+                self.stdout.write(self.style.WARNING(
+                    f"  skipped {ident.ip_address}: {exc}"
+                ))
+                skipped += 1
+                continue
+
+        self.stdout.write("")
+        self.stdout.write(self.style.SUCCESS(
+            f"Done. Created {created_devices} new Devices, "
+            f"renamed/re-roled {updated_devices} existing, "
+            f"skipped {skipped}, {no_role} had no role mapping."
+        ))

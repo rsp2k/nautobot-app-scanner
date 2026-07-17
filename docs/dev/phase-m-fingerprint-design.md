@@ -1,6 +1,6 @@
 # Phase M — httpx + snmp-recon: reconciliation-driven device fingerprinting
 
-**Status:** M.0 + M.1 + M.2 landed (2026-07-16), M.3 + M.2.5 pending.
+**Status:** M.0 + M.1 + M.2 + M.2.5 landed (2026-07-16), M.3 pending.
 Feature branch: `feat/httpx-snmp-fingerprint`.
 
 **Shipped-state check performed 2026-07-16** revealed that the httpx
@@ -432,7 +432,54 @@ integration was already shipped — the shipped LOC is almost entirely
 new pipeline logic, not tool wiring, plus the test coverage that
 wasn't in the original plan.
 
-M.2.5 + M.3 remain pending.
+### M.2.5 — landed 2026-07-16 (Device auto-create + Axis cleanup)
+
+```
+src/nautobot_scanner/fingerprint.py                          +~130 lines (4 helpers)
+src/nautobot_scanner/management/commands/auto_promote_identified.py   +~180 lines (--create-devices path)
+src/nautobot_scanner/tests/test_fingerprint.py               +~130 lines (10 new tests)
+```
+
+M.2.5 actual: ~440 LOC. All 36 fingerprint tests pass.
+
+**New helpers in fingerprint.py:**
+- `resolve_or_create_manufacturer(vendor)` — reuses existing (icontains
+  match) or creates fresh Manufacturer for the vendor.
+- `resolve_or_create_device_type(vendor, hint)` — builds `Vendor
+  Auto-identified hint` model naming so subsequent hosts of the same
+  vendor+hint reuse the same DeviceType.
+- `resolve_or_create_role(role_name)` — creates the Role and attaches
+  `dcim.device` content type so it can be assigned to Devices.
+- `match_existing_device(host)` — finds a Device by primary_ip4 or
+  by any Interface MAC. Enables the Axis cleanup: MAC-named
+  auto-generated Devices get renamed rather than duplicated.
+
+**New CLI flags on `auto_promote_identified`:**
+- `--create-devices` — enables the full Device+Interface+IPAddress
+  auto-promotion path (default OFF: IPAddress-only, M.2 behavior).
+- `--location <name>` — required when --create-devices is on. Every
+  Nautobot Device needs a Location; fingerprint pipeline can't infer.
+- `--interface-name <name>` — default `eth0` for auto-created
+  Interfaces.
+
+**Match-existing branch semantics:**
+1. Try `Device.objects.filter(primary_ip4__host=host.ip_address).first()`
+2. Fall back to any Interface with `mac_address=host.mac_address`
+3. On match: update Device.name = DNS hostname, update Device.role,
+   update Device.device_type only if the current type name contains
+   "Auto-identified" (leaves operator-set DeviceTypes untouched).
+4. On no match: create fresh Device + Interface + IPAddress via the
+   existing atomic pattern from `DiscoveredHostPromoteToDeviceView`.
+
+**Netmon-2 Axis cleanup use case:** the two MAC-named auto-generated
+Axis Devices (`Axis Communications AB 00:40:8c:9f:d7:a4` and
+`Axis Communications AB ac:cc:8e:4c:1b:be`, created 2026-07-05) will
+be matched by MAC via `match_existing_device()`. When operator runs
+`auto_promote_identified --create-devices --location <bingham> --confirm`,
+they'll be renamed to their DNS hostname (once httpx probes them)
+and re-roled to Camera. No duplicate Devices created.
+
+M.3 remains pending.
 
 ## Verification plan
 

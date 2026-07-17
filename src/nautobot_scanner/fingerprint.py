@@ -517,6 +517,119 @@ def fuse_signals(host) -> Identification:
     )
 
 
+# ---------------------------------------------------------------------------
+# M.2.5 — auto-provision helpers for Device creation
+# ---------------------------------------------------------------------------
+
+
+def resolve_or_create_manufacturer(vendor: str):
+    """Return a ``dcim.Manufacturer`` for the fusion-identified vendor.
+
+    Reuses the existing Manufacturer when its name contains the vendor
+    string (case-insensitive), so a Nautobot install with "Axis
+    Communications AB" doesn't accidentally get a duplicate "Axis"
+    manufacturer. Creates a new Manufacturer when no match exists.
+
+    Called by the M.2.5 --create-devices path in
+    ``auto_promote_identified``. Returns the Manufacturer instance.
+    """
+    from nautobot.dcim.models import Manufacturer
+
+    existing = Manufacturer.objects.filter(name__icontains=vendor).first()
+    if existing is not None:
+        return existing
+    return Manufacturer.objects.create(name=vendor)
+
+
+def resolve_or_create_device_type(vendor: str, device_type_hint: str):
+    """Return a ``dcim.DeviceType`` for the vendor + hint combo.
+
+    Model naming convention: ``{Vendor} Auto-identified {hint}``.
+    Example: ``Uniview Auto-identified camera``. Once one host of a
+    given vendor+hint lands, subsequent hosts reuse the same
+    DeviceType — deduping is at the (manufacturer, model) unique key
+    Nautobot already enforces.
+
+    Args:
+        vendor: Vendor name from fusion output (used for Manufacturer
+            resolution + as the DeviceType model prefix).
+        device_type_hint: The ``Identification.device_type_hint`` value
+            ("camera", "network-equipment", etc.).
+
+    Returns:
+        DeviceType instance, either pre-existing or freshly created.
+    """
+    from nautobot.dcim.models import DeviceType
+
+    mfg = resolve_or_create_manufacturer(vendor)
+    model = f"{vendor} Auto-identified {device_type_hint or 'device'}"
+    return DeviceType.objects.get_or_create(
+        manufacturer=mfg,
+        model=model,
+    )[0]
+
+
+def resolve_or_create_role(role_name: str):
+    """Return a ``extras.Role`` for the given name.
+
+    Ensures the ``dcim.device`` content type is attached (a Role has
+    to be attached to a content type before it can be assigned to
+    Devices — Nautobot 3.x requirement).
+
+    Args:
+        role_name: Role name from ``Identification.proposed_role`` or
+            ``VENDOR_TO_ROLE``.
+
+    Returns:
+        Role instance, with dcim.device content type attached.
+    """
+    from django.contrib.contenttypes.models import ContentType
+    from nautobot.extras.models import Role
+
+    role, created = Role.objects.get_or_create(name=role_name)
+    device_ct = ContentType.objects.get(app_label="dcim", model="device")
+    if not role.content_types.filter(pk=device_ct.pk).exists():
+        role.content_types.add(device_ct)
+    return role
+
+
+def match_existing_device(host):
+    """Return an existing Device that likely matches this DiscoveredHost, or None.
+
+    Matches on any of:
+        1. Device.primary_ip4.host == host.ip_address
+        2. Any Interface on any Device with mac_address == host.mac_address
+           (skipped when mac_address is empty)
+
+    Used by the M.2.5 auto-promote path to distinguish "existing device
+    that scanner previously mis-created with a MAC name — rename it"
+    from "new device — create fresh". Handles the netmon-2 auto-
+    generated Axis pair (MAC-named Devices from 2026-07-05) that need
+    renaming rather than duplication once fusion identifies them.
+    """
+    from nautobot.dcim.models import Device, Interface
+
+    ip_str = str(host.ip_address)
+
+    # Try primary IP match first.
+    dev = Device.objects.filter(primary_ip4__host=ip_str).first()
+    if dev is not None:
+        return dev
+
+    # Fall back to MAC on any interface.
+    if host.mac_address:
+        iface = Interface.objects.filter(mac_address=host.mac_address).first()
+        if iface is not None:
+            return iface.device
+
+    return None
+
+
+# ---------------------------------------------------------------------------
+# M.2 — bulk fusion (used by auto_promote_identified command)
+# ---------------------------------------------------------------------------
+
+
 def fuse_all_undocumented(min_confidence: float = 0.0) -> Iterable[Identification]:
     """Yield an Identification for every currently-undocumented DiscoveredHost.
 
