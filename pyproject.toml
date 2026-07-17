@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "nautobot-app-scanner"
-version = "2026.7.17.1"
+version = "2026.7.17.2"
 description = "nmap-based network scanner integration for Nautobot — discovers hosts, ports, services, and vulnerabilities against IPAM-defined targets, surfaces results on Device/IPAddress/Prefix pages."
 requires-python = ">=3.10"
 authors = [{ name = "Ryan Malloy", email = "ryan@supported.systems" }]
@@ -38,11 +38,20 @@ dependencies = [
     "nautobot>=3.0,<4",
     "python-libnmap>=0.7,<1",
     "defusedxml>=0.7,<1",
-    # Pinned to the bitemporal fork @ 9b86401 — upstream 2.1.1 lacks the
-    # BitemporalMixin (entry_id + recorded_during/valid_during) that the
-    # promoter's amend detection relies on. Swap to `nautobot-dns-models == 2.1.2`
-    # once the fork's PyPI release lands. See docs/agent-threads/bitemporal-dns-integration/.
-    "nautobot-dns-models-bitemporal @ git+https://github.com/rsp2k/nautobot-app-dns-models@v2.2.1",
+    # The bitemporal fork adds BitemporalMixin (entry_id +
+    # recorded_during/valid_during) which the promoter's amend detection
+    # relies on — upstream 2.1.1 doesn't have it. Consumers install the
+    # fork wheel out-of-band (git-URL install into their own image, private
+    # registry, etc.); this dep line just declares the version requirement
+    # so pip's resolver is satisfied against whatever the environment has.
+    #
+    # A previous revision here pinned the git URL directly
+    # (`... @ git+https://.../@v2.2.1`) which broke offline/vendored image
+    # builds because pip's direct-URL semantics refuse pre-installed
+    # wheels of the same version. See agent-thread
+    # ~/bingham/nautobot/docs/agent-threads/scanner-phase-m-deploy/002
+    # for the specific failure mode.
+    "nautobot-dns-models-bitemporal>=2.2.1,<3",
 ]
 
 [project.optional-dependencies]
@@ -60,10 +69,10 @@ dev = [
 ]
 
 [tool.hatch.metadata]
-# The nautobot-dns-models-bitemporal fork is pinned via git URL (see the
-# dependencies block above for the pin rationale). Hatchling refuses direct
-# references by default as a PyPI-hygiene guard; enabling this is required
-# for the wheel build. Downstream consumers pin their own copy the same way.
+# Kept enabled in case any future dev-only dependency needs a direct
+# reference. The main runtime dep (nautobot-dns-models-bitemporal) is
+# now a plain version spec, so this is no longer load-bearing —
+# offline/vendored builds no longer break on git-URL semantics.
 allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
