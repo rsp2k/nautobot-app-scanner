@@ -1,7 +1,7 @@
 # Phase M — httpx + snmp-recon: reconciliation-driven device fingerprinting
 
-**Status:** M.0 landed (2026-07-16), M.1 landed (2026-07-16),
-M.2 + M.3 pending. Feature branch: `feat/httpx-snmp-fingerprint`.
+**Status:** M.0 + M.1 + M.2 landed (2026-07-16), M.3 + M.2.5 pending.
+Feature branch: `feat/httpx-snmp-fingerprint`.
 
 **Shipped-state check performed 2026-07-16** revealed that the httpx
 tool integration originally sketched in this doc's Phase M.0 section
@@ -375,26 +375,64 @@ sibling management command's restricted targeting (undocumented set
 only) and the profile description's loud `*** CREDENTIAL ATTEMPT ***`
 prefix carry the guardrail.
 
-### M.2 — fusion + auto-promote (pending)
+### M.2 — landed 2026-07-16 (lean cut)
 
 ```
-src/nautobot_scanner/fingerprint.py                          +~250 lines (fusion + Identification)
+src/nautobot_scanner/fingerprint.py                          +~400 lines (VENDOR_PATTERNS + Identification + fuse_signals)
 src/nautobot_scanner/management/commands/auto_promote_identified.py   new, ~250 lines
-src/nautobot_scanner/tests/test_fusion.py                    new, ~200 lines
-docs/user/scan_profiles.md                                   ~30 lines
-docs/dev/architecture.md                                     ~50 lines (ADR-017)
+src/nautobot_scanner/tests/test_fingerprint.py               +~200 lines (11 new fusion tests)
 ```
 
-M.2 estimate: ~800 LOC.
+M.2 actual: ~850 LOC, 11 new tests (26/26 pass overall). No new
+migration, no Dockerfile change.
+
+**Scope decision (M.2 lean cut):** the shipped M.2 promotes identified
+hosts into `ipam.IPAddress` records with fusion metadata in the
+description. Full `dcim.Device` auto-creation is **deferred to M.2.5**
+because it requires Location + DeviceType inputs that the fingerprint
+pipeline can't invent — the operator supplies those, then M.2.5 wires
+them into the auto-promote flow. In the meantime, the preview surface
+(`auto_promote_identified --dry-run`) is the primary M.2 value:
+operators see the fusion output, review confidence scores, and
+manually promote via the existing UI flow.
+
+**M.2 signal weights actually shipped** (favicon deferred — the current
+`http-probe-rich` profile doesn't enable `-favicon`):
+
+| Signal | Weight | Source |
+|---|---|---|
+| SNMP sysObjectID matches vendor OID prefix | 3 | snmp-recon-deep |
+| httpx TLS cert `subject_cn` matches vendor pattern | 3 | http-probe-rich (upgraded from 2 — cert is cryptographically bound) |
+| httpx `webserver` header matches vendor | 2 | http-probe-rich |
+| httpx `title` matches vendor login-page pattern | 2 | http-probe-rich |
+| MAC OUI resolves to vendor | 2 | existing `mac_vendor` field |
+| DNS name matches vendor model prefix | 2 | existing `hostname` field |
+| nmap `-sV` product string matches vendor | 1 | existing `os_vendor` field |
+
+MAX_SCORE = 15. Confidence = raw_score / MAX_SCORE.
+
+**7 initial vendors** with patterns: Axis, Uniview, Hikvision, Bosch,
+Vivotek, Cisco, APC. Extension is easy — add a `VENDOR_PATTERNS`
+entry + a test case.
 
 ### Adjusted grand total
 
-M.0 (shipped) + M.1 + M.2 = ~1,900 LOC across 8 new files. Higher
-than the original ~1,300 estimate because that estimate assumed
-httpx tool integration was still to come. Actual delta is +~600 LOC
-of test coverage — the Phase L+1a shipped code didn't have
-fingerprint-specific tests, so the M.0 test module carries what
-would have been split across two modules in the original plan.
+M.0 + M.1 + M.2 shipped as of 2026-07-16:
+- M.0: ~570 LOC (fingerprint.py target resolver + http_fingerprint
+  command + 15 tests)
+- M.1: ~680 LOC (SNMP wordlist + vendor OIDs + snmp-recon-deep
+  migration + snmp_recon command + 16 vendor-OID tests)
+- M.2: ~850 LOC (fingerprint.py fusion extension + auto_promote
+  command + 11 fusion tests)
+
+**Total shipped: ~2,100 LOC across 9 new files, 1 migration, 42
+tests all passing.** Higher than the original ~1,300 estimate
+because the M.0 + M.1 discovery revealed httpx + snmp-recon tool
+integration was already shipped — the shipped LOC is almost entirely
+new pipeline logic, not tool wiring, plus the test coverage that
+wasn't in the original plan.
+
+M.2.5 + M.3 remain pending.
 
 ## Verification plan
 
@@ -454,14 +492,17 @@ Even inside "one PR bundle," ship in a strict order:
    the existing Phase G parser handling. Pentest-mode gating
    deferred (see M.1 Files touched section for the schema-refactor
    note).
-3. **Phase M.2** — fusion module + `Identification` dataclass +
+3. **Phase M.2** — **landed 2026-07-16.** Fusion module +
+   `Identification` dataclass + `SignalHit` audit-trail + 7-signal
+   weighted scorer + `VENDOR_PATTERNS` for 7 vendors +
    `auto_promote_identified` management command with default
-   confidence threshold `0.7`. Operator reviews every promote at
-   first. Includes a **one-shot Axis-rows cleanup** step: the two
-   MAC-named auto-generated Axis Devices on netmon-2
-   (`00:40:8c:9f:d7:a4` and `ac:cc:8e:4c:1b:be`, created 2026-07-05)
-   get renamed/re-roled based on their fingerprint output. See
-   Resolved Decisions §3.
+   confidence threshold `0.7`. Preview surface shows above-threshold
+   candidates AND a sub-threshold peek so operators can see where
+   fusion is landing. `--confirm` creates IPAddress records with
+   fusion metadata in description; Device auto-create deferred to
+   M.2.5 (needs operator-supplied Location + DeviceType). The
+   **one-shot Axis-rows cleanup** on netmon-2 (rename by DNS,
+   re-role to Camera) also moves to M.2.5 with the Device flow.
 4. **Phase M.3** — retune the confidence threshold once operator
    trust is established (possibly per-vendor). Add the "SNMP-probe
    undocumented" and "HTTP-fingerprint undocumented" action buttons

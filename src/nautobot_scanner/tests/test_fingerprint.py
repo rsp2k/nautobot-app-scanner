@@ -42,7 +42,14 @@ from nautobot_scanner.choices import (
     SeverityChoices,
     TimingTemplateChoices,
 )
-from nautobot_scanner.fingerprint import resolve_undocumented_targets
+from nautobot_scanner.fingerprint import (
+    Identification,
+    MAX_SCORE,
+    SIGNAL_WEIGHTS,
+    VENDOR_PATTERNS,
+    fuse_signals,
+    resolve_undocumented_targets,
+)
 from nautobot_scanner.models import (
     DiscoveredHost,
     NseFinding,
@@ -288,3 +295,201 @@ class TestDeterminism(FingerprintTestBase):
         result = resolve_undocumented_targets()
         self.assertIsInstance(result, list)
         self.assertTrue(all(isinstance(x, str) for x in result))
+
+
+# =====================================================================
+# M.2 — fuse_signals() tests
+# =====================================================================
+
+
+class FusionTestBase(FingerprintTestBase):
+    """Shared helpers for fusion tests — build NseFinding attachments quickly."""
+
+    def _attach_httpx(self, host, *, webserver="", title="", tls_subject=""):
+        """Create an httpx NseFinding on the host with the given elements."""
+        elements = {}
+        if webserver:
+            elements["webserver"] = webserver
+        if title:
+            elements["title"] = title
+        if tls_subject:
+            elements["tls"] = {"subject_cn": tls_subject}
+        return NseFinding.objects.create(
+            discovered_host=host,
+            nse_script="httpx",
+            severity=SeverityChoices.INFO,
+            output=f"httpx: {host.ip_address}",
+            elements=elements,
+        )
+
+    def _attach_snmp_info(self, host, *, sysobjectid):
+        """Create an snmp-info NseFinding with a sysObjectID line in the output."""
+        return NseFinding.objects.create(
+            discovered_host=host,
+            nse_script="snmp-info",
+            severity=SeverityChoices.INFO,
+            output=(
+                f"SNMPv2-MIB::sysObjectID.0 = OID: .{sysobjectid}\n"
+                f"SNMPv2-MIB::sysDescr.0 = STRING: Test device"
+            ),
+        )
+
+
+class TestFuseSignalsBasics(FusionTestBase):
+    """No-signal edge cases + return-type sanity."""
+
+    def test_no_signals_returns_empty_identification(self):
+        """A DH with no findings and no MAC/hostname → empty ident, confidence 0.0."""
+        host = self._make_host("10.0.0.1")
+        ident = fuse_signals(host)
+        self.assertIsInstance(ident, Identification)
+        self.assertEqual(ident.vendor, "")
+        self.assertEqual(ident.confidence, 0.0)
+        self.assertEqual(ident.raw_score, 0)
+        self.assertEqual(ident.signals, [])
+        self.assertFalse(ident.has_identification)
+        self.assertIsNone(ident.proposed_role)
+
+    def test_denormalized_fields_populated(self):
+        """discovered_host_id and ip_address are always populated."""
+        host = self._make_host("10.0.0.42")
+        ident = fuse_signals(host)
+        self.assertEqual(ident.discovered_host_id, str(host.pk))
+        self.assertEqual(ident.ip_address, "10.0.0.42")
+
+
+class TestFuseSignalsSingleSignal(FusionTestBase):
+    """Single signal fires — vendor identified, confidence proportional."""
+
+    def test_snmp_only_cisco(self):
+        """Cisco sysObjectID alone → Cisco identification at 3/15 confidence."""
+        host = self._make_host("10.0.0.1")
+        self._attach_snmp_info(host, sysobjectid="1.3.6.1.4.1.9.1.1745")  # Catalyst
+        ident = fuse_signals(host)
+        self.assertEqual(ident.vendor, "Cisco")
+        self.assertEqual(ident.device_type_hint, "network-equipment")
+        self.assertEqual(ident.raw_score, SIGNAL_WEIGHTS["snmp_sysobjectid"])
+        self.assertEqual(ident.confidence, round(3 / MAX_SCORE, 3))
+        self.assertEqual(ident.proposed_role, "Network Equipment")
+        self.assertEqual(len(ident.signals), 1)
+        self.assertEqual(ident.signals[0].signal, "snmp_sysobjectid")
+
+    def test_httpx_webserver_only_axis(self):
+        """Axis Server header alone → Axis identification at 2/15 confidence."""
+        host = self._make_host("10.0.0.1")
+        self._attach_httpx(host, webserver="AXIS Communications AB")
+        ident = fuse_signals(host)
+        self.assertEqual(ident.vendor, "Axis")
+        self.assertEqual(ident.device_type_hint, "camera")
+        self.assertEqual(ident.proposed_role, "Camera")
+        self.assertEqual(ident.raw_score, SIGNAL_WEIGHTS["httpx_webserver"])
+
+    def test_dns_only_uniview(self):
+        """Uniview DNS prefix alone → Uniview identification at 2/15 confidence."""
+        host = self._make_host("10.1.3.6", hostname="qnv-c8011r-e43022bf7ee6.example.local")
+        ident = fuse_signals(host)
+        self.assertEqual(ident.vendor, "Uniview")
+        self.assertEqual(ident.proposed_role, "Camera")
+        self.assertEqual(ident.raw_score, SIGNAL_WEIGHTS["dns_hostname"])
+        self.assertEqual(len(ident.signals), 1)
+        self.assertEqual(ident.signals[0].signal, "dns_hostname")
+
+
+class TestFuseSignalsMultipleSignals(FusionTestBase):
+    """Multiple signals — strongest confidence, correct aggregation."""
+
+    def test_camera_fires_all_signals(self):
+        """A well-fingerprinted Uniview camera → high confidence, all signals sum."""
+        host = DiscoveredHost.objects.create(
+            scan=self.scan,
+            ip_address="10.1.3.6",
+            host_state=HostStateChoices.UP,
+            hostname="qnv-c8011r-e43022bf7ee6.example.local",
+            mac_address="E4:30:22:BF:7E:E6",
+            mac_vendor="Uniview Technologies",
+            os_vendor="Uniview",
+        )
+        self._attach_snmp_info(host, sysobjectid="1.3.6.1.4.1.31460.1.20.7")
+        self._attach_httpx(
+            host,
+            webserver="Uniview-Web/1.0",
+            title="Uniview NVR Login",
+            tls_subject="CN=Uniview NVR",
+        )
+        ident = fuse_signals(host)
+
+        self.assertEqual(ident.vendor, "Uniview")
+        self.assertEqual(ident.device_type_hint, "camera")
+        self.assertEqual(ident.proposed_role, "Camera")
+        # 6 signals should fire: SNMP (3) + webserver (2) + title (2) + tls (3) + mac (2) + dns (2) + sv (1) = 15
+        self.assertEqual(ident.raw_score, MAX_SCORE)
+        self.assertEqual(ident.confidence, 1.0)
+        # Signals sorted by weight descending
+        weights_seen = [s.weight for s in ident.signals]
+        self.assertEqual(weights_seen, sorted(weights_seen, reverse=True))
+
+    def test_conflicting_vendors_higher_score_wins(self):
+        """One weak Cisco signal vs three strong Axis signals — Axis wins."""
+        host = self._make_host("10.0.0.1")
+        # Cisco: one signal, weight 1 (weakest — nmap_sv_product)
+        host.os_vendor = "Cisco"
+        host.save(update_fields=["os_vendor"])
+        # Axis: SNMP OID + webserver + tls_subject = 3+2+3 = 8
+        self._attach_snmp_info(host, sysobjectid="1.3.6.1.4.1.368.1.1.6.2.1")
+        self._attach_httpx(host, webserver="AXIS Q3505-VE", tls_subject="CN=axis-b8a44f00abcd")
+
+        ident = fuse_signals(host)
+        self.assertEqual(ident.vendor, "Axis")
+        self.assertGreater(ident.raw_score, SIGNAL_WEIGHTS["nmap_sv_product"])
+        # The winning vendor's signals only — no Cisco signal in the list
+        for s in ident.signals:
+            self.assertEqual(s.vendor, "Axis")
+
+    def test_snmp_hint_overrides_role_fallback(self):
+        """When SNMP fires, its device_type_hint drives the identification.
+
+        A Cisco AP (wireless-ap hint via 14179 OID) shouldn't fall back to
+        the VENDOR_TO_ROLE 'Network Equipment' generic.
+        """
+        host = self._make_host("10.0.0.1")
+        self._attach_snmp_info(host, sysobjectid="1.3.6.1.4.1.14179.2.1.4.0")
+        ident = fuse_signals(host)
+        self.assertEqual(ident.vendor, "Cisco WLC")
+        self.assertEqual(ident.device_type_hint, "wireless-ap")
+
+
+class TestFuseSignalsAuditTrail(FusionTestBase):
+    """SignalHit records the evidence — reviewer can trace WHY a vendor won."""
+
+    def test_signals_contain_evidence(self):
+        """Each SignalHit's evidence field is a non-empty string."""
+        host = self._make_host("10.0.0.1")
+        self._attach_httpx(host, title="Uniview NVR Login")
+        ident = fuse_signals(host)
+        self.assertGreater(len(ident.signals), 0)
+        for s in ident.signals:
+            self.assertIsInstance(s.evidence, str)
+            self.assertGreater(len(s.evidence), 0)
+
+
+class TestFuseSignalsPatternIntegrity(FusionTestBase):
+    """Structural checks on the VENDOR_PATTERNS table."""
+
+    def test_all_vendors_have_role_mapping(self):
+        """Every vendor in VENDOR_PATTERNS gets a Role — or None is documented."""
+        from nautobot_scanner.fingerprint import VENDOR_TO_ROLE
+        for vendor in VENDOR_PATTERNS:
+            # None is allowed (means "surface for operator review") but
+            # every current vendor in the table is expected to have a role.
+            self.assertIn(vendor, VENDOR_TO_ROLE,
+                          f"Vendor {vendor!r} has patterns but no VENDOR_TO_ROLE entry")
+
+    def test_all_pattern_lists_are_regex(self):
+        """Every pattern is a compiled regex, not a raw string."""
+        import re
+        for vendor, cats in VENDOR_PATTERNS.items():
+            for cat, patterns in cats.items():
+                self.assertIsInstance(patterns, list)
+                for p in patterns:
+                    self.assertIsInstance(p, re.Pattern,
+                                          f"{vendor}.{cat} has non-regex entry: {p!r}")
