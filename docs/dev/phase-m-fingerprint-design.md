@@ -1,7 +1,7 @@
 # Phase M — httpx + snmp-recon: reconciliation-driven device fingerprinting
 
-**Status:** M.0 + M.1 + M.2 + M.2.5 landed (2026-07-16), M.3 pending.
-Feature branch: `feat/httpx-snmp-fingerprint`.
+**Status:** All Phase M sub-phases landed (2026-07-16). Feature branch:
+`feat/httpx-snmp-fingerprint`.
 
 **Shipped-state check performed 2026-07-16** revealed that the httpx
 tool integration originally sketched in this doc's Phase M.0 section
@@ -479,7 +479,50 @@ be matched by MAC via `match_existing_device()`. When operator runs
 they'll be renamed to their DNS hostname (once httpx probes them)
 and re-roled to Camera. No duplicate Devices created.
 
-M.3 remains pending.
+### M.3 — landed 2026-07-16 (per-vendor thresholds + UI action buttons)
+
+```
+src/nautobot_scanner/fingerprint.py                          +~55 lines (VENDOR_CONFIDENCE_OVERRIDES + effective_confidence_threshold)
+src/nautobot_scanner/management/commands/auto_promote_identified.py   +~10 lines (per-vendor wire-up)
+src/nautobot_scanner/views_fingerprint_dispatch.py           new, ~185 lines (two POST-only views)
+src/nautobot_scanner/urls.py                                 +~15 lines (two new routes)
+src/nautobot_scanner/templates/nautobot_scanner/reconciliation.html   +~25 lines (three action buttons)
+src/nautobot_scanner/tests/test_fingerprint.py               +~130 lines (9 new tests)
+```
+
+M.3 actual: ~420 LOC. 45/45 fingerprint tests pass.
+
+**VENDOR_CONFIDENCE_OVERRIDES** — starting values based on fingerprint
+signal quality per vendor. Tune once real-world false-positive data
+lands from netmon-2 dry-runs:
+
+| Vendor | Threshold | Reasoning |
+|---|---|---|
+| Axis | 0.45 | Distinctive Server / TLS / title patterns |
+| Uniview | 0.50 | Uniview-branded fingerprints (plus DNS pattern) |
+| Hikvision | 0.50 | GoAhead-Webs Server + DNS pattern |
+| Bosch | 0.55 | Vendor-branded fingerprints, less common |
+| Vivotek | 0.55 | Similar to Bosch — less-common vendor |
+| APC | 0.60 | Schneider-branded, but UPSes also spam-ARP |
+| Cisco / Cisco WLC | 0.70 | Broad-vendor category — needs corroboration |
+| Dell | 0.75 | Weaker Server-header patterns |
+| HP | 0.80 | Very generic; needs multiple signals |
+
+**Reconciliation-report action buttons** — three submits on one form:
+
+- **Bulk promote selected** (default action, preserved) → existing
+  `DiscoveredHostBulkPromoteView`.
+- **HTTP fingerprint selected** → `DiscoveredHostFingerprintHttpxView`
+  dispatches `http-probe-rich`. No credential attempts.
+- **SNMP recon selected** (loud yellow warning styling) →
+  `DiscoveredHostFingerprintSnmpView` dispatches `snmp-recon-deep`.
+  Credential attempt via default communities.
+
+HTML uses `<button formaction="...">` to route the same form
+submission to different URL endpoints. One selection → three
+possible actions. No JS required.
+
+All Phase M sub-phases now landed.
 
 ## Verification plan
 
@@ -550,10 +593,13 @@ Even inside "one PR bundle," ship in a strict order:
    M.2.5 (needs operator-supplied Location + DeviceType). The
    **one-shot Axis-rows cleanup** on netmon-2 (rename by DNS,
    re-role to Camera) also moves to M.2.5 with the Device flow.
-4. **Phase M.3** — retune the confidence threshold once operator
-   trust is established (possibly per-vendor). Add the "SNMP-probe
-   undocumented" and "HTTP-fingerprint undocumented" action buttons
-   to the reconciliation report UI.
+4. **Phase M.3** — **landed 2026-07-16.** Per-vendor confidence
+   overrides (`VENDOR_CONFIDENCE_OVERRIDES` dict), reconciliation-
+   report action buttons for HTTP fingerprint + SNMP recon dispatch
+   (via `formaction` overrides on one form). Auto-promote command
+   consults per-vendor threshold — Axis at 0.45, Cisco at 0.70, etc.
+   Preserves back-compat: default submit is Bulk Promote so operators
+   with muscle memory keep working the same way.
 
 Each phase is independently shippable. Any halt in a middle phase
 leaves the operator with the earlier phases' value intact.

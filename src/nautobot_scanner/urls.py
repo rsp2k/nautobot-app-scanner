@@ -9,6 +9,7 @@ from nautobot.apps.urls import NautobotUIViewSetRouter
 
 from nautobot_scanner import views
 from nautobot_scanner import views_bulk_promote
+from nautobot_scanner import views_fingerprint_dispatch
 from nautobot_scanner import views_reconciliation
 from nautobot_scanner import views_scan_tab
 
@@ -76,6 +77,19 @@ urlpatterns = [
         "discovered-hosts/bulk-promote/",
         views_bulk_promote.DiscoveredHostBulkPromoteView.as_view(),
         name="discoveredhost_bulk_promote",
+    ),
+    # Phase M.3: dispatch fingerprint probes against selected DHs.
+    # Reconciliation report's action buttons POST here via formaction
+    # overrides so one row selection can drive three actions.
+    path(
+        "discovered-hosts/fingerprint-httpx/",
+        views_fingerprint_dispatch.DiscoveredHostFingerprintHttpxView.as_view(),
+        name="discoveredhost_fingerprint_httpx",
+    ),
+    path(
+        "discovered-hosts/fingerprint-snmp/",
+        views_fingerprint_dispatch.DiscoveredHostFingerprintSnmpView.as_view(),
+        name="discoveredhost_fingerprint_snmp",
     ),
     # Per-Scan reconciliation view — same engine, scoped to one scan.
     # Linked from the standalone report + optionally surfaced on the

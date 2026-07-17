@@ -213,6 +213,58 @@ VENDOR_PATTERNS: dict[str, dict[str, list[re.Pattern]]] = {
 }
 
 
+# M.3: Per-vendor confidence overrides.
+#
+# Different vendors have different fingerprint quality. Axis exposes
+# distinctive Server headers, TLS cert subjects, and web-page titles
+# — a single strong signal is usually correct. GoAhead-Webs is a
+# shared embedded server used by many white-label camera vendors, so
+# a webserver=GoAhead-Webs signal alone is weak and should require a
+# corroborating SNMP OID or MAC match before auto-promote.
+#
+# The auto_promote_identified command consults this dict per
+# identification: if the vendor has an override, that number replaces
+# the CLI --confidence value for that host only. Missing entries fall
+# through to the CLI default.
+#
+# Tune these once you have real-world false-positive/false-negative
+# data from netmon-2 dry-runs.
+VENDOR_CONFIDENCE_OVERRIDES: dict[str, float] = {
+    # Strong fingerprints (single signal often decisive)
+    "Axis":      0.45,
+    "Uniview":   0.50,
+    "Hikvision": 0.50,
+    "Bosch":     0.55,
+    "Vivotek":   0.55,
+    # Broad-vendor identifications — Cisco covers switches, routers,
+    # phones, APs. Require more corroboration before auto-promote.
+    "Cisco":     0.70,
+    "Cisco WLC": 0.70,
+    # Server/UPS/printer categories can have weaker fingerprints
+    "APC":       0.60,
+    "Dell":      0.75,
+    "HP":        0.80,
+}
+
+
+def effective_confidence_threshold(vendor: str, default: float) -> float:
+    """Return the confidence threshold applicable to a specific vendor.
+
+    Per-vendor overrides take precedence over the operator's default
+    when a match exists. This lets us auto-promote Axis at 0.45
+    (distinctive fingerprints, low false-positive risk) while still
+    requiring 0.7+ for generic-Cisco identifications.
+
+    Args:
+        vendor: Vendor name from an Identification.
+        default: Fallback threshold — typically the --confidence CLI value.
+
+    Returns:
+        The threshold to apply for this specific vendor.
+    """
+    return VENDOR_CONFIDENCE_OVERRIDES.get(vendor, default)
+
+
 # Vendor → proposed Nautobot role name. The role must already exist
 # in the target Nautobot instance for the auto-promote to succeed;
 # if it doesn't, the identification is still surfaced but the

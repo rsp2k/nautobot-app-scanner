@@ -159,6 +159,8 @@ class Command(BaseCommand):
         from nautobot.ipam.models import IPAddress, Namespace
         from nautobot_scanner.fingerprint import (
             MAX_SCORE,
+            VENDOR_CONFIDENCE_OVERRIDES,
+            effective_confidence_threshold,
             fuse_all_undocumented,
             match_existing_device,
             resolve_or_create_device_type,
@@ -227,17 +229,33 @@ class Command(BaseCommand):
         # Sort: high confidence first, then by IP for reproducibility.
         idents.sort(key=lambda i: (-i.confidence, i.ip_address))
 
-        # Split into above-threshold (candidates for --confirm) and below.
-        above = [i for i in idents if i.confidence >= confidence_threshold]
-        below = [i for i in idents if i.confidence < confidence_threshold]
+        # M.3: Split above/below using PER-VENDOR effective threshold.
+        # An Axis identification at 0.5 clears the 0.45 Axis threshold
+        # even when the CLI --confidence is 0.7; a generic-Cisco
+        # identification at 0.65 falls below the 0.7 Cisco threshold
+        # even when --confidence is 0.6.
+        above = [
+            i for i in idents
+            if i.confidence >= effective_confidence_threshold(i.vendor, confidence_threshold)
+        ]
+        below = [
+            i for i in idents
+            if i.confidence < effective_confidence_threshold(i.vendor, confidence_threshold)
+        ]
 
         if limit is not None:
             above = above[:limit]
 
         self.stdout.write(
             f"Fusion window: {len(idents)} identifications considered"
-            f" ({len(above)} at/above {confidence_threshold}, {len(below)} below)"
+            f" ({len(above)} above per-vendor threshold, {len(below)} below)"
         )
+        self.stdout.write(f"Default threshold: {confidence_threshold}")
+        if VENDOR_CONFIDENCE_OVERRIDES:
+            overrides_str = ", ".join(
+                f"{v}={t}" for v, t in sorted(VENDOR_CONFIDENCE_OVERRIDES.items())
+            )
+            self.stdout.write(f"Per-vendor overrides: {overrides_str}")
         self.stdout.write(f"Vendor filter:  {vendor_filter or '(none)'}")
         self.stdout.write(f"Namespace:      {namespace.name}")
         self.stdout.write(f"Status:         {status.name}")

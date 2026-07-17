@@ -46,7 +46,9 @@ from nautobot_scanner.fingerprint import (
     Identification,
     MAX_SCORE,
     SIGNAL_WEIGHTS,
+    VENDOR_CONFIDENCE_OVERRIDES,
     VENDOR_PATTERNS,
+    effective_confidence_threshold,
     fuse_signals,
     match_existing_device,
     resolve_or_create_device_type,
@@ -620,3 +622,159 @@ class TestMatchExistingDevice(FingerprintTestBase):
         # host.mac_address defaults to empty
         result = match_existing_device(host)
         self.assertIsNone(result)
+
+
+# =====================================================================
+# M.3 — per-vendor confidence override tests
+# =====================================================================
+
+
+class TestPerVendorConfidence(FingerprintTestBase):
+    """effective_confidence_threshold() honors per-vendor overrides."""
+
+    def test_vendor_with_override_uses_override(self):
+        """Axis identification uses its 0.45 override, not the CLI default."""
+        result = effective_confidence_threshold("Axis", default=0.9)
+        self.assertEqual(result, VENDOR_CONFIDENCE_OVERRIDES["Axis"])
+        self.assertLess(result, 0.9)  # override is lower than default
+
+    def test_vendor_without_override_falls_through(self):
+        """Unknown vendor gets the CLI default."""
+        result = effective_confidence_threshold("Unmapped Vendor XYZ", default=0.7)
+        self.assertEqual(result, 0.7)
+
+    def test_cisco_higher_than_axis(self):
+        """Cisco requires MORE corroboration than Axis (broader vendor → weaker single-signal)."""
+        cisco = effective_confidence_threshold("Cisco", default=0.5)
+        axis = effective_confidence_threshold("Axis", default=0.5)
+        self.assertGreater(cisco, axis)
+
+    def test_empty_vendor_falls_through_to_default(self):
+        """Empty-string vendor (no identification) gets the default."""
+        result = effective_confidence_threshold("", default=0.65)
+        self.assertEqual(result, 0.65)
+
+
+# =====================================================================
+# M.3 — dispatch view tests
+# =====================================================================
+
+
+class TestFingerprintDispatchViews(TestCase):
+    """POST-only views that dispatch httpx / snmp-recon-deep from the reconciliation UI."""
+
+    @classmethod
+    def setUpTestData(cls):
+        from django.contrib.auth import get_user_model
+        active = Status.objects.get(name="Active")
+        cls.active = active
+
+        cls.agent = ScannerAgent.objects.create(
+            name="m3-dispatch-test",
+            agent_type=AgentTypeChoices.LOCAL,
+            status=active,
+        )
+        # Seed the profiles the views expect. In prod they come from
+        # migrations 0022 (httpx) and 0025 (snmp-recon-deep); tests
+        # create matching-name profiles so `get(name=…)` succeeds.
+        cls.httpx_profile = ScanProfile.objects.get_or_create(
+            name="http-probe-rich",
+            defaults={
+                "scan_type": ScanTypeChoices.VERSION,
+                "tool": "httpx",
+                "nmap_arguments": "",
+                "tool_arguments": "-status-code -title",
+                "timing_template": TimingTemplateChoices.T3,
+            },
+        )[0]
+        cls.snmp_profile = ScanProfile.objects.get_or_create(
+            name="snmp-recon-deep",
+            defaults={
+                "scan_type": ScanTypeChoices.VERSION,
+                "tool": "nmap",
+                "nmap_arguments": (
+                    "-sU -p 161 --script snmp-info,snmp-sysdescr,snmp-brute "
+                    "--script-args snmpcommunity.wordlist=/etc/scanner/snmp-defaults.txt"
+                ),
+                "timing_template": TimingTemplateChoices.T4,
+                "enabled_scripts": ["snmp-info", "snmp-sysdescr", "snmp-brute"],
+            },
+        )[0]
+        scan = Scan.objects.create(
+            agent=cls.agent, profile=cls.httpx_profile, completed_at=timezone.now(),
+        )
+        cls.host_a = DiscoveredHost.objects.create(
+            scan=scan, ip_address="10.100.1.1",
+            host_state=HostStateChoices.UP, hostname="host-a",
+        )
+        cls.host_b = DiscoveredHost.objects.create(
+            scan=scan, ip_address="10.100.1.2",
+            host_state=HostStateChoices.UP, hostname="host-b",
+        )
+
+        # Test user + permission.
+        User = get_user_model()
+        cls.user = User.objects.create_user(username="m3-dispatch-user")
+        cls.user.is_superuser = True  # sidesteps ObjectPermission complexity
+        cls.user.save()
+
+    def setUp(self):
+        from django.test import Client
+        self.client = Client()
+        self.client.force_login(self.user)
+
+    def test_httpx_get_returns_405(self):
+        """GET on the httpx dispatch view is not allowed."""
+        from django.urls import reverse
+        with self.settings(ALLOWED_HOSTS=["*"]):
+            resp = self.client.get(reverse("plugins:nautobot_scanner:discoveredhost_fingerprint_httpx"))
+        self.assertEqual(resp.status_code, 405)
+
+    def test_snmp_get_returns_405(self):
+        """GET on the snmp dispatch view is not allowed."""
+        from django.urls import reverse
+        with self.settings(ALLOWED_HOSTS=["*"]):
+            resp = self.client.get(reverse("plugins:nautobot_scanner:discoveredhost_fingerprint_snmp"))
+        self.assertEqual(resp.status_code, 405)
+
+    def test_empty_selection_redirects_with_warning(self):
+        """POST with no discovered_host_id → redirect to reconciliation with warning."""
+        from django.urls import reverse
+        url = reverse("plugins:nautobot_scanner:discoveredhost_fingerprint_httpx")
+        with self.settings(ALLOWED_HOSTS=["*"]):
+            resp = self.client.post(url, {})
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn("/reconciliation/", resp["Location"])
+        # No Scan should have been created.
+        # (Only the setup-fixture Scan should exist.)
+        self.assertEqual(Scan.objects.count(), 1)
+
+    def test_httpx_dispatch_creates_scan_with_selected_ips(self):
+        """Valid POST creates a Scan against the selected IPs."""
+        from django.urls import reverse
+        url = reverse("plugins:nautobot_scanner:discoveredhost_fingerprint_httpx")
+        with self.settings(ALLOWED_HOSTS=["*"]):
+            resp = self.client.post(url, {
+                "discovered_host_id": [str(self.host_a.pk), str(self.host_b.pk)],
+            })
+        # 302 to the resulting Scan detail.
+        self.assertEqual(resp.status_code, 302)
+
+        # One new Scan against http-probe-rich with two target IPs.
+        new_scans = Scan.objects.filter(profile=self.httpx_profile).exclude(pk=self.host_a.scan_id)
+        self.assertEqual(new_scans.count(), 1)
+        scan = new_scans.first()
+        self.assertEqual(sorted(scan.target_raw_ips), ["10.100.1.1", "10.100.1.2"])
+
+    def test_snmp_dispatch_creates_scan(self):
+        """SNMP dispatch creates a Scan with the snmp-recon-deep profile."""
+        from django.urls import reverse
+        url = reverse("plugins:nautobot_scanner:discoveredhost_fingerprint_snmp")
+        with self.settings(ALLOWED_HOSTS=["*"]):
+            resp = self.client.post(url, {
+                "discovered_host_id": [str(self.host_a.pk)],
+            })
+        self.assertEqual(resp.status_code, 302)
+        new_scans = Scan.objects.filter(profile=self.snmp_profile)
+        self.assertEqual(new_scans.count(), 1)
+        self.assertEqual(new_scans.first().target_raw_ips, ["10.100.1.1"])
