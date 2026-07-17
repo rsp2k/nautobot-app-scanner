@@ -1,7 +1,25 @@
 # Phase M — httpx + snmp-recon: reconciliation-driven device fingerprinting
 
-**Status:** design proposal, pre-implementation. Feature branch:
-`feat/httpx-snmp-fingerprint`.
+**Status:** M.0 landed (2026-07-16), M.1 + M.2 + M.3 pending.
+Feature branch: `feat/httpx-snmp-fingerprint`.
+
+**Shipped-state check performed 2026-07-16** revealed that the httpx
+tool integration originally sketched in this doc's Phase M.0 section
+was **already shipped as Phase L+1a**:
+
+- `ToolChoices.HTTPX = "httpx"` present since choices.py rev at Phase L+1a
+- `parse_httpx_jsonl` implemented at `parser.py:1156`, wired into
+  `PARSERS` dict
+- `build_httpx_argv` implemented at `agent/agent.py:450`
+- Dockerfile installs httpx binary from GitHub Releases (lines 34-39)
+- Migration `0022_seed_phase_lp1a_httpx_profile.py` seeds the
+  `http-probe-rich` scan profile
+
+M.0 as actually shipped was a much narrower two-file addition on top:
+the reconciliation-driven target resolver and the management command
+that dispatches the existing `http-probe-rich` profile against the
+undocumented set. See §Files touched below for what actually landed
+in the branch.
 
 ## Context
 
@@ -81,16 +99,24 @@ Per [ADR-013 pluggable parser dispatch](architecture.md#adr-013-pluggable-parser
 each new tool is a five-piece change plus a seed migration plus docs.
 Same shape both tools follow.
 
-### httpx (Tier C, ProjectDiscovery suite)
+### httpx (Tier C, ProjectDiscovery suite) — **ALREADY SHIPPED as Phase L+1a**
 
-| Piece | Path | Content |
+The five-piece ADR-013 integration for httpx landed before this
+design brief was written. What's in the codebase today:
+
+| Piece | Path | Actual state |
 |---|---|---|
-| Enum | `src/nautobot_scanner/choices.py` — `ToolChoices` | Add `HTTPX = "httpx"` |
-| Argv builder | `agent/agent.py` — `TOOL_REGISTRY` | `build_httpx_argv(scan)`: `httpx -json -tech-detect -favicon -tls-probe -follow-redirects -status-code -title -web-server -content-length -content-type -location -target <ip>[,<ip>...]` |
-| Parser | `src/nautobot_scanner/parser.py` — `PARSERS` | `parse_httpx_json(raw, targets)` → `(ParsedReport, list[ParsedHost])`. Emits one host-scope `NseFinding` per target with structured `elements` dict |
-| Image | `agent/Dockerfile` | Pre-built binary from `github.com/projectdiscovery/httpx/releases/latest`, COPY'd in with a `# httpx v1.6.x — bump manually` comment above the URL. Smaller image (no Go toolchain), reproducible version-pin. See Resolved Decisions §1. |
-| Profile | `src/nautobot_scanner/migrations/0025_seed_phase_m_profiles.py` | New profile `http-fingerprint`, `tool="httpx"`, target-shape = `target_raw_ips` list, description references reconciliation-driven dispatch |
-| Docs | `docs/user/scan_profiles.md` + `docs/dev/architecture.md` | ADR-017 postscript, new profile row |
+| Enum | `src/nautobot_scanner/choices.py` — `ToolChoices` | ✅ `HTTPX = "httpx"` present, comment reads "Phase L+1a: httpx (ProjectDiscovery suite, first tool)" |
+| Argv builder | `agent/agent.py:450` — `TOOL_REGISTRY` | ✅ `build_httpx_argv(scan)` implemented, reads targets from stdin (cleaner than CLI), content-type `application/jsonl` |
+| Parser | `src/nautobot_scanner/parser.py:1156` — `PARSERS` | ✅ `parse_httpx_jsonl(raw, targets)` implemented, wired at `PARSERS["httpx"]` |
+| Image | `agent/Dockerfile:34-39` | ✅ Pre-built binary from `github.com/projectdiscovery/httpx/releases/download/v${HTTPX_VERSION}/…` — curl+unzip → `/usr/local/bin/httpx` |
+| Profile | `src/nautobot_scanner/migrations/0022_seed_phase_lp1a_httpx_profile.py` | ✅ Seeds `http-probe-rich` — `tool_arguments="-tls-grab -tech-detect -title -server -web-server -content-length -ip -response-time -status-code -timeout 15"` |
+| Docs | `docs/user/scan_profiles.md` | ✅ Documented as Phase L+1a's http-probe-rich profile |
+
+The `http-probe-rich` profile name is what M.0 dispatches by default
+(the management command's `--profile` flag). No new profile / new
+migration needed for M.0 — the reconciliation-driven dispatch layer
+uses the shipped profile as-is.
 
 Output `elements` shape per target:
 
@@ -302,29 +328,55 @@ lower quality. Higher → conservative.
 
 ## Files touched (summary)
 
+### M.0 — landed 2026-07-16
+
+Only **two new source files** were actually needed once we accounted
+for the Phase L+1a already-shipped state:
+
 ```
-agent/Dockerfile                                           +2 lines (httpx binary + snmp-defaults.txt COPY)
-agent/snmp-defaults.txt                                    new, 25 lines
-agent/agent.py                                             +~60 lines (httpx argv builder + snmp-recon nmap variant)
-src/nautobot_scanner/choices.py                            +1 line (ToolChoices.HTTPX)
-src/nautobot_scanner/parser.py                             +~180 lines (parse_httpx_json + snmp-info NSE handling)
-src/nautobot_scanner/snmp_vendor_oids.py                   new, ~50 lines
-src/nautobot_scanner/fingerprint.py                        new, ~200 lines (target resolver + fusion + Identification)
-src/nautobot_scanner/migrations/0025_seed_phase_m_profiles.py  new, ~80 lines (http-fingerprint + snmp-recon)
-src/nautobot_scanner/management/commands/snmp_recon_undocumented.py    new, ~120 lines
-src/nautobot_scanner/management/commands/http_fingerprint_undocumented.py  new, ~120 lines
-src/nautobot_scanner/management/commands/auto_promote_identified.py    new, ~150 lines
-src/nautobot_scanner/tests/test_fingerprint.py             new, ~200 lines
-src/nautobot_scanner/tests/test_httpx_parser.py            new, ~100 lines
-src/nautobot_scanner/tests/test_snmp_vendor_oids.py        new, ~80 lines
-tests/fixtures/httpx-camera.jsonl                          new (captured from real Uniview + Axis probe)
-tests/fixtures/nmap-snmp-info.xml                          new (captured from real SNMP probe)
-docs/user/scan_profiles.md                                 ~30 lines
-docs/dev/architecture.md                                   ~50 lines (ADR-017)
+src/nautobot_scanner/fingerprint.py                          new,  ~80 lines
+src/nautobot_scanner/management/commands/http_fingerprint_undocumented.py  new, ~200 lines
+src/nautobot_scanner/tests/test_fingerprint.py               new, ~290 lines (15 test cases)
 ```
 
-Total: ~1,300 LOC, 2 fixtures, 1 migration, 3 test modules, 4 doc
-files updated.
+M.0 total: ~570 LOC, no new migration, no Dockerfile change, no
+choices.py touch, no new profiles. 15/15 tests pass in 0.17s.
+
+### M.1 — SNMP recon (pending)
+
+```
+agent/Dockerfile                                             +1 line (snmp-defaults.txt COPY)
+agent/snmp-defaults.txt                                      new,  25 lines
+src/nautobot_scanner/parser.py                               +~80 lines (snmp-info NSE elements handling)
+src/nautobot_scanner/snmp_vendor_oids.py                     new,  ~50 lines
+src/nautobot_scanner/migrations/0025_seed_snmp_recon_profile.py  new, ~50 lines
+src/nautobot_scanner/management/commands/snmp_recon_undocumented.py   new, ~200 lines
+src/nautobot_scanner/tests/test_snmp_vendor_oids.py          new,  ~80 lines
+tests/fixtures/nmap-snmp-info.xml                            new (captured from real SNMP probe)
+```
+
+M.1 estimate: ~500 LOC, 1 migration, 1 test module, 1 fixture.
+
+### M.2 — fusion + auto-promote (pending)
+
+```
+src/nautobot_scanner/fingerprint.py                          +~250 lines (fusion + Identification)
+src/nautobot_scanner/management/commands/auto_promote_identified.py   new, ~250 lines
+src/nautobot_scanner/tests/test_fusion.py                    new, ~200 lines
+docs/user/scan_profiles.md                                   ~30 lines
+docs/dev/architecture.md                                     ~50 lines (ADR-017)
+```
+
+M.2 estimate: ~800 LOC.
+
+### Adjusted grand total
+
+M.0 (shipped) + M.1 + M.2 = ~1,900 LOC across 8 new files. Higher
+than the original ~1,300 estimate because that estimate assumed
+httpx tool integration was still to come. Actual delta is +~600 LOC
+of test coverage — the Phase L+1a shipped code didn't have
+fingerprint-specific tests, so the M.0 test module carries what
+would have been split across two modules in the original plan.
 
 ## Verification plan
 
@@ -367,10 +419,14 @@ files updated.
 
 Even inside "one PR bundle," ship in a strict order:
 
-1. **Phase M.0** — httpx binary + argv + parser + `http-fingerprint`
-   profile. No fusion, no auto-promote. Operator gets structured
-   httpx output on `NseFinding` for the reconciliation-undocumented
-   set. Zero credential-attempt risk.
+1. **Phase M.0** — **landed 2026-07-16.** Reconciliation-driven
+   dispatch layer over the pre-existing (Phase L+1a) httpx tool
+   integration. Two new files: `fingerprint.py` (target resolver) and
+   `http_fingerprint_undocumented` (management command). Operator now
+   gets structured httpx JSONL on `NseFinding` for the
+   reconciliation-undocumented set. Zero credential-attempt risk.
+   Both-null filter enforced; 24h cooldown default; per-prefix scope
+   available via `--prefix`. 15/15 tests pass.
 2. **Phase M.1** — SNMP wordlist + `snmp-recon` profile + vendor OID
    table. Still no fusion, no auto-promote — just the extra signal
    source landing on `NseFinding`. Pentest-mode gated.
