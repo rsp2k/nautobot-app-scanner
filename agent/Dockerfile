@@ -60,6 +60,17 @@ RUN apk add --no-cache libcap masscan hping3 py3-pip git curl unzip \
          setcap cap_net_raw,cap_net_admin,cap_net_bind_service=+eip /usr/sbin/hping3; \
        fi
 
+# Phase M.1: SNMP default-community wordlist. Baked into the image at
+# build time, chmod 444 to make write-attempts fail loudly. Contains
+# ONLY well-known default community strings (public, private, cisco,
+# apc, axis, …). The operator's REAL communities live in extras.Secret
+# and are never templated in here — the isolation is code-level, not
+# policy-level. See docs/dev/phase-m-fingerprint-design.md §Credential
+# isolation for the full architectural rule.
+RUN mkdir -p /etc/scanner
+COPY snmp-defaults.txt /etc/scanner/snmp-defaults.txt
+RUN chmod 444 /etc/scanner/snmp-defaults.txt
+
 WORKDIR /app
 COPY agent.py /app/agent.py
 RUN chmod +x /app/agent.py && chown -R agent:agent /app
